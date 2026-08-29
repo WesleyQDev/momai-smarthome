@@ -1,17 +1,17 @@
 {
   "id": "momaismarthome",
   "name": "MomAI Smart Home",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "kind": "packaged",
   "description": "Integração com Home Assistant e suporte a múltiplos provedores de automação residencial.",
   "icon_bg": "#8b5cf6",
-  "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 9.5L12 2l9 7.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9.5z\"/><path d=\"M6.5 12a7.8 7.8 0 0 1 11 0\"/><path d=\"M9 15a3.6 3.6 0 0 1 6 0\"/><path d=\"M12 18h.01\"/></svg>",
+  "icon": "icon.png",
   "author": "MomAI Team",
   "background": true,
   "backgroundScript": "runtime.ts",
   "permissions": ["network", "storage", "network:persistent"],
   "sdkVersion": 1,
-  "momai_compat": ">=1.9.0",
+  "momai_compat": ">=1.10.0",
   "sidebar": true,
   "ui": {
     "page": "dist/page.js",
@@ -22,11 +22,22 @@
   "eventTypes": {
     "state_changed": {
       "label": "Estado do Dispositivo Alterado",
+      "priority": 100,
       "fields": {
-        "deviceName": { "label": "Dispositivo", "type": "string" },
-        "deviceState": { "label": "Estado", "type": "string" },
-        "deviceRoom": { "label": "Cômodo", "type": "string" },
-        "entityId": { "label": "Entidade", "type": "string" }
+        "entityId": {
+          "label": "Dispositivo / Entidade",
+          "type": "string",
+          "description": "Entidade do Home Assistant que mudou de estado",
+          "x-options-source": { "tool": "getDevices" }
+        },
+        "deviceState": {
+          "label": "Novo Estado Desejado",
+          "type": "string",
+          "description": "Dispara quando o estado for alterado para este valor",
+          "enum": ["on", "off", "open", "closed", "locked", "unlocked", "playing", "paused", "idle"]
+        },
+        "deviceName": { "label": "Nome do Dispositivo", "type": "string" },
+        "deviceRoom": { "label": "Cômodo", "type": "string" }
       }
     },
     "open_overlay": { "label": "Controle Flutuante Aberto" },

@@ -1740,8 +1740,15 @@ export default function SmartHomePage() {
           <div className="sh-auth-card">
             {/* Left Column: Branding & Features */}
             <div className="sh-auth-left">
-              <div className="sh-auth-icon">
-                <SvgSmartHomeLogo size={32} color="#c084fc" />
+              <div className="sh-auth-icon" style={{ overflow: 'hidden', padding: 4 }}>
+                <img
+                  src="/extensions/momaismarthome/icon"
+                  alt="MomAI Smart Home"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none'
+                  }}
+                />
               </div>
               <h2 className="sh-auth-title">Home Assistant</h2>
               <p className="sh-auth-sub">
@@ -1772,7 +1779,7 @@ export default function SmartHomePage() {
             <form onSubmit={handleConnect} className="sh-auth-form">
               <div className="sh-auth-input-group">
                 <label className="sh-auth-label">
-                  <SvgWifi size={13} color="#c084fc" />
+                  <SvgWifi size={13} color="currentColor" />
                   URL do Servidor
                 </label>
                 <input
@@ -1787,7 +1794,7 @@ export default function SmartHomePage() {
 
               <div className="sh-auth-input-group">
                 <label className="sh-auth-label">
-                  <SvgLock size={13} color="#c084fc" />
+                  <SvgLock size={13} color="currentColor" />
                   Long-Lived Access Token
                 </label>
                 <div style={{ position: 'relative', width: '100%' }}>
@@ -1811,7 +1818,7 @@ export default function SmartHomePage() {
                       transform: 'translateY(-50%)',
                       background: 'none',
                       border: 'none',
-                      color: '#c084fc',
+                      color: 'currentColor',
                       cursor: 'pointer',
                       padding: '4px',
                       display: 'flex',
@@ -1825,7 +1832,7 @@ export default function SmartHomePage() {
               </div>
 
               {connectError && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', padding: '8px 12px', color: '#fca5a5', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', padding: '8px 12px', color: '#ef4444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <SvgAlert size={15} color="#ef4444" />
                   <span>{connectError}</span>
                 </div>
@@ -1849,8 +1856,15 @@ export default function SmartHomePage() {
           {/* Header: Home Assistant Status & Actions */}
           <div className="sh-header">
             <div className="sh-header-left">
-              <div className="sh-logo-icon">
-                <SvgSmartHomeLogo size={22} color="#a78bfa" />
+              <div className="sh-logo-icon" style={{ overflow: 'hidden', padding: 3 }}>
+                <img
+                  src="/extensions/momaismarthome/icon"
+                  alt="MomAI Smart Home"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none'
+                  }}
+                />
               </div>
               <div>
                 <h1 className="sh-title">MomAI Smart Home</h1>
@@ -1864,9 +1878,6 @@ export default function SmartHomePage() {
                 disabled={isSyncing}
                 title="Resincronizar dispositivos do Home Assistant"
                 style={{
-                  background: 'rgba(167, 139, 250, 0.15)',
-                  color: '#c084fc',
-                  border: '1px solid rgba(167, 139, 250, 0.25)',
                   cursor: isSyncing ? 'wait' : 'pointer'
                 }}
               >
@@ -1891,7 +1902,7 @@ export default function SmartHomePage() {
             <div className="sh-reconnect-container">
               <div className="sh-reconnect-card">
                 <div className="sh-reconnect-icon-box">
-                  <SvgAlert size={28} color="#ef4444" />
+                  <SvgAlert size={28} color="currentColor" />
                 </div>
                 <h2 className="sh-reconnect-title">Home Assistant Indisponível</h2>
                 <p className="sh-reconnect-sub">
@@ -1900,7 +1911,7 @@ export default function SmartHomePage() {
 
                 {haUrl && (
                   <div className="sh-reconnect-url-tag">
-                    <SvgWifi size={13} color="#a78bfa" />
+                    <SvgWifi size={13} color="currentColor" />
                     <span>{haUrl}</span>
                   </div>
                 )}
@@ -1911,7 +1922,7 @@ export default function SmartHomePage() {
                     border: '1px solid rgba(239, 68, 68, 0.25)',
                     borderRadius: '12px',
                     padding: '10px 14px',
-                    color: '#fca5a5',
+                    color: '#ef4444',
                     fontSize: '12px',
                     marginBottom: '24px',
                     textAlign: 'center',
@@ -1944,7 +1955,7 @@ export default function SmartHomePage() {
               </div>
             </div>
           ) : loading ? (
-            <div className="sh-auth"><p style={{ color: '#94a3b8' }}>Carregando...</p></div>
+            <div className="sh-auth"><p style={{ color: 'inherit', opacity: 0.7 }}>Carregando...</p></div>
           ) : (
             <>
               {/* Filter Bar right at top */}
@@ -1987,10 +1998,10 @@ export default function SmartHomePage() {
                   <div className="sh-empty-icon">
                     <SvgHome size={28} />
                   </div>
-                  <h3 style={{ fontSize: '17px', fontWeight: 600, color: '#f8fafc', margin: '0 0 6px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 6px' }}>
                     Nenhum dispositivo nesta categoria
                   </h3>
-                  <p style={{ fontSize: '13.5px', color: '#94a3b8', maxWidth: '420px', margin: '0 auto', lineHeight: 1.5 }}>
+                  <p style={{ fontSize: '13.5px', opacity: 0.7, maxWidth: '420px', margin: '0 auto', lineHeight: 1.5 }}>
                     Selecione outro filtro acima para visualizar seus dispositivos.
                   </p>
                 </div>
