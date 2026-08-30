@@ -1857,14 +1857,7 @@ export default function SmartHomePage() {
           <div className="sh-header">
             <div className="sh-header-left">
               <div className="sh-logo-icon" style={{ overflow: 'hidden', padding: 3 }}>
-                <img
-                  src="/extensions/momaismarthome/icon"
-                  alt="MomAI Smart Home"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none'
-                  }}
-                />
+                <SvgSmartHomeLogo size={24} color="currentColor" />
               </div>
               <div>
                 <h1 className="sh-title">MomAI Smart Home</h1>

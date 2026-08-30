@@ -1,11 +1,12 @@
 {
   "id": "momaismarthome",
   "name": "MomAI Smart Home",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "kind": "packaged",
   "description": "Integração com Home Assistant e suporte a múltiplos provedores de automação residencial.",
   "icon_bg": "#8b5cf6",
   "icon": "icon.png",
+  "icon_url": "https://raw.githubusercontent.com/WesleyQDev/MomAISmartHome/main/icon.png",
   "author": "MomAI Team",
   "background": true,
   "backgroundScript": "runtime.ts",
