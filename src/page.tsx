@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import iconPng from '../icon.png'
 import { DeviceControlCardContent } from './components/DeviceControlContent'
 import { SmartHomeStyles } from './styles'
 import {
@@ -1740,9 +1741,9 @@ export default function SmartHomePage() {
           <div className="sh-auth-card">
             {/* Left Column: Branding & Features */}
             <div className="sh-auth-left">
-              <div className="sh-auth-icon" style={{ overflow: 'hidden', padding: 4 }}>
+              <div className="sh-auth-icon" style={{ overflow: 'hidden', padding: 6 }}>
                 <img
-                  src="/extensions/momaismarthome/icon"
+                  src={iconPng}
                   alt="MomAI Smart Home"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   onError={(e) => {
@@ -1856,8 +1857,12 @@ export default function SmartHomePage() {
           {/* Header: Home Assistant Status & Actions */}
           <div className="sh-header">
             <div className="sh-header-left">
-              <div className="sh-logo-icon" style={{ overflow: 'hidden', padding: 3 }}>
-                <SvgSmartHomeLogo size={24} color="currentColor" />
+              <div className="sh-logo-icon" style={{ overflow: 'hidden', padding: 5 }}>
+                <img
+                  src={iconPng}
+                  alt="MomAI Smart Home"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
               </div>
               <div>
                 <h1 className="sh-title">MomAI Smart Home</h1>

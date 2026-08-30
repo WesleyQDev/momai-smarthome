@@ -24,7 +24,10 @@ if (esbuild?.build) {
     bundle: true,
     format: 'esm',
     target: 'es2020',
-    external: ['react', 'react-dom', 'react/jsx-runtime']
+    external: ['react', 'react-dom', 'react/jsx-runtime'],
+    loader: {
+      '.png': 'dataurl'
+    }
   })
   await esbuild.build({
     entryPoints: [panelEntry],
@@ -32,16 +35,19 @@ if (esbuild?.build) {
     bundle: true,
     format: 'esm',
     target: 'es2020',
-    external: ['react', 'react-dom', 'react/jsx-runtime']
+    external: ['react', 'react-dom', 'react/jsx-runtime'],
+    loader: {
+      '.png': 'dataurl'
+    }
   })
   console.log('[momai-smart-home] build done (via programmatic esbuild)')
 } else {
   const { execSync } = await import('node:child_process')
-  execSync(`npx esbuild "${pageEntry}" --bundle --format=esm --target=es2020 --outfile="${pageOutfile}" --external:react --external:react-dom --external:react/jsx-runtime`, {
+  execSync(`npx esbuild "${pageEntry}" --bundle --format=esm --target=es2020 --outfile="${pageOutfile}" --external:react --external:react-dom --external:react/jsx-runtime --loader:.png=dataurl`, {
     stdio: 'inherit',
     cwd: root
   })
-  execSync(`npx esbuild "${panelEntry}" --bundle --format=esm --target=es2020 --outfile="${panelOutfile}" --external:react --external:react-dom --external:react/jsx-runtime`, {
+  execSync(`npx esbuild "${panelEntry}" --bundle --format=esm --target=es2020 --outfile="${panelOutfile}" --external:react --external:react-dom --external:react/jsx-runtime --loader:.png=dataurl`, {
     stdio: 'inherit',
     cwd: root
   })
