@@ -1,12 +1,12 @@
-{
-  "id": "momaismarthome",
+﻿{
+  "id": "momai-smarthome",
   "name": "MomAI Smart Home",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "kind": "packaged",
-  "description": "Integração com Home Assistant e suporte a múltiplos provedores de automação residencial.",
+  "description": "IntegraÃ§Ã£o com Home Assistant e suporte a mÃºltiplos provedores de automaÃ§Ã£o residencial.",
   "icon_bg": "#8b5cf6",
   "icon": "icon.png",
-  "icon_url": "https://raw.githubusercontent.com/WesleyQDev/MomAISmartHome/main/icon.png",
+  "icon_url": "https://raw.githubusercontent.com/WesleyQDev/momai-smarthome/main/icon.png",
   "author": "MomAI Team",
   "background": true,
   "backgroundScript": "runtime.ts",
@@ -38,12 +38,12 @@
           "enum": ["on", "off", "open", "closed", "locked", "unlocked", "playing", "paused", "idle"]
         },
         "deviceName": { "label": "Nome do Dispositivo", "type": "string" },
-        "deviceRoom": { "label": "Cômodo", "type": "string" }
+        "deviceRoom": { "label": "CÃ´modo", "type": "string" }
       }
     },
     "open_overlay": { "label": "Controle Flutuante Aberto" },
     "close_overlay": { "label": "Controle Flutuante Fechado" },
-    "connection_changed": { "label": "Conexão com Home Assistant Alterada" }
+    "connection_changed": { "label": "ConexÃ£o com Home Assistant Alterada" }
   },
   "tools": [
     {
@@ -55,7 +55,7 @@
         "required": ["device_name", "action"],
         "properties": {
           "device_name": { "type": "string", "description": "Nome exato ou parcial do dispositivo" },
-          "action": { "type": "string", "enum": ["on", "off", "toggle"], "description": "Ação principal" },
+          "action": { "type": "string", "enum": ["on", "off", "toggle"], "description": "AÃ§Ã£o principal" },
           "brightness": { "type": "number", "description": "Brilho (0-100) para luzes" },
           "color": { "type": "string", "description": "Cor da luz (nome ou HEX)" },
           "color_temp": { "type": "number", "description": "Temperatura da cor em Kelvin" }
@@ -65,12 +65,12 @@
     {
       "name": "set_light_color",
       "label": "Ajustar Luz / Cor",
-      "description": "Muda a cor, brilho ou temperatura de cor de uma lâmpada ou fita LED.",
+      "description": "Muda a cor, brilho ou temperatura de cor de uma lÃ¢mpada ou fita LED.",
       "parameters": {
         "type": "object",
         "required": ["device_name"],
         "properties": {
-          "device_name": { "type": "string", "description": "Nome da lâmpada ou grupo de luzes" },
+          "device_name": { "type": "string", "description": "Nome da lÃ¢mpada ou grupo de luzes" },
           "color": { "type": "string", "description": "Nome da cor ou HEX" },
           "brightness": { "type": "number", "description": "Brilho de 0 a 100%" },
           "color_temp": { "type": "number", "description": "Temperatura da cor em Kelvin" }
@@ -79,23 +79,23 @@
     },
     {
       "name": "control_tv_remote",
-      "label": "Controle de TV / Mídia",
-      "description": "Controle de TV e reprodutores de mídia: comandos de controle remoto, alternância de entrada/fonte e reprodução.",
+      "label": "Controle de TV / MÃ­dia",
+      "description": "Controle de TV e reprodutores de mÃ­dia: comandos de controle remoto, alternÃ¢ncia de entrada/fonte e reproduÃ§Ã£o.",
       "parameters": {
         "type": "object",
         "required": ["device_name"],
         "properties": {
           "device_name": { "type": "string", "description": "Nome da TV ou Media Player" },
-          "command": { "type": "string", "description": "Botão do controle remoto (power, volume_up, mute, etc)" },
-          "action": { "type": "string", "enum": ["play", "pause", "stop", "next", "previous", "volume_up", "volume_down", "mute", "unmute", "source", "volume"], "description": "Ação de mídia" },
-          "value": { "type": "string", "description": "Valor para ação (ex: volume ou nome da fonte)" }
+          "command": { "type": "string", "description": "BotÃ£o do controle remoto (power, volume_up, mute, etc)" },
+          "action": { "type": "string", "enum": ["play", "pause", "stop", "next", "previous", "volume_up", "volume_down", "mute", "unmute", "source", "volume"], "description": "AÃ§Ã£o de mÃ­dia" },
+          "value": { "type": "string", "description": "Valor para aÃ§Ã£o (ex: volume ou nome da fonte)" }
         }
       }
     },
     {
       "name": "control_climate",
       "label": "Controlar Ar Condicionado / Clima",
-      "description": "Ajusta temperatura alvo e modo de operação do ar condicionado ou termostato.",
+      "description": "Ajusta temperatura alvo e modo de operaÃ§Ã£o do ar condicionado ou termostato.",
       "parameters": {
         "type": "object",
         "required": ["device_name"],
@@ -108,33 +108,33 @@
     },
     {
       "name": "call_ha_service",
-      "label": "Executar Serviço no Home Assistant",
-      "description": "Executa um serviço arbitrário do Home Assistant (domínio, serviço e dados JSON).",
+      "label": "Executar ServiÃ§o no Home Assistant",
+      "description": "Executa um serviÃ§o arbitrÃ¡rio do Home Assistant (domÃ­nio, serviÃ§o e dados JSON).",
       "parameters": {
         "type": "object",
         "required": ["domain", "service"],
         "properties": {
-          "domain": { "type": "string", "description": "Domínio do serviço (ex: light, scene, media_player)" },
-          "service": { "type": "string", "description": "Nome do serviço (ex: turn_on, select_source)" },
-          "data": { "type": "object", "description": "Dados adicionais em JSON para o serviço" }
+          "domain": { "type": "string", "description": "DomÃ­nio do serviÃ§o (ex: light, scene, media_player)" },
+          "service": { "type": "string", "description": "Nome do serviÃ§o (ex: turn_on, select_source)" },
+          "data": { "type": "object", "description": "Dados adicionais em JSON para o serviÃ§o" }
         }
       }
     },
     {
       "name": "list_devices",
       "label": "Listar Dispositivos",
-      "description": "Lista todos os dispositivos inteligentes disponíveis com seus estados.",
+      "description": "Lista todos os dispositivos inteligentes disponÃ­veis com seus estados.",
       "parameters": {
         "type": "object",
         "properties": {
-          "room": { "type": "string", "description": "Filtrar por cômodo (opcional)" }
+          "room": { "type": "string", "description": "Filtrar por cÃ´modo (opcional)" }
         }
       }
     },
     {
       "name": "query_device",
       "label": "Consultar Dispositivo",
-      "description": "Obtém o estado detalhado de um dispositivo específico.",
+      "description": "ObtÃ©m o estado detalhado de um dispositivo especÃ­fico.",
       "parameters": {
         "type": "object",
         "required": ["device_name"],
@@ -146,7 +146,7 @@
     {
       "name": "open_device_control",
       "label": "Abrir Controle Flutuante",
-      "description": "Abre a interface de controle flutuante (overlay) de um dispositivo específico (TV, luz, ar condicionado, etc).",
+      "description": "Abre a interface de controle flutuante (overlay) de um dispositivo especÃ­fico (TV, luz, ar condicionado, etc).",
       "parameters": {
         "type": "object",
         "required": ["device_name"],
@@ -173,11 +173,12 @@
     "accent": "violet"
   },
   "storage": {
-    "description": "Armazena as conexões e credenciais do Home Assistant localmente de forma isolada. Desconectar desativa a auto-reconexão, mas preserva a credencial para uma nova conexão manual.",
+    "description": "Armazena as conexÃµes e credenciais do Home Assistant localmente de forma isolada. Desconectar desativa a auto-reconexÃ£o, mas preserva a credencial para uma nova conexÃ£o manual.",
     "locations": [
-      "smarthome.sqlite (conexões criptografadas localmente em .encryption-key)",
+      "smarthome.sqlite (conexÃµes criptografadas localmente em .encryption-key)",
       "momai.storage: connections (credenciais do Home Assistant; criptografadas no banco local)",
-      "momai.storage: last_credentials (credencial transitória da última conexão, limpa ao desconectar)"
+      "momai.storage: last_credentials (credencial transitÃ³ria da Ãºltima conexÃ£o, limpa ao desconectar)"
     ]
   }
 }
+
