@@ -441,7 +441,7 @@ function DeviceControlCardContent({
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 1e4);
     try {
-      const res = await fetch(`${baseUrl}/extensions/momaismarthome/command`, {
+      const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -496,7 +496,7 @@ function DeviceControlCardContent({
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4e3);
       try {
-        const response = await fetch(`${getApiBaseUrl()}/extensions/momaismarthome/command`, {
+        const response = await fetch(`${getApiBaseUrl()}/extensions/momai-smarthome/command`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1687,7 +1687,7 @@ var CONTROLLABLE_DOMAINS2 = [
   "scene",
   "remote"
 ];
-var EXT_ID = "momaismarthome";
+var EXT_ID = "momai-smarthome";
 function getApiBase() {
   return typeof window !== "undefined" && window.api?.getApiBaseUrl?.() || "http://127.0.0.1:8050";
 }

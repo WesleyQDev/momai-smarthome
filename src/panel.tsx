@@ -60,7 +60,7 @@ export function SmartHomePanel(props: any) {
             const controller = new AbortController()
             const timer = setTimeout(() => controller.abort(), 10000)
             try {
-              const res = await fetch(`${baseUrl}/extensions/momaismarthome/command`, {
+              const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

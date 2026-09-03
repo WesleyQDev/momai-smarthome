@@ -1,7 +1,7 @@
 ﻿{
   "id": "momai-smarthome",
   "name": "MomAI Smart Home",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "kind": "packaged",
   "description": "IntegraÃ§Ã£o com Home Assistant e suporte a mÃºltiplos provedores de automaÃ§Ã£o residencial.",
   "icon_bg": "#8b5cf6",

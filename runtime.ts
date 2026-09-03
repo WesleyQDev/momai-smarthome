@@ -36,6 +36,12 @@ let ready = false
 // Actions config for the state_changed event (MOM-115). Kept in the extension's
 // own storage dir so the host can execute them generically when a device changes.
 function actionsConfigFile() {
+  // Canonical path usa hífen (id do registry = momai-smarthome). Mantém leitura
+  // do legado sem hífen para migração.
+  return path.join(dataDir, 'extensions', 'momai-smarthome', 'actions-state_changed.json')
+}
+
+function legacyActionsConfigFile() {
   return path.join(dataDir, 'extensions', 'momaismarthome', 'actions-state_changed.json')
 }
 
@@ -45,7 +51,14 @@ function loadConfiguredActions() {
     if (!Array.isArray(parsed)) return []
     return parsed.filter((act) => act && typeof act.target === 'string' && act.target.trim().length > 0)
   } catch {
-    return []
+    // fallback legado sem hífen
+    try {
+      const parsed = JSON.parse(fs.readFileSync(legacyActionsConfigFile(), 'utf8'))
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((act) => act && typeof act.target === 'string' && act.target.trim().length > 0)
+    } catch {
+      return []
+    }
   }
 }
 
@@ -737,7 +750,7 @@ async function executeTool(toolName, args, momai) {
       }
 
       const overlayPayload = {
-        skillId: 'momaismarthome',
+        skillId: 'momai-smarthome',
         panel: 'dist/panel.js',
         panelType: 'momaismarthome-panel',
         strategy: 'replace',
@@ -787,7 +800,7 @@ async function executeTool(toolName, args, momai) {
         deviceId = dev?.id || ''
       }
       try {
-        dispatchEvent('close_overlay', { skillId: 'momaismarthome', device_name: deviceName, overlay_id: deviceId, all })
+        dispatchEvent('close_overlay', { skillId: 'momai-smarthome', device_name: deviceName, overlay_id: deviceId, all })
       } catch (err) {
         console.warn('[runtime] Erro ao enviar close_overlay:', err)
       }

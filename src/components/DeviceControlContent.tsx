@@ -452,7 +452,7 @@ export function DeviceControlCardContent({
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 10000)
     try {
-      const res = await fetch(`${baseUrl}/extensions/momaismarthome/command`, {
+      const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -513,7 +513,7 @@ export function DeviceControlCardContent({
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 4000)
       try {
-        const response = await fetch(`${getApiBaseUrl()}/extensions/momaismarthome/command`, {
+        const response = await fetch(`${getApiBaseUrl()}/extensions/momai-smarthome/command`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

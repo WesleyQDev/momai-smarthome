@@ -171,7 +171,7 @@ interface BackendApi {
   getLastConnection(): Promise<any>
 }
 
-const EXT_ID = 'momaismarthome'
+const EXT_ID = 'momai-smarthome'
 
 function getApiBase(): string {
   return (typeof window !== 'undefined' && (window as any).api?.getApiBaseUrl?.()) || 'http://127.0.0.1:8050'
@@ -944,7 +944,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                           Dispositivo
                         </label>
                         <ShSearchableInput
-                          target="momaismarthome"
+                          target="momai-smarthome"
                           paramKey="device_name"
                           value={draftWhen.device ?? ''}
                           onChange={(v) => setDraftWhen((d) => ({ ...d, device: v }))}
