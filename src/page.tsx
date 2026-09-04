@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import iconPng from '../icon.png'
+import ContextMenu from './components/ContextMenu'
 import { DeviceControlCardContent } from './components/DeviceControlContent'
 import { SmartHomeStyles } from './styles'
 import {
@@ -1321,6 +1322,7 @@ export default function SmartHomePage() {
   const [showConnectModal, setShowConnectModal] = useState(false)
   const [showAutomations, setShowAutomations] = useState(false)
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+  const [deviceMenu, setDeviceMenu] = useState<{ x: number; y: number; device: Device } | null>(null)
   const [haUrl, setHaUrl] = useState('http://homeassistant.local:8123')
   const [haToken, setHaToken] = useState('')
   const [showToken, setShowToken] = useState(false)
@@ -2027,6 +2029,11 @@ export default function SmartHomePage() {
                             setSelectedDevice(device)
                           }
                         }}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setDeviceMenu({ x: e.clientX, y: e.clientY, device })
+                        }}
                       >
                         <div className="sh-card-header">
                           <div className="sh-icon">{dynamicSvgIcon}</div>
@@ -2118,6 +2125,50 @@ export default function SmartHomePage() {
           allDevices={devices}
           onClose={() => setSelectedDevice(null)}
           onToggle={toggleDevice}
+        />
+      )}
+      {deviceMenu && (
+        <ContextMenu
+          x={deviceMenu.x}
+          y={deviceMenu.y}
+          onClose={() => setDeviceMenu(null)}
+          items={[
+            {
+              id: 'open',
+              label: 'Abrir controle',
+              onClick: () => {
+                const opened = openDeviceOverlay(deviceMenu.device, devices)
+                if (!opened) setSelectedDevice(deviceMenu.device)
+              }
+            },
+            ...(CONTROLLABLE_DOMAINS.includes(deviceMenu.device.domain)
+              ? [
+                  {
+                    id: 'toggle',
+                    label: deviceMenu.device.state.on ? 'Desligar' : 'Ligar',
+                    onClick: () => toggleDevice(deviceMenu.device)
+                  }
+                ]
+              : []),
+            {
+              id: 'copy-name',
+              label: 'Copiar nome',
+              onClick: () => {
+                try {
+                  void navigator.clipboard?.writeText?.(deviceMenu.device.name)
+                } catch {}
+              }
+            },
+            {
+              id: 'copy-id',
+              label: 'Copiar ID da entidade',
+              onClick: () => {
+                try {
+                  void navigator.clipboard?.writeText?.(deviceMenu.device.id)
+                } catch {}
+              }
+            }
+          ]}
         />
       )}
     </div>

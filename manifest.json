@@ -4,7 +4,7 @@
   "version": "1.0.26",
   "kind": "packaged",
   "is_official": true,
-  "description": "Integração com Home Assistant e suporte a múltiplos provedores de automação residencial.",
+  "description": "Ligue luzes, ajuste o ar-condicionado e controle a TV da sua casa por voz ou texto.",
   "icon_bg": "#8b5cf6",
   "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"#ffffff\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M33 13.5V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v9\" stroke=\"#ffffff\" stroke-width=\"2.8\" fill=\"#ffffff\" fill-opacity=\"0.18\"/><path d=\"M5 21L24 6l19 15\" stroke=\"#ffffff\" stroke-width=\"3.2\"/><path d=\"M9 20v17a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V20\" stroke=\"#ffffff\" stroke-width=\"2.8\" fill=\"#ffffff\" fill-opacity=\"0.12\"/><path d=\"M29 17a6 6 0 0 1 6-4\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><path d=\"M31 12.5a10 10 0 0 1 7.5-4\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><rect x=\"16\" y=\"19\" width=\"16\" height=\"24\" rx=\"4.5\" fill=\"#ffffff\" fill-opacity=\"0.22\" stroke=\"#ffffff\" stroke-width=\"2.4\"/><path d=\"M21.5 26.5v-2a2.5 2.5 0 0 1 5 0v2\" stroke=\"#ffffff\" stroke-width=\"1.8\"/><rect x=\"20\" y=\"26.5\" width=\"8\" height=\"6\" rx=\"1.2\" stroke=\"#ffffff\" stroke-width=\"1.6\" fill=\"none\"/><circle cx=\"24\" cy=\"29.5\" r=\"0.9\" fill=\"#ffffff\" stroke=\"none\"/><line x1=\"19\" y1=\"34.5\" x2=\"29\" y2=\"34.5\" stroke=\"#ffffff\" stroke-width=\"1.2\" opacity=\"0.7\"/><circle cx=\"20\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"24\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"28\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"20\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"24\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"28\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/></svg>",
   "sidebar_icon": "icon.png",
@@ -30,7 +30,7 @@
           "label": "Dispositivo / Entidade",
           "type": "string",
           "description": "Entidade do Home Assistant que mudou de estado",
-          "x-options-source": { "tool": "getDevices" }
+          "x-options-source": { "tool": "list_devices" }
         },
         "deviceState": {
           "label": "Novo Estado Desejado",
@@ -174,7 +174,7 @@
     "accent": "violet"
   },
   "storage": {
-    "description": "Armazena as conexÃµes e credenciais do Home Assistant localmente de forma isolada. Desconectar desativa a auto-reconexÃ£o, mas preserva a credencial para uma nova conexÃ£o manual.",
+    "description": "Guarda a conexão com a sua casa e as suas preferências neste computador. Ao desconectar, a reconexão automática é desligada, mas o endereço e o acesso ficam salvos para você conectar de novo.",
     "locations": [
       "smarthome.sqlite (conexÃµes criptografadas localmente em .encryption-key)",
       "momai.storage: connections (credenciais do Home Assistant; criptografadas no banco local)",
