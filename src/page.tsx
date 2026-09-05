@@ -3,6 +3,7 @@ import iconPng from '../icon.png'
 import ContextMenu from './components/ContextMenu'
 import { DeviceControlCardContent } from './components/DeviceControlContent'
 import { SmartHomeStyles } from './styles'
+import { SmartHomeI18nProvider, useSmartHomeI18n, translateSh } from './i18n'
 import {
   SvgHome,
   SvgSmartHomeLogo,
@@ -121,24 +122,29 @@ interface Connection {
   updated_at: string
 }
 
-const DOMAIN_LABELS: Record<string, string> = {
-  light: 'Iluminação',
-  switch: 'Interruptor',
-  fan: 'Ventilador',
-  cover: 'Persiana',
-  lock: 'Fechadura',
-  climate: 'Climatização',
-  sensor: 'Sensor',
-  binary_sensor: 'Sensor Binário',
-  media_player: 'Mídia / TV',
-  camera: 'Câmera',
-  vacuum: 'Aspirador',
-  scene: 'Cena',
-  automation: 'Automação',
-  alarm_control_panel: 'Alarme',
-  remote: 'Controle Remoto',
-  sun: 'Sol',
-  weather: 'Clima'
+const DOMAIN_KEYS: Record<string, string> = {
+  light: 'domains.light',
+  switch: 'domains.switch',
+  fan: 'domains.fan',
+  cover: 'domains.cover',
+  lock: 'domains.lock',
+  climate: 'domains.climate',
+  sensor: 'domains.sensor',
+  binary_sensor: 'domains.binarySensor',
+  media_player: 'domains.mediaPlayer',
+  camera: 'domains.camera',
+  vacuum: 'domains.vacuum',
+  scene: 'domains.scene',
+  automation: 'domains.automation',
+  alarm_control_panel: 'domains.alarm',
+  remote: 'domains.remote',
+  sun: 'domains.sun',
+  weather: 'domains.weather'
+}
+
+function getDomainLabel(domain: string, t: (key: string) => string): string {
+  const key = DOMAIN_KEYS[domain]
+  return key ? t(key) : domain
 }
 
 const CONTROLLABLE_DOMAINS = [
@@ -212,8 +218,8 @@ function extFetch(path: string, body?: any): Promise<any> {
       return {
         ok: false,
         error: aborted
-          ? 'O servidor do MomAI não respondeu (timeout). Verifique se o app está rodando.'
-          : (err?.message || 'Falha de rede ao falar com o servidor')
+          ? translateSh('panel.timeout')
+          : (err?.message || translateSh('panel.networkError'))
       }
     })
     .finally(() => clearTimeout(timer))
@@ -299,9 +305,9 @@ function formatEntityValue(value?: string | number | null, unit?: string, device
     } catch {}
   }
 
-  if (str === 'on' || str === 'home' || str === 'open') return { primary: 'Ativo' }
-  if (str === 'off' || str === 'away' || str === 'closed') return { primary: 'Inativo' }
-  if (str === 'unavailable' || str === 'unknown') return { primary: 'Indisponível' }
+  if (str === 'on' || str === 'home' || str === 'open') return { primary: 'device.active' }
+  if (str === 'off' || str === 'away' || str === 'closed') return { primary: 'device.inactive' }
+  if (str === 'unavailable' || str === 'unknown') return { primary: 'device.unavailable' }
 
   if (unit) {
     return { primary: `${str} ${unit}` }
@@ -390,6 +396,7 @@ function DeviceControlModal({ device, allDevices, onClose, onToggle }: { device:
 }
 
 function LiveClockWidget({ activeDevicesCount, totalDevicesCount }: { activeDevicesCount: number; totalDevicesCount: number }) {
+  const { t, locale } = useSmartHomeI18n()
   const [timeStr, setTimeStr] = useState<string>('')
   const [dateStr, setDateStr] = useState<string>('')
 
@@ -397,7 +404,7 @@ function LiveClockWidget({ activeDevicesCount, totalDevicesCount }: { activeDevi
     const updateTime = () => {
       const now = new Date()
       setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-      const formattedDate = now.toLocaleDateString('pt-BR', {
+      const formattedDate = now.toLocaleDateString(locale, {
         weekday: 'long',
         day: 'numeric',
         month: 'long'
@@ -407,7 +414,7 @@ function LiveClockWidget({ activeDevicesCount, totalDevicesCount }: { activeDevi
     updateTime()
     const timer = setInterval(updateTime, 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [locale])
 
   return (
     <div className="sh-clock-card">
@@ -418,13 +425,14 @@ function LiveClockWidget({ activeDevicesCount, totalDevicesCount }: { activeDevi
       </div>
       <div style={{ marginTop: '10px', fontSize: '12px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeDevicesCount > 0 ? '#10b981' : '#64748b' }} />
-        <span>{activeDevicesCount} de {totalDevicesCount} dispositivos ligados</span>
+        <span>{t('clock.devicesOn', { active: activeDevicesCount, total: totalDevicesCount })}</span>
       </div>
     </div>
   )
 }
 
 function SunWidget({ device }: { device: Device }) {
+  const { t } = useSmartHomeI18n()
   const isAbove = device.state.rawState === 'above_horizon'
   const elevation = device.state.elevation ?? 0
   const formatTime = (iso?: string) => {
@@ -444,7 +452,7 @@ function SunWidget({ device }: { device: Device }) {
       <div className="sh-sun-header">
         <div className="sh-sun-badge">
           {isAbove ? <SvgSun size={18} color="#fbbf24" /> : <SvgMoon size={18} color="#38bdf8" />}
-          <span>{isAbove ? 'Dia (Acima do Horizonte)' : 'Noite (Abaixo do Horizonte)'}</span>
+          <span>{isAbove ? t('sun.day') : t('sun.night')}</span>
         </div>
         <span className="sh-sun-elevation">{elevation}°</span>
       </div>
@@ -473,13 +481,13 @@ function SunWidget({ device }: { device: Device }) {
       <div className="sh-sun-times">
         <div className="sh-sun-time-box">
           <span className="sh-sun-time-label">
-            <SvgSunrise size={13} color="#fbbf24" /> Nascer
+            <SvgSunrise size={13} color="#fbbf24" /> {t('sun.rise')}
           </span>
           <span className="sh-sun-time-val">{nextRising}</span>
         </div>
         <div className="sh-sun-time-box">
           <span className="sh-sun-time-label">
-            <SvgSunset size={13} color="#f97316" /> Pôr do Sol
+            <SvgSunset size={13} color="#f97316" /> {t('sun.set')}
           </span>
           <span className="sh-sun-time-val">{nextSetting}</span>
         </div>
@@ -489,7 +497,8 @@ function SunWidget({ device }: { device: Device }) {
 }
 
 function WeatherWidget({ device }: { device: Device }) {
-  const state = device.state.rawState || 'desconhecido'
+  const { t } = useSmartHomeI18n()
+  const state = device.state.rawState || t('weather.unknown')
   const temp = device.state.temperature
   const humidity = device.state.humidity
   const pressure = device.state.pressure
@@ -510,7 +519,7 @@ function WeatherWidget({ device }: { device: Device }) {
         {humidity != null && (
           <div className="sh-weather-detail">
             <span className="sh-weather-detail-label">
-              <SvgDrop size={11} color="#38bdf8" /> Umidade
+              <SvgDrop size={11} color="#38bdf8" /> {t('weather.humidity')}
             </span>
             <strong>{humidity}%</strong>
           </div>
@@ -518,7 +527,7 @@ function WeatherWidget({ device }: { device: Device }) {
         {pressure != null && (
           <div className="sh-weather-detail">
             <span className="sh-weather-detail-label">
-              <SvgGauge size={11} color="#38bdf8" /> Pressão
+              <SvgGauge size={11} color="#38bdf8" /> {t('weather.pressure')}
             </span>
             <strong>{pressure} hPa</strong>
           </div>
@@ -526,7 +535,7 @@ function WeatherWidget({ device }: { device: Device }) {
         {wind != null && (
           <div className="sh-weather-detail">
             <span className="sh-weather-detail-label">
-              <SvgWind size={11} color="#38bdf8" /> Vento
+              <SvgWind size={11} color="#38bdf8" /> {t('weather.wind')}
             </span>
             <strong>{wind} km/h</strong>
           </div>
@@ -541,52 +550,52 @@ const CACHE_CONNS_KEY = 'momaismarthome:connections'
 const CACHE_CONNECTED_KEY = 'momaismarthome:is_connected'
 const CACHE_HAS_SAVED_KEY = 'momaismarthome:has_saved_conn'
 
-const SH_TOOL_LABELS: Record<string, string> = {
-  send_message: 'Enviar mensagem',
-  control_device: 'Controlar dispositivo',
-  set_light_color: 'Cor da luz',
-  control_tv_remote: 'Controle da TV',
-  control_climate: 'Controlar clima',
-  call_ha_service: 'Serviço da casa',
-  list_devices: 'Listar dispositivos',
-  query_device: 'Consultar dispositivo',
-  capture_snapshot: 'Capturar print',
-  start_monitoring: 'Iniciar monitoramento',
-  list_contacts: 'Listar contatos',
-  get_history: 'Histórico'
+const SH_TOOL_KEYS: Record<string, string> = {
+  send_message: 'tool.sendMessage',
+  control_device: 'tool.controlDevice',
+  set_light_color: 'tool.setLightColor',
+  control_tv_remote: 'tool.controlTV',
+  control_climate: 'tool.controlClimate',
+  call_ha_service: 'tool.haService',
+  list_devices: 'tool.listDevices',
+  query_device: 'tool.queryDevice',
+  capture_snapshot: 'tool.captureSnapshot',
+  start_monitoring: 'tool.startMonitoring',
+  list_contacts: 'tool.listContacts',
+  get_history: 'tool.getHistory'
 }
 
-const SH_PARAM_LABELS: Record<string, string> = {
-  contact: 'Contato ou número',
-  message: 'Mensagem',
-  image: 'Imagem',
-  device_name: 'Dispositivo',
-  action: 'Ação',
-  brightness: 'Brilho',
-  color: 'Cor',
-  temperature: 'Temperatura',
-  domain: 'Domínio',
-  service: 'Serviço',
-  data: 'Dados',
-  room: 'Cômodo',
-  cameraId: 'Câmera',
-  monitorId: 'Monitor',
-  label: 'Rótulo'
+const SH_PARAM_KEYS: Record<string, string> = {
+  contact: 'param.contact',
+  message: 'param.message',
+  image: 'param.image',
+  device_name: 'param.device',
+  action: 'param.action',
+  brightness: 'param.brightness',
+  color: 'param.color',
+  temperature: 'param.temperature',
+  domain: 'param.domain',
+  service: 'param.service',
+  data: 'param.data',
+  room: 'param.room',
+  cameraId: 'param.camera',
+  monitorId: 'param.monitor',
+  label: 'param.label'
 }
 
 const SH_PLACEHOLDERS = [
-  { token: '{deviceName}', label: 'Dispositivo' },
-  { token: '{deviceState}', label: 'Estado' },
-  { token: '{deviceRoom}', label: 'Cômodo' },
-  { token: '{entityId}', label: 'Entidade' },
-  { token: '{event.imageDataUri}', label: 'Imagem' }
+  { token: '{deviceName}', labelKey: 'placeholder.deviceName' },
+  { token: '{deviceState}', labelKey: 'placeholder.deviceState' },
+  { token: '{deviceRoom}', labelKey: 'placeholder.deviceRoom' },
+  { token: '{entityId}', labelKey: 'placeholder.entityId' },
+  { token: '{event.imageDataUri}', labelKey: 'placeholder.image' }
 ]
 
 const SH_ENTITY_PARAMS = new Set(['contact', 'device_name', 'cameraId', 'monitorId'])
 
-const SH_STATE_LABELS: Record<string, string> = {
-  on: 'Ligado',
-  off: 'Desligado'
+const SH_STATE_KEYS: Record<string, string> = {
+  on: 'state.on',
+  off: 'state.off'
 }
 
 interface ShWhen {
@@ -626,24 +635,25 @@ function shHumanize(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function shFormatArgs(args?: Record<string, unknown>): string {
+function shFormatArgs(args?: Record<string, unknown>, t?: (key: string) => string): string {
   if (!args) return ''
   return Object.entries(args)
     .filter(([, v]) => !(typeof v === 'string' && !v.trim()))
     .map(([k, v]) => {
       const val = v && typeof v === 'object' ? JSON.stringify(v) : String(v)
-      return `${SH_PARAM_LABELS[k] || shHumanize(k)}: ${val}`
+      const label = t ? t(SH_PARAM_KEYS[k] || k) : shHumanize(k)
+      return `${label}: ${val}`
     })
     .join(' · ')
 }
 
-function shFormatWhen(when?: ShWhen): string {
-  if (!when) return ''
+function shFormatWhen(when?: ShWhen, t?: (key: string) => string): string {
+  if (!when || !t) return ''
   const parts: string[] = []
-  if (when.device?.trim()) parts.push(`dispositivo ${when.device.trim()}`)
-  if (when.room?.trim()) parts.push(`cômodo ${when.room.trim()}`)
-  if (when.state?.trim()) parts.push(SH_STATE_LABELS[when.state.trim()] || when.state.trim())
-  if (when.domain?.trim()) parts.push(`domínio ${when.domain.trim()}`)
+  if (when.device?.trim()) parts.push(`${t('param.device')} ${when.device.trim()}`)
+  if (when.room?.trim()) parts.push(`${t('param.room')} ${when.room.trim()}`)
+  if (when.state?.trim()) parts.push(t(SH_STATE_KEYS[when.state.trim()] || when.state.trim()))
+  if (when.domain?.trim()) parts.push(`${t('param.domain')} ${when.domain.trim()}`)
   return parts.join(', ')
 }
 
@@ -661,6 +671,7 @@ function cleanSavedArgs(args?: Record<string, unknown>): Record<string, unknown>
 }
 
 function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useSmartHomeI18n()
   const [catalog, setCatalog] = useState<ShExt[]>([])
   const [actions, setActions] = useState<ShAction[]>([])
   const [loading, setLoading] = useState(true)
@@ -816,11 +827,11 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
             background: '#09090b'
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#fff' }}>Automações</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#fff' }}>{t('actions.title')}</h2>
           <button
             onClick={onClose}
             style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: 20 }}
-            aria-label="Fechar"
+            aria-label={t('actions.close')}
           >
             ×
           </button>
@@ -828,16 +839,15 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
           <p style={{ margin: 0, fontSize: 12, color: '#a1a1aa' }}>
-            Ações executadas automaticamente quando um dispositivo mudar de estado. Defina o
-            gatilho de cada ação (ex.: luz da sala ligou → enviar mensagem no WhatsApp).
+            {t('actions.description')}
           </p>
 
           {loading ? (
-            <p style={{ margin: 0, fontSize: 12, color: '#71717a' }}>Carregando…</p>
+            <p style={{ margin: 0, fontSize: 12, color: '#71717a' }}>{t('status.loading')}</p>
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#d4d4d8' }}>Ações</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#d4d4d8' }}>{t('actions.title')}</span>
                 <button
                   onClick={showDraft ? cancelDraft : () => setShowDraft(true)}
                   style={{
@@ -851,13 +861,13 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                     cursor: 'pointer'
                   }}
                 >
-                  {showDraft ? 'Cancelar' : '+ Adicionar ação'}
+                  {showDraft ? t('actions.cancel') : t('actions.addAction')}
                 </button>
               </div>
 
               {actions.length === 0 && !showDraft ? (
                 <p style={{ margin: 0, fontSize: 11, color: '#71717a' }}>
-                  Nenhuma automação. Campos disponíveis:{' '}
+                  {t('actions.noAutomation')}{' '}
                   {SH_PLACEHOLDERS.map((p) => p.token).join(', ')}
                 </p>
               ) : null}
@@ -880,24 +890,24 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#f4f4f5' }}>
                       {catalog.find((e) => e.id === a.target)?.name || a.target}
                       <span style={{ color: '#a1a1aa' }}> / </span>
-                      {SH_TOOL_LABELS[a.tool] || shHumanize(a.tool)}
+                      {shHumanize(a.tool)}
                     </div>
                     {a.when && Object.keys(a.when).length > 0 ? (
                       <div style={{ fontSize: 11, color: '#34d399', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        Quando: {shFormatWhen(a.when)}
+                        {t('actions.when')} {shFormatWhen(a.when, t)}
                       </div>
                     ) : null}
                     {a.args && Object.keys(a.args).length > 0 ? (
                       <div style={{ fontSize: 11, color: '#71717a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {shFormatArgs(a.args)}
+                        {shFormatArgs(a.args, t)}
                       </div>
                     ) : null}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <button
                       onClick={() => startEdit(a)}
-                      title="Editar"
-                      aria-label="Editar"
+                      title={t('actions.edit')}
+                      aria-label={t('actions.edit')}
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -915,7 +925,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                     <button
                       onClick={() => persist(actions.filter((_, j) => j !== i))}
                       style={{ background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: 14 }}
-                      aria-label="Remover"
+                      aria-label={t('actions.remove')}
                     >
                       ×
                     </button>
@@ -937,12 +947,12 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                 >
                   <div>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>
-                      Gatilho (quando executar)
+                      {t('actions.trigger')}
                     </label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>
-                          Dispositivo
+                          {t('actions.device')}
                         </label>
                         <ShSearchableInput
                           target="momai-smarthome"
@@ -953,46 +963,46 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>
-                          Cômodo
+                          {t('actions.room')}
                         </label>
                         <input
                           type="text"
                           value={draftWhen.room ?? ''}
                           onChange={(e) => setDraftWhen((d) => ({ ...d, room: e.target.value }))}
-                          placeholder="Qualquer"
+                          placeholder={t('actions.anyRoom')}
                           style={shInputStyle}
                         />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>
-                          Estado
+                          {t('actions.state')}
                         </label>
                         <select
                           value={draftWhen.state ?? ''}
                           onChange={(e) => setDraftWhen((d) => ({ ...d, state: e.target.value }))}
                           style={shSelectStyle}
                         >
-                          <option value="">Qualquer</option>
-                          <option value="on">Ligado (on)</option>
-                          <option value="off">Desligado (off)</option>
+                          <option value="">{t('actions.anyState')}</option>
+                          <option value="on">{t('state.on')} (on)</option>
+                          <option value="off">{t('state.off')} (off)</option>
                         </select>
                       </div>
                       <p style={{ margin: 0, fontSize: 10, color: '#71717a' }}>
-                        Deixe vazio para rodar com qualquer mudança de estado.
+                        {t('actions.anyStateHint')}
                       </p>
                     </div>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>
-                      Extensão alvo
+                      {t('actions.targetExt')}
                     </label>
                     <select
                       value={target}
                       onChange={(e) => selectTarget(e.target.value)}
                       style={shSelectStyle}
                     >
-                      {catalog.length === 0 ? <option value="">Nenhuma extensão com ações instalada</option> : null}
+                      {catalog.length === 0 ? <option value="">{t('actions.noExtension')}</option> : null}
                       {catalog.map((ext) => (
                         <option key={ext.id} value={ext.id}>
                           {ext.name || ext.id}
@@ -1004,7 +1014,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                   {toolDef ? (
                     <>
                       <div>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>Ação</label>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>{t('actions.actionLabel')}</label>
                         <select
                           value={tool}
                           onChange={(e) => selectTool(e.target.value)}
@@ -1014,7 +1024,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                             ?.filter((t) => t.name !== 'get_actions' && t.name !== 'set_actions')
                             .map((t) => (
                               <option key={t.name} value={t.name}>
-                                {SH_TOOL_LABELS[t.name] || shHumanize(t.name)}
+                                {t(SH_TOOL_KEYS[t.name] || t.name)}
                               </option>
                             ))}
                         </select>
@@ -1024,8 +1034,8 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                         {Object.entries(props).map(([key, param]) => (
                           <div key={key}>
                             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>
-                              {SH_PARAM_LABELS[key] || shHumanize(key)}
-                              {param?.default !== undefined ? ' (pré-preenchido)' : ''}
+                              {t(SH_PARAM_KEYS[key] || key)}
+                              {param?.default !== undefined ? ` ${t('actions.prefilled')}` : ''}
                             </label>
                             {param?.enum ? (
                               <select
@@ -1080,7 +1090,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                               cursor: 'pointer'
                             }}
                           >
-                            {p.label} {p.token}
+                            {t(p.labelKey)} {p.token}
                           </button>
                         ))}
                       </div>
@@ -1098,7 +1108,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
                           cursor: 'pointer'
                         }}
                       >
-                        {editingId ? 'Salvar alterações' : 'Usar esta ação'}
+                        {editingId ? t('actions.saveChanges') : t('actions.useAction')}
                       </button>
                     </>
                   ) : null}
@@ -1130,12 +1140,12 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
             }}
           >
             {saveState === 'saving'
-              ? 'Salvando…'
+              ? t('status.saving')
               : saveState === 'saved'
-                ? 'Salvo automaticamente'
+                ? t('status.autoSaved')
                 : saveState === 'error'
-                  ? 'Erro ao salvar. Tente novamente.'
-                  : 'As ações são salvas automaticamente.'}
+                  ? t('status.saveError')
+                  : t('status.autoSavedHint')}
           </span>
           <button
             onClick={onClose}
@@ -1150,7 +1160,7 @@ function AutomationsModal({ open, onClose }: { open: boolean; onClose: () => voi
               cursor: 'pointer'
             }}
           >
-            Fechar
+            {t('actions.close')}
           </button>
         </div>
       </div>
@@ -1192,6 +1202,7 @@ function ShSearchableInput({
   value: string
   onChange: (v: string) => void
 }) {
+  const { t } = useSmartHomeI18n()
   const [options, setOptions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
 
@@ -1227,7 +1238,7 @@ function ShSearchableInput({
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={options.length > 0 ? 'Digite para buscar…' : 'Digite nome ou número'}
+        placeholder={options.length > 0 ? t('search.typeToSearch') : t('search.typeNameOrNumber')}
         style={shInputStyle}
       />
       {open && filtered.length > 0 ? (
@@ -1276,7 +1287,8 @@ function ShSearchableInput({
   )
 }
 
-export default function SmartHomePage() {
+export function SmartHomePageInner(_props?: Record<string, unknown>) {
+  const { t } = useSmartHomeI18n()
   const [connections, setConnections] = useState<Connection[]>(() => {
     try {
       const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(CACHE_CONNS_KEY) : null
@@ -1476,11 +1488,11 @@ export default function SmartHomePage() {
         setDevices(deduplicated)
       } else {
         setDevices([])
-        setConnectError(status?.lastError || haProvider?.error || 'Servidor indisponível ou offline')
+        setConnectError(status?.lastError || haProvider?.error || t('errors.serverUnavailable'))
       }
     } catch (err: any) {
       console.warn('[SmartHome] Erro na resincronização manual:', err)
-      setConnectError(err.message || 'Falha ao tentar reconectar')
+      setConnectError(err.message || t('errors.reconnectFailed'))
     } finally {
       setIsSyncing(false)
     }
@@ -1576,10 +1588,10 @@ export default function SmartHomePage() {
         setHasSavedConnection(true)
         await loadStatus()
       } else {
-        setConnectError(result.message || result.error || 'Falha ao conectar')
+        setConnectError(result.message || result.error || t('errors.connectFailed'))
       }
     } catch (err: any) {
-      setConnectError(err.message || 'Erro ao conectar')
+      setConnectError(err.message || t('errors.connectFailed'))
     }
     setConnecting(false)
   }
@@ -1589,7 +1601,7 @@ export default function SmartHomePage() {
       setLoading(true)
       const result = await api.disconnectAll()
       if (result?.ok === false || result?.success === false) {
-        throw new Error(result.error || result.message || 'Falha ao desconectar')
+        throw new Error(result.error || result.message || t('errors.disconnectFailed'))
       }
       setIsConnected(false)
       setHasSavedConnection(false)
@@ -1605,7 +1617,7 @@ export default function SmartHomePage() {
       }
     } catch (err: any) {
       console.warn('[SmartHome] Erro ao desconectar:', err)
-      setConnectError(err.message || 'Falha ao desconectar')
+      setConnectError(err.message || t('errors.disconnectFailed'))
     } finally {
       setLoading(false)
     }
@@ -1674,15 +1686,15 @@ export default function SmartHomePage() {
         <div className="sh-modal-overlay">
           <div className="sh-modal">
             <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 8px', color: '#f8fafc' }}>
-              Conectar ao Home Assistant
+              {t('connect.title')}
             </h3>
             <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 20px', lineHeight: 1.5 }}>
-              Informe a URL do seu servidor Home Assistant e um Long-Lived Access Token.
+              {t('connect.description')}
             </p>
             <form onSubmit={handleConnect}>
-              <label className="sh-label">URL do Home Assistant</label>
+              <label className="sh-label">{t('connect.urlLabel')}</label>
               <input className="sh-input" type="url" required placeholder="http://homeassistant.local:8123" value={haUrl} onChange={(e) => setHaUrl(e.target.value)} />
-              <label className="sh-label">Long-Lived Access Token</label>
+              <label className="sh-label">{t('connect.tokenLabel')}</label>
               <div style={{ position: 'relative', width: '100%' }}>
                 <input
                   className="sh-input"
@@ -1696,7 +1708,7 @@ export default function SmartHomePage() {
                 <button
                   type="button"
                   onClick={() => setShowToken(!showToken)}
-                  title={showToken ? 'Ocultar token' : 'Mostrar token'}
+                  title={showToken ? t('connect.hideToken') : t('connect.showToken')}
                   style={{
                     position: 'absolute',
                     right: '10px',
@@ -1717,9 +1729,9 @@ export default function SmartHomePage() {
               </div>
               {connectError && <p style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{connectError}</p>}
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
-                <button type="button" className="sh-btn" onClick={() => { setShowConnectModal(false); setConnectError(null) }}>Cancelar</button>
+                <button type="button" className="sh-btn" onClick={() => { setShowConnectModal(false); setConnectError(null) }}>{t('connect.cancel')}</button>
                 <button type="submit" className="sh-btn-primary" disabled={connecting}>
-                  {connecting ? 'Conectando...' : 'Conectar'}
+                  {connecting ? t('connect.connecting') : t('connect.connect')}
                 </button>
               </div>
             </form>
@@ -1737,7 +1749,7 @@ export default function SmartHomePage() {
       )}
 
       {loading && !hasSavedConnection ? (
-        <div className="sh-auth"><p style={{ color: '#94a3b8' }}>Carregando...</p></div>
+        <div className="sh-auth"><p style={{ color: '#94a3b8' }}>{t('auth.loading')}</p></div>
       ) : !hasSavedConnection ? (
         <div className="sh-auth">
           <div className="sh-auth-card">
@@ -1755,25 +1767,25 @@ export default function SmartHomePage() {
               </div>
               <h2 className="sh-auth-title">Home Assistant</h2>
               <p className="sh-auth-sub">
-                Conecte seus dispositivos inteligentes ao MomAI informando o endereço do seu servidor local ou remoto.
+                {t('auth.subtitle')}
               </p>
 
               <div className="sh-auth-feats-grid">
                 <div className="sh-auth-feat-item">
                   <div className="sh-auth-feat-icon-box"><SvgLight size={14} /></div>
-                  <span>Iluminação & RGB</span>
+                  <span>{t('categories.lighting')}</span>
                 </div>
                 <div className="sh-auth-feat-item">
                   <div className="sh-auth-feat-icon-box"><SvgClimate size={14} /></div>
-                  <span>Climatização</span>
+                  <span>{t('categories.climate')}</span>
                 </div>
                 <div className="sh-auth-feat-item">
                   <div className="sh-auth-feat-icon-box"><SvgLock size={14} /></div>
-                  <span>Fechaduras & Sensores</span>
+                  <span>{t('categories.locks')}</span>
                 </div>
                 <div className="sh-auth-feat-item">
                   <div className="sh-auth-feat-icon-box"><SvgTv size={14} /></div>
-                  <span>Mídia & Smart TVs</span>
+                  <span>{t('categories.media')}</span>
                 </div>
               </div>
             </div>
@@ -1783,7 +1795,7 @@ export default function SmartHomePage() {
               <div className="sh-auth-input-group">
                 <label className="sh-auth-label">
                   <SvgWifi size={13} color="currentColor" />
-                  URL do Servidor
+                  {t('connect.urlLabelAlt')}
                 </label>
                 <input
                   className="sh-auth-input"
@@ -1798,7 +1810,7 @@ export default function SmartHomePage() {
               <div className="sh-auth-input-group">
                 <label className="sh-auth-label">
                   <SvgLock size={13} color="currentColor" />
-                  Long-Lived Access Token
+                  {t('connect.tokenLabel')}
                 </label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <input
@@ -1813,7 +1825,7 @@ export default function SmartHomePage() {
                   <button
                     type="button"
                     onClick={() => setShowToken(!showToken)}
-                    title={showToken ? 'Ocultar token' : 'Mostrar token'}
+                    title={showToken ? t('connect.hideToken') : t('connect.showToken')}
                     style={{
                       position: 'absolute',
                       right: '12px',
@@ -1843,11 +1855,11 @@ export default function SmartHomePage() {
 
               <button className="sh-btn-primary" style={{ width: '100%', padding: '12px 18px', fontSize: '13.5px', marginTop: '4px' }} type="submit" disabled={connecting}>
                 {connecting ? (
-                  <span>Conectando...</span>
+                  <span>{t('connect.connecting')}</span>
                 ) : (
                   <>
                     <SvgPlus size={15} color="#ffffff" />
-                    <span>Conectar ao Home Assistant</span>
+                    <span>{t('connect.connectHA')}</span>
                   </>
                 )}
               </button>
@@ -1876,23 +1888,23 @@ export default function SmartHomePage() {
                 className="sh-btn"
                 onClick={handleResync}
                 disabled={isSyncing}
-                title="Resincronizar dispositivos do Home Assistant"
+                title={t('connect.resync')}
                 style={{
                   cursor: isSyncing ? 'wait' : 'pointer'
                 }}
               >
                 <SvgRefresh size={15} className={isSyncing ? 'sh-spin' : ''} />
-                <span>{isSyncing ? 'Sincronizando...' : 'Resincronizar'}</span>
+                <span>{isSyncing ? t('connect.syncing') : t('connect.resync')}</span>
               </button>
 
               <div className={`sh-badge ${!isConnected ? 'sh-badge-offline' : ''}`}>
                 <span className="sh-dot" />
-                <span>{isConnected ? 'Home Assistant' : 'Offline'}</span>
+                <span>{isConnected ? 'Home Assistant' : t('status.disconnected')}</span>
               </div>
 
               <button className="sh-btn sh-btn-danger" onClick={handleDisconnectAll}>
                 <SvgLogout size={15} />
-                Desconectar
+                {t('connect.disconnect')}
               </button>
             </div>
           </div>
@@ -1904,9 +1916,9 @@ export default function SmartHomePage() {
                 <div className="sh-reconnect-icon-box">
                   <SvgAlert size={28} color="currentColor" />
                 </div>
-                <h2 className="sh-reconnect-title">Home Assistant Indisponível</h2>
+                <h2 className="sh-reconnect-title">{t('status.unavailable')}</h2>
                 <p className="sh-reconnect-sub">
-                  Não foi possível estabelecer conexão com o servidor. Verifique se o Home Assistant está ligado e acessível na rede.
+                  {t('status.unavailableSub')}
                 </p>
 
                 {haUrl && (
@@ -1940,7 +1952,7 @@ export default function SmartHomePage() {
                     style={{ padding: '10px 18px', fontSize: '13px' }}
                   >
                     <SvgRefresh size={15} className={isSyncing ? 'sh-spin' : ''} />
-                    <span>{isSyncing ? 'Tentando Reconectar...' : 'Tentar Reconectar Agora'}</span>
+                    <span>{isSyncing ? t('connect.tryReconnecting') : t('connect.tryReconnect')}</span>
                   </button>
 
                   <button
@@ -1949,13 +1961,13 @@ export default function SmartHomePage() {
                     style={{ padding: '10px 16px', fontSize: '13px' }}
                   >
                     <SvgLogout size={15} />
-                    <span>Desconectar</span>
+                    <span>{t('connect.disconnect')}</span>
                   </button>
                 </div>
               </div>
             </div>
           ) : loading ? (
-            <div className="sh-auth"><p style={{ color: 'inherit', opacity: 0.7 }}>Carregando...</p></div>
+            <div className="sh-auth"><p style={{ color: 'inherit', opacity: 0.7 }}>{t('auth.loading')}</p></div>
           ) : (
             <>
               {/* Filter Bar right at top */}
@@ -1966,7 +1978,7 @@ export default function SmartHomePage() {
                     onClick={() => setActiveFilter('controllable')}
                   >
                     <SvgZap size={15} />
-                    <span>Controláveis</span>
+                    <span>{t('device.controlable')}</span>
                     <span style={{ opacity: 0.7 }}>({controllableCount})</span>
                   </button>
 
@@ -1975,7 +1987,7 @@ export default function SmartHomePage() {
                     onClick={() => setActiveFilter('sensors')}
                   >
                     <SvgSensor size={15} />
-                    <span>Sensores & Status</span>
+                    <span>{t('device.sensors')}</span>
                     <span style={{ opacity: 0.7 }}>({sensorsCount})</span>
                   </button>
 
@@ -1999,10 +2011,10 @@ export default function SmartHomePage() {
                     <SvgHome size={28} />
                   </div>
                   <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 6px' }}>
-                    Nenhum dispositivo nesta categoria
+                    {t('actions.noDevice')}
                   </h3>
                   <p style={{ fontSize: '13.5px', opacity: 0.7, maxWidth: '420px', margin: '0 auto', lineHeight: 1.5 }}>
-                    Selecione outro filtro acima para visualizar seus dispositivos.
+                    {t('filter.selectOther')}
                   </p>
                 </div>
               ) : (
@@ -2012,9 +2024,10 @@ export default function SmartHomePage() {
                       return null
                     }
 
-                    const domainLabel = DOMAIN_LABELS[device.domain] || device.type || device.domain
+                    const domainLabel = DOMAIN_KEYS[device.domain] ? t(DOMAIN_KEYS[device.domain]) : (device.type || device.domain)
                     const dynamicSvgIcon = getDynamicSvgIcon(device, 18)
                     const formatted = formatEntityValue(device.state.value, device.state.unit, device.attributes.deviceClass as string || device.state.deviceClass)
+                    const formattedPrimary = formatted.primary.startsWith('device.') ? t(formatted.primary) : formatted.primary
                     const roomOrDomainSub = device.room ? `${device.room} • ${domainLabel}` : domainLabel
 
                     return (
@@ -2052,7 +2065,7 @@ export default function SmartHomePage() {
                           {device.domain === 'light' && device.state.on && device.state.brightness != null && (
                             <>
                               <div style={{ display: 'flex', justify: 'space-between', fontSize: '11px', color: '#38bdf8', fontWeight: 600, marginTop: '10px' }}>
-                                <span>Brilho</span><span>{device.state.brightness}%</span>
+                                <span>{t('control.brightness')}</span><span>{device.state.brightness}%</span>
                               </div>
                               <div className="sh-bar" onClick={(e) => { e.stopPropagation(); setBrightness(device, device.state.brightness! > 50 ? 25 : 75) }}>
                                 <div className="sh-fill" style={{ width: `${device.state.brightness}%` }} />
@@ -2066,13 +2079,13 @@ export default function SmartHomePage() {
                                 {device.state.targetTemperature || device.state.temperature || '--'}°C
                               </span>
                               <button className="sh-temp-btn" onClick={(e) => { e.stopPropagation(); adjustTemp(device, 1) }}>+</button>
-                              {device.state.temperature != null && <span style={{ fontSize: '12px', color: '#94a3b8' }}>atual: {device.state.temperature}°</span>}
+                              {device.state.temperature != null && <span style={{ fontSize: '12px', color: '#94a3b8' }}>{t('device.current')}: {device.state.temperature}°</span>}
                             </div>
                           )}
                           {device.domain === 'sensor' && (
                             <div style={{ marginTop: '8px' }}>
                               <p style={{ fontSize: '15px', color: '#38bdf8', fontWeight: 700, margin: 0 }}>
-                                {formatted.primary}
+                                {formattedPrimary}
                               </p>
                               {formatted.secondary && (
                                 <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2083,12 +2096,12 @@ export default function SmartHomePage() {
                           )}
                           {device.domain === 'cover' && (
                             <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px' }}>
-                              {device.state.isOpen ? 'Aberto' : 'Fechado'}{device.state.position != null ? ` (${device.state.position}%)` : ''}
+                              {device.state.isOpen ? t('device.open') : t('device.closed')}{device.state.position != null ? ` (${device.state.position}%)` : ''}
                             </p>
                           )}
                           {device.domain === 'lock' && (
                             <p style={{ fontSize: '13px', color: device.state.locked ? '#34d399' : '#f87171', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {device.state.locked ? <><SvgLock size={13} color="#34d399" /> Trancado</> : <><SvgUnlock size={13} color="#f87171" /> Destrancado</>}
+                              {device.state.locked ? <><SvgLock size={13} color="#34d399" /> {t('device.trancado')}</> : <><SvgUnlock size={13} color="#f87171" /> {t('device.destrancado')}</>}
                             </p>
                           )}
                           {device.domain === 'media_player' && device.state.mediaTitle && (
@@ -2098,7 +2111,7 @@ export default function SmartHomePage() {
                           )}
                           {device.domain === 'binary_sensor' && (
                             <p style={{ fontSize: '13px', color: device.state.on ? '#f87171' : '#94a3b8', fontWeight: 600, marginTop: '8px' }}>
-                              {device.state.on ? 'Ativo' : 'Inativo'}
+                              {device.state.on ? t('device.active') : t('device.inactive')}
                             </p>
                           )}
                         </div>
@@ -2135,7 +2148,7 @@ export default function SmartHomePage() {
           items={[
             {
               id: 'open',
-              label: 'Abrir controle',
+              label: t('contextMenu.openControl'),
               onClick: () => {
                 const opened = openDeviceOverlay(deviceMenu.device, devices)
                 if (!opened) setSelectedDevice(deviceMenu.device)
@@ -2145,14 +2158,14 @@ export default function SmartHomePage() {
               ? [
                   {
                     id: 'toggle',
-                    label: deviceMenu.device.state.on ? 'Desligar' : 'Ligar',
+                    label: deviceMenu.device.state.on ? t('contextMenu.turnOff') : t('contextMenu.turnOn'),
                     onClick: () => toggleDevice(deviceMenu.device)
                   }
                 ]
               : []),
             {
               id: 'copy-name',
-              label: 'Copiar nome',
+              label: t('contextMenu.copyName'),
               onClick: () => {
                 try {
                   void navigator.clipboard?.writeText?.(deviceMenu.device.name)
@@ -2161,7 +2174,7 @@ export default function SmartHomePage() {
             },
             {
               id: 'copy-id',
-              label: 'Copiar ID da entidade',
+              label: t('contextMenu.copyEntityId'),
               onClick: () => {
                 try {
                   void navigator.clipboard?.writeText?.(deviceMenu.device.id)
@@ -2172,5 +2185,13 @@ export default function SmartHomePage() {
         />
       )}
     </div>
+  )
+}
+
+export default function SmartHomePage(props: Record<string, unknown>) {
+  return (
+    <SmartHomeI18nProvider>
+      <SmartHomePageInner {...props} />
+    </SmartHomeI18nProvider>
   )
 }

@@ -1,14 +1,14 @@
 import React from 'react'
 import { DeviceControlCardContent, Device } from './components/DeviceControlContent'
 import { SmartHomeStyles } from './styles'
+import { SmartHomeI18nProvider, useSmartHomeI18n } from './i18n'
 
-export function SmartHomePanel(props: any) {
+function SmartHomePanelInner(props: any) {
   const data = props?.data || props
   const device = data?.device
+  const { t } = useSmartHomeI18n()
 
   const handleClose = () => {
-    // Fecha apenas a overlay deste device (device.id) — um único IPC. Chamadas
-    // redundantes ou sem id faziam o host fechar também a última overlay criada.
     const closeOverlay = (window as any)?.momaiAPI?.closeOverlay || (window as any)?.api?.closeOverlay
     if (typeof closeOverlay === 'function') {
       try {
@@ -42,7 +42,7 @@ export function SmartHomePanel(props: any) {
             ✕
           </button>
           <p style={{ fontSize: '14px', color: '#9aa0a6', margin: '20px 0 0' }}>
-            Nenhum dispositivo selecionado para exibição.
+            {t('panel.noDevice')}
           </p>
         </div>
       ) : (
@@ -75,12 +75,12 @@ export function SmartHomePanel(props: any) {
               return await res.json()
             } catch (err: any) {
               const aborted = err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.code === 20)
-              console.error('[SmartHomePanel] Erro ao executar serviço:', err)
+              console.error('[SmartHomePanel] Service execution error:', err)
               return {
                 ok: false,
                 error: aborted
-                  ? 'O servidor do MomAI não respondeu (timeout). Verifique se o app está rodando.'
-                  : (err?.message || 'Falha de rede ao falar com o servidor')
+                  ? t('panel.timeout')
+                  : (err?.message || t('panel.networkError'))
               }
             } finally {
               clearTimeout(timer)
@@ -90,6 +90,14 @@ export function SmartHomePanel(props: any) {
         />
       )}
     </>
+  )
+}
+
+export function SmartHomePanel(props: any) {
+  return (
+    <SmartHomeI18nProvider>
+      <SmartHomePanelInner {...props} />
+    </SmartHomeI18nProvider>
   )
 }
 

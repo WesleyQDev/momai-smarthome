@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { useSmartHomeI18n } from '../i18n'
 import {
   SvgPower,
   SvgSun,
@@ -77,24 +78,29 @@ function volumeToPercent(volume: number | null | undefined): number {
   return Math.max(0, Math.min(100, Math.round(volume * 100)))
 }
 
-export const DOMAIN_LABELS: Record<string, string> = {
-  light: 'Iluminação',
-  switch: 'Interruptor',
-  fan: 'Ventilador',
-  cover: 'Persiana',
-  lock: 'Fechadura',
-  climate: 'Climatização',
-  sensor: 'Sensor',
-  binary_sensor: 'Sensor Binário',
-  media_player: 'Mídia / TV',
-  camera: 'Câmera',
-  vacuum: 'Aspirador',
-  scene: 'Cena',
-  automation: 'Automação',
-  alarm_control_panel: 'Alarme',
-  remote: 'Controle Remoto',
-  sun: 'Sol',
-  weather: 'Clima'
+const DOMAIN_KEYS: Record<string, string> = {
+  light: 'domains.light',
+  switch: 'domains.switch',
+  fan: 'domains.fan',
+  cover: 'domains.cover',
+  lock: 'domains.lock',
+  climate: 'domains.climate',
+  sensor: 'domains.sensor',
+  binary_sensor: 'domains.binarySensor',
+  media_player: 'domains.mediaPlayer',
+  camera: 'domains.camera',
+  vacuum: 'domains.vacuum',
+  scene: 'domains.scene',
+  automation: 'domains.automation',
+  alarm_control_panel: 'domains.alarm',
+  remote: 'domains.remote',
+  sun: 'domains.sun',
+  weather: 'domains.weather'
+}
+
+function getDomainLabel(domain: string, t: (key: string) => string): string {
+  const key = DOMAIN_KEYS[domain]
+  return key ? t(key) : domain
 }
 
 const CONTROLLABLE_DOMAINS_LIST = [
@@ -241,6 +247,7 @@ export function DeviceControlCardContent({
   callServiceApi?: (domain: string, service: string, data?: any, providerType?: string) => Promise<any>
   isOverlay?: boolean
 }) {
+  const { t } = useSmartHomeI18n()
   const [currentDevice, setCurrentDevice] = useState<Device>(device)
   const isUserInteractingRef = React.useRef(false)
   // Refs espelhados dos estados de controle, atualizados a cada render, para o
@@ -422,14 +429,14 @@ export function DeviceControlCardContent({
   }, [])
 
   const COLOR_PRESETS = [
-    { name: 'Laranja Quente', color: '#f97316', rgb: [249, 115, 22] },
-    { name: 'Âmbar Suave', color: '#fed7aa', rgb: [254, 215, 170] },
-    { name: 'Branco Quente', color: '#fef3c7', rgb: [254, 243, 199] },
-    { name: 'Branco Puro', color: '#ffffff', rgb: [255, 255, 255] },
-    { name: 'Azul Gelo', color: '#60a5fa', rgb: [96, 165, 250] },
-    { name: 'Roxo Suave', color: '#c084fc', rgb: [192, 132, 252] },
-    { name: 'Rosa Pastel', color: '#f472b6', rgb: [244, 114, 182] },
-    { name: 'Coral Vermelho', color: '#f87171', rgb: [248, 113, 113] }
+    { key: 'color.warmOrange', color: '#f97316', rgb: [249, 115, 22] },
+    { key: 'color.softAmber', color: '#fed7aa', rgb: [254, 215, 170] },
+    { key: 'color.warmWhite', color: '#fef3c7', rgb: [254, 243, 199] },
+    { key: 'color.pureWhite', color: '#ffffff', rgb: [255, 255, 255] },
+    { key: 'color.iceBlue', color: '#60a5fa', rgb: [96, 165, 250] },
+    { key: 'color.softPurple', color: '#c084fc', rgb: [192, 132, 252] },
+    { key: 'color.pastelPink', color: '#f472b6', rgb: [244, 114, 182] },
+    { key: 'color.coralRed', color: '#f87171', rgb: [248, 113, 113] }
   ]
 
   function getApiBaseUrl(): string {
@@ -932,8 +939,8 @@ export function DeviceControlCardContent({
       <div className="sh-modal-detail" style={isOverlay ? { WebkitAppRegion: 'drag' } as any : undefined}>
         <button
           className="sh-modal-close-btn"
-          title="Fechar"
-          aria-label="Fechar controle"
+          title={t('actions.close')}
+          aria-label={t('actions.close')}
           onClick={(e) => {
             e.stopPropagation()
             if (onClose) onClose()
@@ -944,33 +951,33 @@ export function DeviceControlCardContent({
         </button>
         <div className="sh-modal-remote-content">
           <div className="sh-remote-header">
-            <span className="sh-remote-pill-tag">Smart Remote</span>
+            <span className="sh-remote-pill-tag">{t('remote.smartRemote')}</span>
             <h3 className="sh-remote-title">{device.name}</h3>
-            <p className="sh-remote-state">{isOn ? '● Ligado' : '○ Desligado'} • {device.room || 'Sala'}</p>
+            <p className="sh-remote-state">{isOn ? `● ${t('device.on')}` : `○ ${t('device.off')}`} • {device.room || t('remote.defaultRoom')}</p>
           </div>
 
           <div className="sh-dpad-ring" style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}>
-            <button className="sh-dpad-btn up" title="Navegar para cima" aria-label="Navegar para cima" onClick={() => handleSendRemoteCommand('UP')}>▲</button>
-            <button className="sh-dpad-btn down" title="Navegar para baixo" aria-label="Navegar para baixo" onClick={() => handleSendRemoteCommand('DOWN')}>▼</button>
-            <button className="sh-dpad-btn left" title="Navegar para esquerda" aria-label="Navegar para esquerda" onClick={() => handleSendRemoteCommand('LEFT')}>◀</button>
-            <button className="sh-dpad-btn right" title="Navegar para direita" aria-label="Navegar para direita" onClick={() => handleSendRemoteCommand('RIGHT')}>▶</button>
-            <button className="sh-dpad-center" title="Confirmar / OK" aria-label="Confirmar / OK" onClick={() => handleSendRemoteCommand('ENTER')}>OK</button>
+            <button className="sh-dpad-btn up" title={t('remote.navUp')} aria-label={t('remote.navUp')} onClick={() => handleSendRemoteCommand('UP')}>▲</button>
+            <button className="sh-dpad-btn down" title={t('remote.navDown')} aria-label={t('remote.navDown')} onClick={() => handleSendRemoteCommand('DOWN')}>▼</button>
+            <button className="sh-dpad-btn left" title={t('remote.navLeft')} aria-label={t('remote.navLeft')} onClick={() => handleSendRemoteCommand('LEFT')}>◀</button>
+            <button className="sh-dpad-btn right" title={t('remote.navRight')} aria-label={t('remote.navRight')} onClick={() => handleSendRemoteCommand('RIGHT')}>▶</button>
+            <button className="sh-dpad-center" title={t('remote.confirm')} aria-label={t('remote.confirm')} onClick={() => handleSendRemoteCommand('ENTER')}>OK</button>
           </div>
 
           <div className="sh-remote-actions-row" style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}>
-            <button className="sh-remote-action-btn" title="Voltar" aria-label="Voltar" onClick={() => handleSendRemoteCommand('BACK')}>
+            <button className="sh-remote-action-btn" title={t('remote.back')} aria-label={t('remote.back')} onClick={() => handleSendRemoteCommand('BACK')}>
               <SvgBack size={18} />
             </button>
-            <button className="sh-remote-action-btn" title="Menu Início (Home)" aria-label="Menu Início (Home)" onClick={() => handleSendRemoteCommand('HOME')}>
+            <button className="sh-remote-action-btn" title={t('remote.home')} aria-label={t('remote.home')} onClick={() => handleSendRemoteCommand('HOME')}>
               <SvgHome size={18} />
             </button>
-            <button className={`sh-remote-action-btn ${showInputSelector ? 'active' : ''}`} title="Entradas de vídeo (Outputs / HDMI / TV)" aria-label="Entradas de vídeo (Outputs / HDMI / TV)" onClick={() => setShowInputSelector(!showInputSelector)}>
+            <button className={`sh-remote-action-btn ${showInputSelector ? 'active' : ''}`} title={t('remote.inputs')} aria-label={t('remote.inputs')} onClick={() => setShowInputSelector(!showInputSelector)}>
               <SvgTv size={18} />
             </button>
-            <button className="sh-remote-action-btn youtube-pill" title="Abrir YouTube" aria-label="Abrir YouTube" onClick={() => handleSendRemoteCommand('YOUTUBE')}>
+            <button className="sh-remote-action-btn youtube-pill" title={t('remote.youtube')} aria-label={t('remote.youtube')} onClick={() => handleSendRemoteCommand('YOUTUBE')}>
               <SvgYoutube />
             </button>
-            <button className={`sh-remote-action-btn power ${isOn ? 'active' : ''}`} title={isOn ? 'Desligar TV' : 'Ligar TV'} aria-label={isOn ? 'Desligar TV' : 'Ligar TV'} onClick={handleToggle}>
+            <button className={`sh-remote-action-btn power ${isOn ? 'active' : ''}`} title={isOn ? t('remote.powerOff') : t('remote.powerOn')} aria-label={isOn ? t('remote.powerOff') : t('remote.powerOn')} onClick={handleToggle}>
               <SvgPower size={18} color="#ffffff" />
             </button>
           </div>
@@ -979,7 +986,7 @@ export function DeviceControlCardContent({
             <div className="sh-input-selector-popover" style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}>
               <div className="sh-input-grid">
                 {inputSources.map((src) => (
-                  <button key={src} className="sh-input-chip" title={`Alternar para entrada ${src}`} aria-label={`Alternar para entrada ${src}`} onClick={() => handleSelectSource(src)}>
+                  <button key={src} className="sh-input-chip" title={t('remote.switchToInput', { src })} aria-label={t('remote.switchToInput', { src })} onClick={() => handleSelectSource(src)}>
                     <SvgTv size={14} /> {src}
                   </button>
                 ))}
@@ -988,13 +995,13 @@ export function DeviceControlCardContent({
           )}
 
           <div className="sh-remote-media-row" style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}>
-            <button className="sh-remote-icon-btn" title="Faixa anterior / Voltar mídia" aria-label="Faixa anterior / Voltar mídia" onClick={() => handleSendRemoteCommand('PREV')}>
+            <button className="sh-remote-icon-btn" title={t('remote.prev')} aria-label={t('remote.prev')} onClick={() => handleSendRemoteCommand('PREV')}>
               <SvgPrev size={18} />
             </button>
             <button
               className="sh-remote-icon-btn main"
-              title={isPlaying ? 'Pausar reprodução' : 'Iniciar reprodução'}
-              aria-label={isPlaying ? 'Pausar reprodução' : 'Iniciar reprodução'}
+              title={isPlaying ? t('remote.pause') : t('remote.play')}
+              aria-label={isPlaying ? t('remote.pause') : t('remote.play')}
               onClick={() => {
                 setIsPlaying(!isPlaying)
                 handleSendRemoteCommand(isPlaying ? 'PAUSE' : 'PLAY')
@@ -1002,7 +1009,7 @@ export function DeviceControlCardContent({
             >
               {isPlaying ? <SvgPause size={18} color="#ffffff" /> : <SvgPlay size={18} color="#ffffff" />}
             </button>
-            <button className="sh-remote-icon-btn" title="Próxima faixa / Avançar mídia" aria-label="Próxima faixa / Avançar mídia" onClick={() => handleSendRemoteCommand('NEXT')}>
+            <button className="sh-remote-icon-btn" title={t('remote.next')} aria-label={t('remote.next')} onClick={() => handleSendRemoteCommand('NEXT')}>
               <SvgNext size={18} />
             </button>
           </div>
@@ -1010,8 +1017,8 @@ export function DeviceControlCardContent({
           <div className="sh-remote-vol-row" style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}>
             <button
               className="sh-remote-icon-btn"
-              title={isMuted ? 'Restaurar som (Desmudar)' : 'Silenciar (Mudo)'}
-              aria-label={isMuted ? 'Restaurar som (Desmudar)' : 'Silenciar (Mudo)'}
+              title={isMuted ? t('remote.unmute') : t('remote.mute')}
+              aria-label={isMuted ? t('remote.unmute') : t('remote.mute')}
               onClick={() => {
                 setIsMuted(!isMuted)
                 executeService('media_player', 'volume_mute', { entity_id: device.id, is_volume_muted: !isMuted })
@@ -1028,8 +1035,8 @@ export function DeviceControlCardContent({
               </span>
               <button
                 className="sh-remote-icon-btn"
-                title="Diminuir volume"
-                aria-label="Diminuir volume"
+                title={t('remote.volDown')}
+                aria-label={t('remote.volDown')}
                 onClick={() => handleVolumeChange('down')}
               >
                 <SvgVolDown size={18} />
@@ -1044,8 +1051,8 @@ export function DeviceControlCardContent({
               </span>
               <button
                 className="sh-remote-icon-btn"
-                title="Aumentar volume"
-                aria-label="Aumentar volume"
+                title={t('remote.volUp')}
+                aria-label={t('remote.volUp')}
                 onClick={() => handleVolumeChange('up')}
               >
                 <SvgVolUp size={18} />
@@ -1072,13 +1079,13 @@ export function DeviceControlCardContent({
         </button>
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <span style={{ fontSize: '12px', textTransform: 'uppercase', color: '#38bdf8', fontWeight: 700, letterSpacing: '0.5px' }}>
-            {device.room || 'Cômodo'}
+            {device.room || t('device.noRoom')}
           </span>
           <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#fff', margin: '4px 0 0' }}>{device.name}</h2>
         </div>
 
-        <div className="sh-light-readout">{isOn ? `${brightness}%` : 'Off'}</div>
-        <div className="sh-light-subreadout">{isOn ? 'Luz ligada' : 'Luz desligada'}</div>
+        <div className="sh-light-readout">{isOn ? `${brightness}%` : t('state.off')}</div>
+        <div className="sh-light-subreadout">{isOn ? t('light.on') : t('light.off')}</div>
 
         {activeTab === 'brightness' && (
           <div
@@ -1109,11 +1116,11 @@ export function DeviceControlCardContent({
             <div className="sh-color-grid">
               {COLOR_PRESETS.map((preset) => (
                 <button
-                  key={preset.name}
+                  key={preset.key}
                   className="sh-color-circle"
                   style={{ background: preset.color }}
                   onClick={() => handleColorChange(preset.rgb as [number, number, number], preset.color)}
-                  title={preset.name}
+                  title={t(preset.key)}
                 />
               ))}
             </div>
@@ -1200,32 +1207,32 @@ export function DeviceControlCardContent({
         </div>
         <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#fff', margin: '0 0 4px' }}>{device.name}</h2>
         <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-          {device.room ? `${device.room} • ` : ''}{DOMAIN_LABELS[device.domain] || device.domain}
+          {device.room ? `${device.room} • ` : ''}{getDomainLabel(device.domain, t)}
         </p>
       </div>
 
       <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '20px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justify: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>Status do Dispositivo</span>
+          <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>{t('device.status')}</span>
           <span style={{ fontSize: '13px', fontWeight: 700, color: isOn ? '#34d399' : '#f87171' }}>
-            {isOn ? 'Ativo / Ligado' : 'Inativo / Desligado'}
+            {isOn ? t('device.statusOn') : t('device.statusOff')}
           </span>
         </div>
         {device.state?.temperature != null && (
           <div style={{ display: 'flex', justify: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>Temperatura</span>
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>{t('control.temperature')}</span>
             <span style={{ fontSize: '14px', fontWeight: 700, color: '#38bdf8' }}>{device.state.temperature}°C</span>
           </div>
         )}
         {device.state?.humidity != null && (
           <div style={{ display: 'flex', justify: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>Umidade</span>
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>{t('device.humidity')}</span>
             <span style={{ fontSize: '14px', fontWeight: 700, color: '#38bdf8' }}>{device.state.humidity}%</span>
           </div>
         )}
         {device.state?.value && (
           <div style={{ display: 'flex', justify: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>Valor</span>
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>{t('device.value')}</span>
             <span style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>{device.state.value} {device.state.unit || ''}</span>
           </div>
         )}
@@ -1238,7 +1245,7 @@ export function DeviceControlCardContent({
           onClick={handleToggle}
         >
           <SvgPower size={18} color="#ffffff" />
-          {isOn ? 'Desligar Dispositivo' : 'Ligar Dispositivo'}
+          {isOn ? t('device.turnOff') : t('device.turnOn')}
         </button>
       )}
     </div>

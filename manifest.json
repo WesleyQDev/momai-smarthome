@@ -1,185 +1,450 @@
 {
-  "id": "momai-smarthome",
-  "name": "MomAI Smart Home",
-  "version": "1.0.26",
-  "kind": "packaged",
-  "is_official": true,
-  "description": "Ligue luzes, ajuste o ar-condicionado e controle a TV da sua casa por voz ou texto.",
-  "icon_bg": "#8b5cf6",
-  "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"#ffffff\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M33 13.5V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v9\" stroke=\"#ffffff\" stroke-width=\"2.8\" fill=\"#ffffff\" fill-opacity=\"0.18\"/><path d=\"M5 21L24 6l19 15\" stroke=\"#ffffff\" stroke-width=\"3.2\"/><path d=\"M9 20v17a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V20\" stroke=\"#ffffff\" stroke-width=\"2.8\" fill=\"#ffffff\" fill-opacity=\"0.12\"/><path d=\"M29 17a6 6 0 0 1 6-4\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><path d=\"M31 12.5a10 10 0 0 1 7.5-4\" stroke=\"#ffffff\" stroke-width=\"2.2\"/><rect x=\"16\" y=\"19\" width=\"16\" height=\"24\" rx=\"4.5\" fill=\"#ffffff\" fill-opacity=\"0.22\" stroke=\"#ffffff\" stroke-width=\"2.4\"/><path d=\"M21.5 26.5v-2a2.5 2.5 0 0 1 5 0v2\" stroke=\"#ffffff\" stroke-width=\"1.8\"/><rect x=\"20\" y=\"26.5\" width=\"8\" height=\"6\" rx=\"1.2\" stroke=\"#ffffff\" stroke-width=\"1.6\" fill=\"none\"/><circle cx=\"24\" cy=\"29.5\" r=\"0.9\" fill=\"#ffffff\" stroke=\"none\"/><line x1=\"19\" y1=\"34.5\" x2=\"29\" y2=\"34.5\" stroke=\"#ffffff\" stroke-width=\"1.2\" opacity=\"0.7\"/><circle cx=\"20\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"24\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"28\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"20\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"24\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/><circle cx=\"28\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/></svg>",
-  "sidebar_icon": "icon.png",
-  "icon_url": "https://raw.githubusercontent.com/WesleyQDev/momai-smarthome/main/icon.png",
-  "background": true,
-  "backgroundScript": "runtime.ts",
-  "permissions": ["network", "storage", "network:persistent"],
-  "sdkVersion": 1,
-  "momai_compat": ">=1.11.0",
-  "sidebar": true,
-  "ui": {
-    "page": "dist/page.js",
-    "pageType": "momaismarthome-page",
-    "panel": "dist/panel.js",
-    "panelType": "momaismarthome-panel"
-  },
-  "eventTypes": {
-    "state_changed": {
-      "label": "Estado do Dispositivo Alterado",
-      "priority": 100,
-      "fields": {
-        "entityId": {
-          "label": "Dispositivo / Entidade",
-          "type": "string",
-          "description": "Entidade do Home Assistant que mudou de estado",
-          "x-options-source": { "tool": "list_devices" }
+    "id":  "momai-smarthome",
+    "name":  "MomAI Smart Home",
+    "version":  "1.0.26",
+    "category": "utility",
+    "tags": ["smart home", "home assistant", "iot", "automation", "lighting", "tv", "air conditioning"],
+    "readme": {
+        "pt-BR": "README.md",
+        "en-US": "README.en-US.md",
+        "es": "README.es.md"
+    },
+    "locales": {
+        "pt-BR": {
+            "name": "MomAI Smart Home",
+            "description": "Ligue luzes, ajuste o ar-condicionado e controle a TV da sua casa por voz ou texto.",
+            "category": "utility",
+            "tags": ["casa inteligente", "home assistant", "iot", "automação", "iluminação", "tv", "ar condicionado"]
         },
-        "deviceState": {
-          "label": "Novo Estado Desejado",
-          "type": "string",
-          "description": "Dispara quando o estado for alterado para este valor",
-          "enum": ["on", "off", "open", "closed", "locked", "unlocked", "playing", "paused", "idle"]
+        "en-US": {
+            "name": "MomAI Smart Home",
+            "description": "Turn on lights, adjust the air conditioning and control your home TV by voice or text.",
+            "category": "utility",
+            "tags": ["smart home", "home assistant", "iot", "automation", "lighting", "tv", "air conditioning"]
         },
-        "deviceName": { "label": "Nome do Dispositivo", "type": "string" },
-        "deviceRoom": { "label": "CÃ´modo", "type": "string" }
-      }
-    },
-    "open_overlay": { "label": "Controle Flutuante Aberto" },
-    "close_overlay": { "label": "Controle Flutuante Fechado" },
-    "connection_changed": { "label": "ConexÃ£o com Home Assistant Alterada" }
-  },
-  "tools": [
-    {
-      "name": "control_device",
-      "label": "Controlar Dispositivo Inteligente",
-      "description": "Liga, desliga ou ajusta um dispositivo inteligente (luzes, interruptores, TV, ar condicionado, etc).",
-      "parameters": {
-        "type": "object",
-        "required": ["device_name", "action"],
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome exato ou parcial do dispositivo" },
-          "action": { "type": "string", "enum": ["on", "off", "toggle"], "description": "AÃ§Ã£o principal" },
-          "brightness": { "type": "number", "description": "Brilho (0-100) para luzes" },
-          "color": { "type": "string", "description": "Cor da luz (nome ou HEX)" },
-          "color_temp": { "type": "number", "description": "Temperatura da cor em Kelvin" }
+        "es": {
+            "name": "MomAI Smart Home",
+            "description": "Enciende las luces, ajusta el aire acondicionado y controla el televisor de tu casa por voz o texto.",
+            "category": "utility",
+            "tags": ["hogar inteligente", "home assistant", "iot", "automatización", "iluminación", "tv", "aire acondicionado"]
+        },
+        "de": {
+            "name": "MomAI Smart Home",
+            "description": "Schalte Lichter ein, passe die Klimaanlage an und steuere deinen Fernseher per Stimme oder Text.",
+            "category": "utility",
+            "tags": ["smart home", "home assistant", "iot", "automatisierung", "beleuchtung", "tv", "klimaanlage"]
+        },
+        "fr": {
+            "name": "MomAI Smart Home",
+            "description": "Allumez les lumières, réglez la climatisation et contrôlez votre téléviseur à la voix ou au texte.",
+            "category": "utility",
+            "tags": ["maison intelligente", "home assistant", "iot", "automatisation", "éclairage", "tv", "climatisation"]
+        },
+        "it": {
+            "name": "MomAI Smart Home",
+            "description": "Accendi le luci, regola il climatizzatore e controlla la TV di casa con voce o testo.",
+            "category": "utility",
+            "tags": ["casa intelligente", "home assistant", "iot", "automazione", "illuminazione", "tv", "climatizzazione"]
         }
-      }
     },
-    {
-      "name": "set_light_color",
-      "label": "Ajustar Luz / Cor",
-      "description": "Muda a cor, brilho ou temperatura de cor de uma lÃ¢mpada ou fita LED.",
-      "parameters": {
-        "type": "object",
-        "required": ["device_name"],
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome da lÃ¢mpada ou grupo de luzes" },
-          "color": { "type": "string", "description": "Nome da cor ou HEX" },
-          "brightness": { "type": "number", "description": "Brilho de 0 a 100%" },
-          "color_temp": { "type": "number", "description": "Temperatura da cor em Kelvin" }
-        }
-      }
-    },
-    {
-      "name": "control_tv_remote",
-      "label": "Controle de TV / MÃ­dia",
-      "description": "Controle de TV e reprodutores de mÃ­dia: comandos de controle remoto, alternÃ¢ncia de entrada/fonte e reproduÃ§Ã£o.",
-      "parameters": {
-        "type": "object",
-        "required": ["device_name"],
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome da TV ou Media Player" },
-          "command": { "type": "string", "description": "BotÃ£o do controle remoto (power, volume_up, mute, etc)" },
-          "action": { "type": "string", "enum": ["play", "pause", "stop", "next", "previous", "volume_up", "volume_down", "mute", "unmute", "source", "volume"], "description": "AÃ§Ã£o de mÃ­dia" },
-          "value": { "type": "string", "description": "Valor para aÃ§Ã£o (ex: volume ou nome da fonte)" }
-        }
-      }
-    },
-    {
-      "name": "control_climate",
-      "label": "Controlar Ar Condicionado / Clima",
-      "description": "Ajusta temperatura alvo e modo de operaÃ§Ã£o do ar condicionado ou termostato.",
-      "parameters": {
-        "type": "object",
-        "required": ["device_name"],
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome do ar condicionado ou termostato" },
-          "temperature": { "type": "number", "description": "Temperatura desejada em Celsius" },
-          "hvac_mode": { "type": "string", "enum": ["cool", "heat", "fan_only", "auto", "off"], "description": "Modo do ar condicionado" }
-        }
-      }
-    },
-    {
-      "name": "call_ha_service",
-      "label": "Executar ServiÃ§o no Home Assistant",
-      "description": "Executa um serviÃ§o arbitrÃ¡rio do Home Assistant (domÃ­nio, serviÃ§o e dados JSON).",
-      "parameters": {
-        "type": "object",
-        "required": ["domain", "service"],
-        "properties": {
-          "domain": { "type": "string", "description": "DomÃ­nio do serviÃ§o (ex: light, scene, media_player)" },
-          "service": { "type": "string", "description": "Nome do serviÃ§o (ex: turn_on, select_source)" },
-          "data": { "type": "object", "description": "Dados adicionais em JSON para o serviÃ§o" }
-        }
-      }
-    },
-    {
-      "name": "list_devices",
-      "label": "Listar Dispositivos",
-      "description": "Lista todos os dispositivos inteligentes disponÃ­veis com seus estados.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "room": { "type": "string", "description": "Filtrar por cÃ´modo (opcional)" }
-        }
-      }
-    },
-    {
-      "name": "query_device",
-      "label": "Consultar Dispositivo",
-      "description": "ObtÃ©m o estado detalhado de um dispositivo especÃ­fico.",
-      "parameters": {
-        "type": "object",
-        "required": ["device_name"],
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome do dispositivo" }
-        }
-      }
-    },
-    {
-      "name": "open_device_control",
-      "label": "Abrir Controle Flutuante",
-      "description": "Abre a interface de controle flutuante (overlay) de um dispositivo especÃ­fico (TV, luz, ar condicionado, etc).",
-      "parameters": {
-        "type": "object",
-        "required": ["device_name"],
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome do dispositivo cujo controle deve ser exibido" }
-        }
-      }
-    },
-    {
-      "name": "close_device_control",
-      "label": "Fechar Controle Flutuante",
-      "description": "Fecha a interface de controle flutuante (overlay) aberta.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "device_name": { "type": "string", "description": "Nome do dispositivo cujo controle fechar (opcional)" },
-          "all": { "type": "boolean", "description": "Se true, fecha todos os controles abertos" }
-        }
-      }
-    }
-  ],
-  "theme": {
-    "gradient": "from-violet-600 to-purple-500",
-    "accent": "violet"
-  },
-  "storage": {
-    "description": "Guarda a conexão com a sua casa e as suas preferências neste computador. Ao desconectar, a reconexão automática é desligada, mas o endereço e o acesso ficam salvos para você conectar de novo.",
-    "locations": [
-      "smarthome.sqlite (conexÃµes criptografadas localmente em .encryption-key)",
-      "momai.storage: connections (credenciais do Home Assistant; criptografadas no banco local)",
-      "momai.storage: last_credentials (credencial transitÃ³ria da Ãºltima conexÃ£o, limpa ao desconectar)"
-    ]
-  }
+    "kind":  "packaged",
+    "is_official":  true,
+    "description":  "Ligue luzes, ajuste o ar-condicionado e controle a TV da sua casa por voz ou texto.",
+    "icon_bg":  "#8b5cf6",
+    "icon":  "\u003csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"#ffffff\" stroke-linecap=\"round\" stroke-linejoin=\"round\"\u003e\u003cpath d=\"M33 13.5V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v9\" stroke=\"#ffffff\" stroke-width=\"2.8\" fill=\"#ffffff\" fill-opacity=\"0.18\"/\u003e\u003cpath d=\"M5 21L24 6l19 15\" stroke=\"#ffffff\" stroke-width=\"3.2\"/\u003e\u003cpath d=\"M9 20v17a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V20\" stroke=\"#ffffff\" stroke-width=\"2.8\" fill=\"#ffffff\" fill-opacity=\"0.12\"/\u003e\u003cpath d=\"M29 17a6 6 0 0 1 6-4\" stroke=\"#ffffff\" stroke-width=\"2.2\"/\u003e\u003cpath d=\"M31 12.5a10 10 0 0 1 7.5-4\" stroke=\"#ffffff\" stroke-width=\"2.2\"/\u003e\u003crect x=\"16\" y=\"19\" width=\"16\" height=\"24\" rx=\"4.5\" fill=\"#ffffff\" fill-opacity=\"0.22\" stroke=\"#ffffff\" stroke-width=\"2.4\"/\u003e\u003cpath d=\"M21.5 26.5v-2a2.5 2.5 0 0 1 5 0v2\" stroke=\"#ffffff\" stroke-width=\"1.8\"/\u003e\u003crect x=\"20\" y=\"26.5\" width=\"8\" height=\"6\" rx=\"1.2\" stroke=\"#ffffff\" stroke-width=\"1.6\" fill=\"none\"/\u003e\u003ccircle cx=\"24\" cy=\"29.5\" r=\"0.9\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003cline x1=\"19\" y1=\"34.5\" x2=\"29\" y2=\"34.5\" stroke=\"#ffffff\" stroke-width=\"1.2\" opacity=\"0.7\"/\u003e\u003ccircle cx=\"20\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003ccircle cx=\"24\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003ccircle cx=\"28\" cy=\"38\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003ccircle cx=\"20\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003ccircle cx=\"24\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003ccircle cx=\"28\" cy=\"41\" r=\"1.1\" fill=\"#ffffff\" stroke=\"none\"/\u003e\u003c/svg\u003e",
+    "sidebar_icon":  "icon.png",
+    "icon_url":  "https://raw.githubusercontent.com/WesleyQDev/momai-smarthome/main/icon.png",
+    "background":  true,
+    "backgroundScript":  "runtime.ts",
+    "permissions":  [
+                        "network",
+                        "storage",
+                        "network:persistent"
+                    ],
+    "sdkVersion":  1,
+    "momai_compat":  "\u003e=1.11.0",
+    "sidebar":  true,
+    "ui":  {
+               "page":  "dist/page.js",
+               "pageType":  "momaismarthome-page",
+               "panel":  "dist/panel.js",
+               "panelType":  "momaismarthome-panel"
+           },
+    "eventTypes":  {
+                       "state_changed":  {
+                                             "label":  "Estado do Dispositivo Alterado",
+                                             "priority":  100,
+                                             "fields":  {
+                                                            "entityId":  {
+                                                                             "label":  "Dispositivo / Entidade",
+                                                                             "type":  "string",
+                                                                             "description":  "Entidade do Home Assistant que mudou de estado",
+                                                                             "x-options-source":  {
+                                                                                                      "tool":  "list_devices"
+                                                                                                  }
+                                                                         },
+                                                            "deviceState":  {
+                                                                                "label":  "Novo Estado Desejado",
+                                                                                "type":  "string",
+                                                                                "description":  "Dispara quando o estado for alterado para este valor",
+                                                                                "enum":  [
+                                                                                             "on",
+                                                                                             "off",
+                                                                                             "open",
+                                                                                             "closed",
+                                                                                             "locked",
+                                                                                             "unlocked",
+                                                                                             "playing",
+                                                                                             "paused",
+                                                                                             "idle"
+                                                                                         ]
+                                                                            },
+                                                            "deviceName":  {
+                                                                               "label":  "Nome do Dispositivo",
+                                                                               "type":  "string"
+                                                                           },
+                                                            "deviceRoom":  {
+                                                                               "label":  "Cômodo",
+                                                                               "type":  "string"
+                                                                           }
+                                                        }
+                                         },
+                       "open_overlay":  {
+                                            "label":  "Controle Flutuante Aberto"
+                                        },
+                       "close_overlay":  {
+                                             "label":  "Controle Flutuante Fechado"
+                                         },
+                       "connection_changed":  {
+                                                  "label":  "Conexão com Home Assistant Alterada"
+                                              }
+                   },
+    "tools":  [
+                  {
+                      "name":  "control_device",
+                      "label":  "Controlar Dispositivo Inteligente",
+                      "description":  "Liga, desliga ou ajusta um dispositivo inteligente (luzes, interruptores, TV, ar condicionado, etc).",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "device_name",
+                                                          "action"
+                                                      ],
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome exato ou parcial do dispositivo"
+                                                                            },
+                                                            "action":  {
+                                                                           "type":  "string",
+                                                                           "enum":  [
+                                                                                        "on",
+                                                                                        "off",
+                                                                                        "toggle"
+                                                                                    ],
+                                                                           "description":  "Ação principal"
+                                                                       },
+                                                            "brightness":  {
+                                                                               "type":  "number",
+                                                                               "description":  "Brilho (0-100) para luzes"
+                                                                           },
+                                                            "color":  {
+                                                                          "type":  "string",
+                                                                          "description":  "Cor da luz (nome ou HEX)"
+                                                                      },
+                                                            "color_temp":  {
+                                                                               "type":  "number",
+                                                                               "description":  "Temperatura da cor em Kelvin"
+                                                                           }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "set_light_color",
+                      "label":  "Ajustar Luz / Cor",
+                      "description":  "Muda a cor, brilho ou temperatura de cor de uma lâmpada ou fita LED.",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "device_name"
+                                                      ],
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome da lâmpada ou grupo de luzes"
+                                                                            },
+                                                            "color":  {
+                                                                          "type":  "string",
+                                                                          "description":  "Nome da cor ou HEX"
+                                                                      },
+                                                            "brightness":  {
+                                                                               "type":  "number",
+                                                                               "description":  "Brilho de 0 a 100%"
+                                                                           },
+                                                            "color_temp":  {
+                                                                               "type":  "number",
+                                                                               "description":  "Temperatura da cor em Kelvin"
+                                                                           }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "control_tv_remote",
+                      "label":  "Controle de TV / Mídia",
+                      "description":  "Controle de TV e reprodutores de mídia: comandos de controle remoto, alternância de entrada/fonte e reprodução.",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "device_name"
+                                                      ],
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome da TV ou Media Player"
+                                                                            },
+                                                            "command":  {
+                                                                            "type":  "string",
+                                                                            "description":  "Botão do controle remoto (power, volume_up, mute, etc)"
+                                                                        },
+                                                            "action":  {
+                                                                           "type":  "string",
+                                                                           "enum":  [
+                                                                                        "play",
+                                                                                        "pause",
+                                                                                        "stop",
+                                                                                        "next",
+                                                                                        "previous",
+                                                                                        "volume_up",
+                                                                                        "volume_down",
+                                                                                        "mute",
+                                                                                        "unmute",
+                                                                                        "source",
+                                                                                        "volume"
+                                                                                    ],
+                                                                           "description":  "Ação de mídia"
+                                                                       },
+                                                            "value":  {
+                                                                          "type":  "string",
+                                                                          "description":  "Valor para ação (ex: volume ou nome da fonte)"
+                                                                      }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "control_climate",
+                      "label":  "Controlar Ar Condicionado / Clima",
+                      "description":  "Ajusta temperatura alvo e modo de operação do ar condicionado ou termostato.",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "device_name"
+                                                      ],
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome do ar condicionado ou termostato"
+                                                                            },
+                                                            "temperature":  {
+                                                                                "type":  "number",
+                                                                                "description":  "Temperatura desejada em Celsius"
+                                                                            },
+                                                            "hvac_mode":  {
+                                                                              "type":  "string",
+                                                                              "enum":  [
+                                                                                           "cool",
+                                                                                           "heat",
+                                                                                           "fan_only",
+                                                                                           "auto",
+                                                                                           "off"
+                                                                                       ],
+                                                                              "description":  "Modo do ar condicionado"
+                                                                          }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "call_ha_service",
+                      "label":  "Executar Serviço no Home Assistant",
+                      "description":  "Executa um serviço arbitrário do Home Assistant (domínio, serviço e dados JSON).",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "domain",
+                                                          "service"
+                                                      ],
+                                         "properties":  {
+                                                            "domain":  {
+                                                                           "type":  "string",
+                                                                           "description":  "Domínio do serviço (ex: light, scene, media_player)"
+                                                                       },
+                                                            "service":  {
+                                                                            "type":  "string",
+                                                                            "description":  "Nome do serviço (ex: turn_on, select_source)"
+                                                                        },
+                                                            "data":  {
+                                                                         "type":  "object",
+                                                                         "description":  "Dados adicionais em JSON para o serviço"
+                                                                     }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "list_devices",
+                      "label":  "Listar Dispositivos",
+                      "description":  "Lista todos os dispositivos inteligentes disponíveis com seus estados.",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "properties":  {
+                                                            "room":  {
+                                                                         "type":  "string",
+                                                                         "description":  "Filtrar por cômodo (opcional)"
+                                                                     }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "query_device",
+                      "label":  "Consultar Dispositivo",
+                      "description":  "Obtém o estado detalhado de um dispositivo específico.",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "device_name"
+                                                      ],
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome do dispositivo"
+                                                                            }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "open_device_control",
+                      "label":  "Abrir Controle Flutuante",
+                      "description":  "Abre a interface de controle flutuante (overlay) de um dispositivo específico (TV, luz, ar condicionado, etc).",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "required":  [
+                                                          "device_name"
+                                                      ],
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome do dispositivo cujo controle deve ser exibido"
+                                                                            }
+                                                        }
+                                     }
+                  },
+                  {
+                      "name":  "close_device_control",
+                      "label":  "Fechar Controle Flutuante",
+                      "description":  "Fecha a interface de controle flutuante (overlay) aberta.",
+                      "parameters":  {
+                                         "type":  "object",
+                                         "properties":  {
+                                                            "device_name":  {
+                                                                                "type":  "string",
+                                                                                "description":  "Nome do dispositivo cujo controle fechar (opcional)"
+                                                                            },
+                                                            "all":  {
+                                                                        "type":  "boolean",
+                                                                        "description":  "Se true, fecha todos os controles abertos"
+                                                                    }
+                                                        }
+                                     }
+                  }
+              ],
+    "theme":  {
+                  "gradient":  "from-violet-600 to-purple-500",
+                  "accent":  "violet"
+              },
+    "storage":  {
+                    "description":  "Guarda a conexão com a sua casa e as suas preferências neste computador. Ao desconectar, a reconexão automática é desligada, mas o endereço e o acesso ficam salvos para você conectar de novo.",
+                    "locations":  [
+                                      "smarthome.sqlite (conexões criptografadas localmente em .encryption-key)",
+                                      "momai.storage: connections (credenciais do Home Assistant; criptografadas no banco local)",
+                                      "momai.storage: last_credentials (credencial transitória da última conexão, limpa ao desconectar)"
+                                  ]
+                },
+    "locales":  {
+                    "pt-BR":  {
+                                  "name":  "MomAI Smart Home",
+                                  "description":  "Ligue luzes, ajuste o ar-condicionado e controle a TV da sua casa por voz ou texto.",
+                                  "tags":  [
+                                               "casa inteligente",
+                                               "home assistant",
+                                               "iot",
+                                               "automação",
+                                               "iluminação",
+                                               "tv",
+                                               "ar condicionado"
+                                           ]
+                              },
+                    "en-US":  {
+                                  "name":  "MomAI Smart Home",
+                                  "description":  "Turn on lights, adjust the air conditioning and control your home TV by voice or text.",
+                                  "tags":  [
+                                               "smart home",
+                                               "home assistant",
+                                               "iot",
+                                               "automation",
+                                               "lighting",
+                                               "tv",
+                                               "air conditioning"
+                                           ]
+                              },
+                    "es":  {
+                               "name":  "MomAI Smart Home",
+                               "description":  "Enciende las luces, ajusta el aire acondicionado y controla el televisor de tu casa por voz o texto.",
+                               "tags":  [
+                                            "hogar inteligente",
+                                            "home assistant",
+                                            "iot",
+                                            "automatización",
+                                            "iluminación",
+                                            "tv",
+                                            "aire acondicionado"
+                                        ]
+                           },
+                    "de":  {
+                               "name":  "MomAI Smart Home",
+                               "description":  "Schalte Lichter ein, passe die Klimaanlage an und steuere deinen Fernseher per Stimme oder Text.",
+                               "tags":  [
+                                            "smart home",
+                                            "home assistant",
+                                            "iot",
+                                            "automatisierung",
+                                            "beleuchtung",
+                                            "tv",
+                                            "klimaanlage"
+                                        ]
+                           },
+                    "fr":  {
+                               "name":  "MomAI Smart Home",
+                               "description":  "Allumez les lumières, réglez la climatisation et contrôlez votre téléviseur à la voix ou au texte.",
+                               "tags":  [
+                                            "maison intelligente",
+                                            "home assistant",
+                                            "iot",
+                                            "automatisation",
+                                            "éclairage",
+                                            "tv",
+                                            "climatisation"
+                                        ]
+                           },
+                    "it":  {
+                               "name":  "MomAI Smart Home",
+                               "description":  "Accendi le luci, regola il climatizzatore e controlla la TV di casa con voce o testo.",
+                               "tags":  [
+                                            "casa intelligente",
+                                            "home assistant",
+                                            "iot",
+                                            "automazione",
+                                            "illuminazione",
+                                            "tv",
+                                            "climatizzazione"
+                                        ]
+                           }
+                }
 }
-
