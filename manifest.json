@@ -1,13 +1,16 @@
 {
     "id":  "momai-smarthome",
     "name":  "MomAI Smart Home",
-    "version":  "1.0.27",
+    "version":  "1.0.28",
     "category": "utility",
     "tags": ["smart home", "home assistant", "iot", "automation", "lighting", "tv", "air conditioning"],
     "readme": {
         "pt-BR": "README.md",
         "en-US": "README.en-US.md",
-        "es": "README.es.md"
+        "es": "README.es.md",
+        "fr": "README.fr.md",
+        "de": "README.de.md",
+        "it": "README.it.md"
     },
     "locales": {
         "pt-BR": {
@@ -55,7 +58,7 @@
     "sidebar_icon":  "icon.png",
     "icon_url":  "https://raw.githubusercontent.com/WesleyQDev/momai-smarthome/main/icon.png",
     "background":  true,
-    "backgroundScript":  "runtime.ts",
+    "backgroundScript":  "dist/runtime.js",
     "permissions":  [
                         "network",
                         "storage",
