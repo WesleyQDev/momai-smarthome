@@ -67,7 +67,7 @@ if (esbuild?.build) {
     stdio: 'inherit',
     cwd: root
   })
-  execSync(`npx esbuild "${workerEntry}" --bundle --platform=node --format=cjs --target=node22 --packages:external --outfile="${workerOutfile}"`, {
+  execSync(`npx esbuild "${workerEntry}" --bundle --platform=node --format=cjs --target=node22 --packages=external --outfile="${workerOutfile}"`, {
     stdio: 'inherit',
     cwd: root
   })
