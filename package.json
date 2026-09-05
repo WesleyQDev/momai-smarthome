@@ -1,6 +1,6 @@
 {
   "name": "momai-smarthome",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "description": "MomAI Smart Home - ExtensÃ£o de automaÃ§Ã£o residencial com suporte a Home Assistant e provedores plugÃ¡veis",
   "main": "src/index.ts",
   "scripts": {

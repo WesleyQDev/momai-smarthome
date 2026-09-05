@@ -1,7 +1,7 @@
 {
     "id":  "momai-smarthome",
     "name":  "MomAI Smart Home",
-    "version":  "1.0.28",
+    "version":  "1.0.29",
     "category": "utility",
     "tags": ["smart home", "home assistant", "iot", "automation", "lighting", "tv", "air conditioning"],
     "readme": {
