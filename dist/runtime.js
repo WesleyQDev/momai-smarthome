@@ -29,101 +29,268 @@ var require_constants = __commonJS({
   }
 });
 
-// src/database/database.ts
-var require_database = __commonJS({
-  "src/database/database.ts"(exports2, module2) {
-    var BetterSqlite3 = require("better-sqlite3");
+// ipc-storage.ts
+var require_ipc_storage = __commonJS({
+  "ipc-storage.ts"(exports2, module2) {
+    function codedError(code, message) {
+      const err = new Error(message);
+      err.code = code;
+      return err;
+    }
+    function createIpcSmarthomeStorage({ send, onResponse, storageDir, timeoutMs = 3e4 } = {}) {
+      let seq = 0;
+      const pending = /* @__PURE__ */ new Map();
+      onResponse((msg) => {
+        if (!msg || msg.type !== "storage-response" || !msg.requestId) return;
+        const entry = pending.get(msg.requestId);
+        if (!entry) return;
+        pending.delete(msg.requestId);
+        clearTimeout(entry.timer);
+        const result = msg.result || {};
+        if (result.ok === false) {
+          entry.reject(codedError(result.errorCode || "storage_error", result.error || "storage request failed"));
+          return;
+        }
+        entry.resolve(result.value);
+      });
+      function call(method, args) {
+        return new Promise((resolve, reject) => {
+          const requestId = "smarthome-" + Date.now() + "." + seq++;
+          const timer = setTimeout(() => {
+            pending.delete(requestId);
+            reject(new Error("storage IPC timeout: " + method));
+          }, timeoutMs);
+          if (timer.unref) timer.unref();
+          pending.set(requestId, { resolve, reject, timer });
+          try {
+            send({ type: "storage-request", requestId, method, args });
+          } catch (err) {
+            pending.delete(requestId);
+            clearTimeout(timer);
+            reject(err);
+          }
+        });
+      }
+      function area(prefix, methods) {
+        return Object.fromEntries(methods.map((name) => [name, (...args) => call(prefix + "." + name, args)]));
+      }
+      const storageMethods = area("storage", ["get", "set", "getMany", "setMany", "delete", "listKeys", "migrate"]);
+      return {
+        storage: {
+          storageDir,
+          get: storageMethods.get,
+          set: async (key, value, opts) => {
+            await call("storage.set", opts === void 0 ? [key, value] : [key, value, opts]);
+          },
+          getMany: storageMethods.getMany,
+          setMany: storageMethods.setMany,
+          delete: async (key, opts) => {
+            await call("storage.delete", opts === void 0 ? [key] : [key, opts]);
+          },
+          listKeys: storageMethods.listKeys,
+          migrate: storageMethods.migrate
+        },
+        collections: area("collections", ["insert", "list", "count", "search", "remove", "clear", "upsert", "upsertMany"]),
+        sessionFiles: area("sessionFiles", ["write", "read", "list", "remove"])
+      };
+    }
+    module2.exports = {
+      createIpcSmarthomeStorage
+    };
+  }
+});
+
+// src/sdk-backend.ts
+var require_sdk_backend = __commonJS({
+  "src/sdk-backend.ts"(exports2, module2) {
     var fs2 = require("fs");
     var path2 = require("path");
-    var { DEFAULT_DB_PATH } = require_constants();
-    var DatabaseManager = class {
-      constructor(dbPath = process.env.DB_PATH || DEFAULT_DB_PATH) {
-        this.dbPath = process.env.DB_PATH || DEFAULT_DB_PATH;
-        this.db = null;
-        this.dbPath = dbPath;
-        this.db = null;
+    var CONNECTIONS_KEY = "smarthome_connections";
+    var LAST_CREDENTIALS_KEY = "smarthome_last_credentials";
+    var LEGACY_IMPORT_KEY = "smarthome_legacy_imported";
+    var ENTITIES_COLLECTION = "cached_entities";
+    function defaultDataDir() {
+      return process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path2.join(__dirname, "..", "data");
+    }
+    function defaultLegacyDbPath() {
+      return process.env.DB_PATH || path2.join(defaultDataDir(), "smarthome.sqlite");
+    }
+    function createMemoryBridge() {
+      const kv = /* @__PURE__ */ new Map();
+      const tables = /* @__PURE__ */ new Map();
+      let seq = 1;
+      function table(name) {
+        if (!tables.has(name)) tables.set(name, []);
+        return tables.get(name);
       }
-      async init() {
-        if (this.db) return this;
-        const dbDir = path2.dirname(this.dbPath);
-        if (!fs2.existsSync(dbDir)) {
-          fs2.mkdirSync(dbDir, { recursive: true });
+      return {
+        storage: {
+          storageDir: ":memory:",
+          async get(key) {
+            return kv.has(key) ? kv.get(key) : null;
+          },
+          async set(key, value) {
+            kv.set(key, value);
+          },
+          async delete(key) {
+            kv.delete(key);
+          }
+        },
+        collections: {
+          async insert(name, record) {
+            const rows = table(name);
+            const id = seq++;
+            rows.push({ _rowId: id, created_at: Date.now(), body: { ...record } });
+            return { id };
+          },
+          async list(name, opts = {}) {
+            let rows = table(name).slice();
+            const where = opts.where || {};
+            const keys = Object.keys(where);
+            if (keys.length > 0) {
+              rows = rows.filter((row) => keys.every((k) => row.body[k] === where[k]));
+            }
+            const limit = Math.min(Math.max(Number(opts.limit) || 50, 1), 500);
+            const offset = Math.max(Number(opts.offset) || 0, 0);
+            return rows.slice(offset, offset + limit).map((row) => ({ ...row.body, _rowId: row._rowId, created_at: row.created_at }));
+          },
+          async remove(name, id) {
+            const rows = table(name);
+            const idx = rows.findIndex((row) => row._rowId === id);
+            if (idx >= 0) rows.splice(idx, 1);
+            return { ok: true };
+          },
+          async clear(name, opts = {}) {
+            const rows = table(name);
+            const age = Number(opts.olderThanMs);
+            const cutoff = Number.isFinite(age) ? Date.now() - age : Date.now();
+            const kept = rows.filter((row) => !(row.created_at < cutoff));
+            const removed = rows.length - kept.length;
+            tables.set(name, kept);
+            return { removed };
+          }
         }
+      };
+    }
+    var workerBridge = null;
+    var storageResponseListener = null;
+    function getWorkerBridge2() {
+      if (workerBridge) return workerBridge;
+      const { createIpcSmarthomeStorage } = require_ipc_storage();
+      workerBridge = createIpcSmarthomeStorage({
+        send: (msg) => {
+          try {
+            if (typeof process.send === "function") process.send(msg);
+          } catch (err) {
+            console.warn("[sdk-backend] IPC send error:", err && err.message ? err.message : err);
+          }
+        },
+        onResponse: (fn) => {
+          storageResponseListener = fn;
+        },
+        storageDir: path2.join(defaultDataDir(), "extensions", "momai-smarthome")
+      });
+      return workerBridge;
+    }
+    function routeStorageResponse2(msg) {
+      try {
+        if (typeof storageResponseListener === "function") storageResponseListener(msg);
+      } catch (err) {
+        console.warn("[sdk-backend] Erro ao rotear storage-response:", err);
+      }
+    }
+    var memoryFallback = null;
+    function resolveBridge(explicitMomai) {
+      const usable = explicitMomai && explicitMomai.storage && typeof explicitMomai.storage.get === "function" && typeof explicitMomai.storage.set === "function";
+      if (usable && explicitMomai.collections) return explicitMomai;
+      if (usable) {
+        const memoryCollections = createMemoryBridge().collections;
+        return { storage: explicitMomai.storage, collections: memoryCollections };
+      }
+      if (typeof process.send === "function") return getWorkerBridge2();
+      if (!memoryFallback) memoryFallback = createMemoryBridge();
+      return memoryFallback;
+    }
+    function defaultOpenDb(dbPath) {
+      const BetterSqlite3 = require("better-sqlite3");
+      const db = new BetterSqlite3(dbPath, { readonly: true });
+      return {
+        all: (sql, params = []) => db.prepare(sql).all(...params),
+        close: () => db.close()
+      };
+    }
+    async function importLegacyDatabase({ dbPath = defaultLegacyDbPath(), bridge, openDb = defaultOpenDb } = {}) {
+      const store = bridge.storage;
+      try {
+        if (await store.get(LEGACY_IMPORT_KEY)) return { imported: false, reason: "already" };
+      } catch {
+        return { imported: false, reason: "unavailable" };
+      }
+      let connections = [];
+      try {
+        if (fs2.existsSync(dbPath)) {
+          const handle = openDb(dbPath);
+          try {
+            connections = handle.all(
+              "SELECT id, provider_type, name, config_encrypted, user_email, auto_connect, updated_at FROM connections"
+            ) || [];
+          } catch {
+            connections = [];
+          } finally {
+            try {
+              handle.close();
+            } catch {
+            }
+          }
+        }
+      } catch {
+        connections = [];
+      }
+      try {
+        const current = await store.get(CONNECTIONS_KEY) || {};
+        let added = 0;
+        for (const row of connections) {
+          if (!row || !row.id || current[row.id]) continue;
+          current[row.id] = {
+            id: row.id,
+            provider_type: row.provider_type || "homeassistant",
+            name: row.name || "Home Assistant",
+            user_email: row.user_email || "local",
+            config: row.config_encrypted,
+            auto_connect: row.auto_connect === 0 ? 0 : 1,
+            updated_at: row.updated_at || (/* @__PURE__ */ new Date()).toISOString()
+          };
+          added++;
+        }
+        if (added > 0) await store.set(CONNECTIONS_KEY, current);
         try {
-          this.db = new BetterSqlite3(this.dbPath);
-          await this._createTables();
-          return this;
-        } catch (err) {
-          this.db = null;
-          throw new Error(`Falha ao conectar ao banco de dados SQLite: ${err.message}`);
+          const creds = await store.get(LAST_CREDENTIALS_KEY);
+          if (!creds) {
+            const legacyCreds = path2.join(path2.dirname(dbPath), "last_credentials.json");
+            if (fs2.existsSync(legacyCreds)) {
+              await store.set(LAST_CREDENTIALS_KEY, JSON.parse(fs2.readFileSync(legacyCreds, "utf8")));
+            }
+          }
+        } catch {
         }
+        await store.set(LEGACY_IMPORT_KEY, true);
+        return { imported: added > 0, connections: added };
+      } catch {
+        return { imported: false, reason: "unavailable" };
       }
-      async _createTables() {
-        const queries = [
-          `CREATE TABLE IF NOT EXISTS connections (
-        id TEXT PRIMARY KEY,
-        provider_type TEXT NOT NULL,
-        name TEXT,
-        config_encrypted TEXT NOT NULL,
-        user_email TEXT,
-        auto_connect INTEGER NOT NULL DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-          `CREATE TABLE IF NOT EXISTS cached_entities (
-        entity_id TEXT PRIMARY KEY,
-        connection_id TEXT NOT NULL,
-        name TEXT,
-        domain TEXT,
-        type_name TEXT,
-        room TEXT,
-        state_json TEXT,
-        attributes_json TEXT,
-        online INTEGER DEFAULT 1,
-        last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (connection_id) REFERENCES connections(id)
-      )`,
-          `CREATE TABLE IF NOT EXISTS rooms (
-        id TEXT PRIMARY KEY,
-        connection_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        icon TEXT DEFAULT 'room',
-        FOREIGN KEY (connection_id) REFERENCES connections(id)
-      )`,
-          `CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        user_email TEXT,
-        encrypted_tokens TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-        ];
-        for (const query of queries) {
-          await this.run(query);
-        }
-        const columns = await this.all(`PRAGMA table_info(connections)`);
-        if (!columns.some((column) => column.name === "auto_connect")) {
-          await this.run(`ALTER TABLE connections ADD COLUMN auto_connect INTEGER NOT NULL DEFAULT 1`);
-        }
-      }
-      run(sql, params = []) {
-        const result = this.db.prepare(sql).run(...params);
-        return Promise.resolve({ lastID: Number(result.lastInsertRowid), changes: result.changes });
-      }
-      get(sql, params = []) {
-        return Promise.resolve(this.db.prepare(sql).get(...params));
-      }
-      all(sql, params = []) {
-        return Promise.resolve(this.db.prepare(sql).all(...params));
-      }
-      close() {
-        if (!this.db) return Promise.resolve();
-        this.db.close();
-        this.db = null;
-        return Promise.resolve();
-      }
+    }
+    module2.exports = {
+      CONNECTIONS_KEY,
+      LAST_CREDENTIALS_KEY,
+      LEGACY_IMPORT_KEY,
+      ENTITIES_COLLECTION,
+      createMemoryBridge,
+      getWorkerBridge: getWorkerBridge2,
+      routeStorageResponse: routeStorageResponse2,
+      resolveBridge,
+      importLegacyDatabase,
+      defaultLegacyDbPath
     };
-    module2.exports = DatabaseManager;
   }
 });
 
@@ -134,6 +301,14 @@ var require_tokenManager = __commonJS({
     var fs2 = require("fs");
     var path2 = require("path");
     var { ENCRYPTION_ALGORITHM, IV_LENGTH, ENCRYPTION_KEY_PATH } = require_constants();
+    var {
+      CONNECTIONS_KEY,
+      LAST_CREDENTIALS_KEY,
+      ENTITIES_COLLECTION,
+      resolveBridge,
+      importLegacyDatabase,
+      defaultLegacyDbPath
+    } = require_sdk_backend();
     function resolveLegacyKey() {
       const env = process.env.MOMAI_SMARTHOME_LEGACY_KEY;
       if (env && String(env).trim()) return String(env).trim();
@@ -147,12 +322,31 @@ var require_tokenManager = __commonJS({
       }
       return null;
     }
+    function legacyCredentialsPath() {
+      return path2.join(path2.dirname(defaultLegacyDbPath()), "last_credentials.json");
+    }
     var TokenManager = class {
-      constructor(dbManager) {
-        this.dbManager = null;
+      constructor(bridge = null) {
+        this._attachedBridge = null;
         this.encryptionSecret = "";
-        this.dbManager = dbManager;
+        this._legacyDone = false;
+        if (bridge && bridge.storage) this._attachedBridge = bridge;
         this.encryptionSecret = process.env.ENCRYPTION_KEY || this._loadOrCreateKey();
+      }
+      attachBridge(bridge) {
+        if (bridge && bridge.storage) this._attachedBridge = bridge;
+        return this;
+      }
+      async _store() {
+        const bridge = this._attachedBridge || resolveBridge();
+        if (!this._legacyDone) {
+          this._legacyDone = true;
+          try {
+            await importLegacyDatabase({ bridge });
+          } catch {
+          }
+        }
+        return bridge;
       }
       _loadOrCreateKey(customDir = null) {
         const candidatePaths = [
@@ -213,112 +407,135 @@ var require_tokenManager = __commonJS({
         decrypted += decipher.final("utf8");
         return JSON.parse(decrypted);
       }
+      async _readConnections() {
+        const bridge = await this._store();
+        try {
+          return await bridge.storage.get(CONNECTIONS_KEY) || {};
+        } catch {
+          return {};
+        }
+      }
+      async _writeConnections(map) {
+        const bridge = await this._store();
+        await bridge.storage.set(CONNECTIONS_KEY, map);
+      }
       async saveConnection(id, providerType, config, name, email) {
-        await this.dbManager.init();
-        const encryptedObject = this.encrypt(config);
-        const encryptedJson = JSON.stringify(encryptedObject);
-        const sql = `
-      INSERT INTO connections (id, provider_type, name, config_encrypted, user_email, auto_connect, updated_at)
-      VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-      ON CONFLICT(id) DO UPDATE SET
-        provider_type = excluded.provider_type,
-        name = excluded.name,
-        config_encrypted = excluded.config_encrypted,
-        user_email = excluded.user_email,
-        auto_connect = 1,
-        updated_at = CURRENT_TIMESTAMP;
-    `;
-        await this.dbManager.run(sql, [id, providerType, name, encryptedJson, email]);
+        const map = await this._readConnections();
+        map[id] = {
+          id,
+          provider_type: providerType,
+          name,
+          user_email: email,
+          config: this.encrypt(config),
+          auto_connect: 1,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        await this._writeConnections(map);
       }
       async getLastCredentials() {
+        const bridge = await this._store();
         try {
-          const dbDir = path2.dirname(this.dbManager.dbPath);
-          const credsPath = path2.join(dbDir, "last_credentials.json");
+          const stored = await bridge.storage.get(LAST_CREDENTIALS_KEY);
+          if (stored) return stored;
+        } catch {
+        }
+        try {
+          const credsPath = legacyCredentialsPath();
           if (fs2.existsSync(credsPath)) {
-            const content = fs2.readFileSync(credsPath, "utf8");
-            return JSON.parse(content);
+            return JSON.parse(fs2.readFileSync(credsPath, "utf8"));
           }
         } catch {
         }
         return null;
       }
+      async setLastCredentials(creds) {
+        const bridge = await this._store();
+        await bridge.storage.set(LAST_CREDENTIALS_KEY, creds);
+      }
       async clearLastCredentials() {
+        const bridge = await this._store();
         try {
-          const credsPath = path2.join(path2.dirname(this.dbManager.dbPath), "last_credentials.json");
+          await bridge.storage.set(LAST_CREDENTIALS_KEY, null);
+        } catch {
+        }
+        try {
+          const credsPath = legacyCredentialsPath();
           if (fs2.existsSync(credsPath)) fs2.unlinkSync(credsPath);
         } catch {
         }
       }
-      async getConnection(id) {
-        await this.dbManager.init();
-        const row = await this.dbManager.get(`SELECT * FROM connections WHERE id = ?`, [id]);
-        if (!row) return null;
-        let config = null;
-        let migrated = false;
-        try {
-          const encryptedPayload = JSON.parse(row.config_encrypted);
-          if (encryptedPayload && encryptedPayload.encryptedData && encryptedPayload.iv && encryptedPayload.authTag) {
-            try {
-              config = this.decrypt(encryptedPayload);
-            } catch {
-              const candidateKeys = [
-                ENCRYPTION_KEY_PATH,
-                path2.join(require_constants().DEFAULT_DB_PATH, "..", ".encryption-key"),
-                path2.join(__dirname, "..", "..", "data", ".encryption-key")
-              ];
-              for (const kPath of candidateKeys) {
-                try {
-                  if (fs2.existsSync(kPath)) {
-                    const fileKey = fs2.readFileSync(kPath, "utf8").trim();
-                    if (fileKey) {
-                      config = this.decrypt(encryptedPayload, fileKey);
-                      migrated = true;
-                      break;
-                    }
-                  }
-                } catch {
-                }
-              }
-              if (!config) {
-                const legacyKey = resolveLegacyKey();
-                if (legacyKey) {
-                  try {
-                    config = this.decrypt(encryptedPayload, legacyKey);
-                    migrated = true;
-                  } catch {
-                  }
-                }
-              }
-            }
-          } else if (encryptedPayload && typeof encryptedPayload === "object" && (encryptedPayload.url || encryptedPayload.token)) {
-            config = encryptedPayload;
-            migrated = true;
-          }
-        } catch {
+      _configFromRecord(storedConfig) {
+        let payload = storedConfig;
+        if (typeof payload === "string") {
           try {
-            if (typeof row.config_encrypted === "string" && (row.config_encrypted.includes("http") || row.config_encrypted.includes("token"))) {
-              config = JSON.parse(row.config_encrypted);
-              migrated = true;
-            }
+            payload = JSON.parse(payload);
           } catch {
+            if (payload.includes("http") || payload.includes("token")) {
+              try {
+                return { config: JSON.parse(payload), migrated: true };
+              } catch {
+              }
+            }
+            return { config: null, migrated: false };
           }
         }
-        if (!config) {
+        if (payload && payload.encryptedData && payload.iv && payload.authTag) {
+          try {
+            return { config: this.decrypt(payload), migrated: false };
+          } catch {
+            const candidatePaths = [
+              ENCRYPTION_KEY_PATH,
+              path2.join(require_constants().DEFAULT_DB_PATH, "..", ".encryption-key"),
+              path2.join(__dirname, "..", "..", "data", ".encryption-key")
+            ];
+            for (const kPath of candidatePaths) {
+              try {
+                if (fs2.existsSync(kPath)) {
+                  const fileKey = fs2.readFileSync(kPath, "utf8").trim();
+                  if (fileKey) return { config: this.decrypt(payload, fileKey), migrated: true };
+                }
+              } catch {
+              }
+            }
+            const legacyKey = resolveLegacyKey();
+            if (legacyKey) {
+              try {
+                return { config: this.decrypt(payload, legacyKey), migrated: true };
+              } catch {
+              }
+            }
+            return { config: null, migrated: false };
+          }
+        }
+        if (payload && typeof payload === "object" && (payload.url || payload.token)) {
+          return { config: payload, migrated: true };
+        }
+        return { config: null, migrated: false };
+      }
+      async getConnection(id) {
+        const map = await this._readConnections();
+        const row = map[id];
+        if (!row) return null;
+        const { config, migrated } = this._configFromRecord(row.config);
+        let resolved = config;
+        let needsWrite = migrated;
+        if (!resolved) {
           const lastCreds = await this.getLastCredentials();
           if (lastCreds && lastCreds.url && lastCreds.token) {
-            config = { url: lastCreds.url, token: lastCreds.token };
-            migrated = true;
+            resolved = { url: lastCreds.url, token: lastCreds.token };
+            needsWrite = true;
           } else {
             console.error("[TokenManager] Erro ao descriptografar config da conex\xE3o", id);
             return null;
           }
         }
-        if (migrated) {
+        if (needsWrite) {
           try {
-            await this.dbManager.run(
-              `UPDATE connections SET config_encrypted = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-              [JSON.stringify(this.encrypt(config)), id]
-            );
+            const fresh = await this._readConnections();
+            if (fresh[id]) {
+              fresh[id] = { ...fresh[id], config: this.encrypt(resolved), updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+              await this._writeConnections(fresh);
+            }
           } catch {
           }
         }
@@ -327,76 +544,115 @@ var require_tokenManager = __commonJS({
           providerType: row.provider_type,
           name: row.name,
           email: row.user_email,
-          config,
-          autoConnect: row.auto_connect === 1,
+          config: resolved,
+          autoConnect: row.auto_connect !== 0,
           updatedAt: row.updated_at
         };
       }
       async listConnections() {
-        await this.dbManager.init();
-        return this.dbManager.all(
-          `SELECT id, provider_type, name, user_email, auto_connect, updated_at
-       FROM connections
-       WHERE auto_connect = 1
-       ORDER BY updated_at DESC, rowid DESC`
-        );
+        const map = await this._readConnections();
+        return Object.values(map).filter((row) => row && row.auto_connect !== 0).sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || ""))).map((row) => ({
+          id: row.id,
+          provider_type: row.provider_type,
+          name: row.name,
+          user_email: row.user_email,
+          auto_connect: row.auto_connect === 0 ? 0 : 1,
+          updated_at: row.updated_at
+        }));
       }
       async getLastConnection() {
-        await this.dbManager.init();
-        const row = await this.dbManager.get(
-          `SELECT id FROM connections ORDER BY updated_at DESC, rowid DESC LIMIT 1`
-        );
-        return row ? this.getConnection(row.id) : null;
+        const map = await this._readConnections();
+        const rows = Object.values(map);
+        if (rows.length === 0) return null;
+        rows.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+        return this.getConnection(rows[0].id);
       }
       async deactivateAllConnections() {
-        await this.dbManager.init();
-        await this.dbManager.run(`DELETE FROM cached_entities`);
-        await this.dbManager.run(`DELETE FROM rooms`);
-        await this.dbManager.run(`UPDATE connections SET auto_connect = 0`);
+        const map = await this._readConnections();
+        for (const row of Object.values(map)) {
+          if (row) row.auto_connect = 0;
+        }
+        await this._writeConnections(map);
+        const bridge = await this._store();
+        try {
+          await bridge.collections.clear(ENTITIES_COLLECTION, { olderThanMs: -1 });
+        } catch {
+        }
       }
       async removeConnection(id) {
-        await this.dbManager.init();
-        await this.dbManager.run(`DELETE FROM cached_entities WHERE connection_id = ?`, [id]);
-        await this.dbManager.run(`DELETE FROM rooms WHERE connection_id = ?`, [id]);
-        await this.dbManager.run(`DELETE FROM connections WHERE id = ?`, [id]);
+        const map = await this._readConnections();
+        delete map[id];
+        await this._writeConnections(map);
+        const bridge = await this._store();
+        try {
+          const rows = await bridge.collections.list(ENTITIES_COLLECTION, { where: { connection_id: id }, limit: 500 });
+          for (const row of rows) {
+            try {
+              await bridge.collections.remove(ENTITIES_COLLECTION, row._rowId);
+            } catch {
+            }
+          }
+        } catch {
+        }
       }
       async cacheEntities(connectionId, entities) {
-        await this.dbManager.init();
-        await this.dbManager.run(`DELETE FROM cached_entities WHERE connection_id = ?`, [connectionId]);
-        for (const e of entities) {
-          await this.dbManager.run(
-            `INSERT OR REPLACE INTO cached_entities (entity_id, connection_id, name, domain, type_name, room, state_json, attributes_json, online, last_seen)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-            [
-              e.id,
-              connectionId,
-              e.name,
-              e.domain || "",
-              e.type || "",
-              e.room || "",
-              JSON.stringify(e.state || {}),
-              JSON.stringify(e.attributes || {}),
-              e.online ? 1 : 0
-            ]
-          );
+        const bridge = await this._store();
+        try {
+          const existing = await bridge.collections.list(ENTITIES_COLLECTION, { where: { connection_id: connectionId }, limit: 500 });
+          for (const row of existing) {
+            try {
+              await bridge.collections.remove(ENTITIES_COLLECTION, row._rowId);
+            } catch {
+            }
+          }
+        } catch {
+        }
+        for (const e of entities || []) {
+          try {
+            await bridge.collections.insert(ENTITIES_COLLECTION, {
+              connection_id: connectionId,
+              entity_id: e.id,
+              name: e.name,
+              domain: e.domain || "",
+              type: e.type || "",
+              room: e.room || "",
+              state: e.state || {},
+              attributes: e.attributes || {},
+              online: e.online ? 1 : 0
+            });
+          } catch {
+          }
         }
       }
       async getCachedEntities(connectionId) {
-        await this.dbManager.init();
-        const rows = await this.dbManager.all(
-          `SELECT * FROM cached_entities WHERE connection_id = ? ORDER BY room, name`,
-          [connectionId]
-        );
-        return rows.map((r) => ({
-          id: r.entity_id,
-          name: r.name,
-          domain: r.domain,
-          type: r.type_name,
-          room: r.room,
-          state: JSON.parse(r.state_json || "{}"),
-          attributes: JSON.parse(r.attributes_json || "{}"),
-          online: Boolean(r.online)
-        }));
+        const bridge = await this._store();
+        const out = [];
+        let offset = 0;
+        for (; ; ) {
+          let rows = [];
+          try {
+            rows = await bridge.collections.list(ENTITIES_COLLECTION, { where: { connection_id: connectionId }, limit: 500, offset });
+          } catch {
+            break;
+          }
+          if (!rows || rows.length === 0) break;
+          for (const r of rows) {
+            out.push({
+              id: r.entity_id,
+              name: r.name,
+              domain: r.domain,
+              type: r.type,
+              room: r.room,
+              state: r.state || {},
+              attributes: r.attributes || {},
+              online: Boolean(r.online)
+            });
+          }
+          if (rows.length < 500) break;
+          offset += rows.length;
+        }
+        out.sort((a, b) => String(a.room || "").localeCompare(String(b.room || "")) || String(a.name || "").localeCompare(String(b.name || "")));
+        return out;
       }
     };
     module2.exports = TokenManager;
@@ -1650,14 +1906,13 @@ var require_src = __commonJS({
       require("dotenv").config({ path: path2.join(__dirname, "..", ".env") });
     } catch (e) {
     }
-    var DatabaseManager = require_database();
     var TokenManager = require_tokenManager();
+    var { resolveBridge } = require_sdk_backend();
     var HomeAssistantAuth = require_haAuth();
     var DeviceManager = require_deviceManager();
     var MomAIHomeConnector = class extends EventEmitter {
       constructor(options = {}) {
         super();
-        this.dbManager = null;
         this.tokenManager = null;
         this.auth = null;
         this.devices = null;
@@ -1665,9 +1920,10 @@ var require_src = __commonJS({
         this.connections = [];
         this.lastCredentials = null;
         this._mutex = Promise.resolve();
+        this._attachedBridge = null;
         this._lastWarnTs = 0;
-        this.dbManager = new DatabaseManager(options.dbPath);
-        this.tokenManager = new TokenManager(this.dbManager);
+        this.tokenManager = new TokenManager(options.bridge || null);
+        if (options.bridge) this._attachedBridge = options.bridge;
         this.auth = new HomeAssistantAuth(options.authOptions);
         this.devices = new DeviceManager();
         if (typeof this.devices.on === "function") {
@@ -1682,6 +1938,21 @@ var require_src = __commonJS({
         this.isConnected = false;
         this.connections = [];
       }
+      // Explicit bridge (tests and pool-style callers) wins, otherwise the
+      // worker IPC singleton or an ephemeral memory bridge. Single source of
+      // truth for connections lives in TokenManager, never in raw maps.
+      attachBridge(bridge) {
+        if (bridge && bridge.storage) {
+          this._attachedBridge = bridge;
+          if (this.tokenManager) this.tokenManager.attachBridge(bridge);
+        }
+        return this;
+      }
+      _tokens(momai2) {
+        const bridge = this._attachedBridge || resolveBridge(momai2);
+        if (this.tokenManager) this.tokenManager.attachBridge(bridge);
+        return this.tokenManager;
+      }
       // Log com throttle: quando o Home Assistant está fora, o init roda a cada
       // comando e cada warn ia para o main.log (escrita em disco no processo
       // principal) a cada poucos segundos — isso contribuía para micro-travamentos
@@ -1693,17 +1964,7 @@ var require_src = __commonJS({
         console.warn(message, detail ?? "");
       }
       async init(momai2) {
-        if (momai2?.storage?.storageDir && this.dbManager) {
-          const customDbPath = path2.join(momai2.storage.storageDir, "smarthome.sqlite");
-          if (this.dbManager.db && this.dbManager.dbPath !== customDbPath) {
-            await this.dbManager.close();
-          }
-          this.dbManager.dbPath = customDbPath;
-          if (this.tokenManager && typeof this.tokenManager.reloadKey === "function") {
-            this.tokenManager.reloadKey(momai2.storage.storageDir);
-          }
-        }
-        await this.dbManager.init();
+        this._tokens(momai2);
         const conns = await this.tokenManager.listConnections();
         for (const conn of conns) {
           try {
@@ -1768,17 +2029,7 @@ var require_src = __commonJS({
         if (!["http:", "https:"].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) {
           throw new Error("A URL deve usar HTTP ou HTTPS e n\xE3o pode conter credenciais");
         }
-        if (momai2?.storage?.storageDir && this.dbManager) {
-          const customDbPath = path2.join(momai2.storage.storageDir, "smarthome.sqlite");
-          if (this.dbManager.db && this.dbManager.dbPath !== customDbPath) {
-            await this.dbManager.close();
-          }
-          this.dbManager.dbPath = customDbPath;
-          if (this.tokenManager && typeof this.tokenManager.reloadKey === "function") {
-            this.tokenManager.reloadKey(momai2.storage.storageDir);
-          }
-        }
-        await this.dbManager.init();
+        this._tokens(momai2);
         const displayName = name || "Home Assistant";
         await this.disconnectAll(momai2).catch(() => {
         });
@@ -1822,39 +2073,13 @@ var require_src = __commonJS({
         return this.tokenManager.listConnections();
       }
       async getLastConnection(momai2) {
-        if (momai2?.storage?.storageDir && this.dbManager) {
-          const customDbPath = path2.join(momai2.storage.storageDir, "smarthome.sqlite");
-          if (this.dbManager.db && this.dbManager.dbPath !== customDbPath) {
-            await this.dbManager.close();
-          }
-          if (this.dbManager.dbPath !== customDbPath) {
-            this.dbManager.dbPath = customDbPath;
-          }
-          if (this.tokenManager && typeof this.tokenManager.reloadKey === "function") {
-            this.tokenManager.reloadKey(momai2.storage.storageDir);
-          }
-        }
+        this._tokens(momai2);
         try {
           const savedConnection = await this.tokenManager.getLastConnection();
           if (savedConnection?.config) {
             return { url: savedConnection.config.url || "", token: savedConnection.config.token || "", name: savedConnection.name || "" };
           }
         } catch {
-        }
-        if (momai2?.storage) {
-          try {
-            const savedConns = await momai2.storage.get("connections");
-            if (savedConns && typeof savedConns === "object") {
-              const entries = Object.values(savedConns);
-              if (entries.length > 0) {
-                const last = entries[entries.length - 1];
-                if (last && last.url) {
-                  return { url: last.url, token: last.token || "", name: last.name || "" };
-                }
-              }
-            }
-          } catch {
-          }
         }
         if (this.lastCredentials && (this.lastCredentials.url || this.lastCredentials.token)) {
           return { url: this.lastCredentials.url || "", token: this.lastCredentials.token || "", name: this.lastCredentials.name || "" };
@@ -1935,39 +2160,27 @@ var require_src = __commonJS({
         return this.devices.callService(domain, service, data, connectionType);
       }
       async removeConnection(connectionId, momai2) {
+        this._tokens(momai2);
         const conn = this.connections.find((c) => c.id === connectionId);
         if (conn) {
           await this.devices.unregisterProvider(conn.type);
           this.connections = this.connections.filter((c) => c.id !== connectionId);
-        }
-        if (momai2?.storage) {
-          try {
-            const existing = await momai2.storage.get("connections") || {};
-            delete existing[connectionId];
-            await momai2.storage.set("connections", existing);
-          } catch {
-          }
         }
         await this.tokenManager.removeConnection(connectionId);
         this.isConnected = this.connections.length > 0;
         return { success: true };
       }
       async disconnectAll(momai2) {
+        this._tokens(momai2);
         await this.devices.disconnectAll();
-        if (momai2?.storage) {
-          try {
-            await momai2.storage.set("connections", {});
-          } catch {
-          }
-          try {
-            await momai2.storage.set("last_credentials", null);
-          } catch {
-          }
-        }
         await this.tokenManager.deactivateAllConnections().catch(() => {
         });
         await this.tokenManager.clearLastCredentials().catch(() => {
         });
+        try {
+          await this.tokenManager.setLastCredentials(null);
+        } catch {
+        }
         this.connections = [];
         this.lastCredentials = null;
         this.auth.setCredentials("", "");
@@ -2021,31 +2234,68 @@ process.on("unhandledRejection", (reason) => {
 });
 var deviceCache = { names: [], byRoom: {} };
 var ready = false;
+var ACTIONS_STORAGE_KEY = "actions-state_changed";
+var { getWorkerBridge, routeStorageResponse } = require_sdk_backend();
+if (typeof process.send === "function") connector.attachBridge(getWorkerBridge());
+function getIpcStorage() {
+  return getWorkerBridge();
+}
+function useHostStorage() {
+  return typeof process.send === "function";
+}
+function isValidAction(act) {
+  return act && typeof act === "object" && typeof act.target === "string" && act.target.trim().length > 0;
+}
 function actionsConfigFile() {
   return path.join(dataDir, "extensions", "momai-smarthome", "actions-state_changed.json");
 }
 function legacyActionsConfigFile() {
   return path.join(dataDir, "extensions", "momaismarthome", "actions-state_changed.json");
 }
-function loadConfiguredActions() {
+function readLegacyActionsFile() {
   try {
     const parsed = JSON.parse(fs.readFileSync(actionsConfigFile(), "utf8"));
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((act) => act && typeof act.target === "string" && act.target.trim().length > 0);
+    if (Array.isArray(parsed)) return parsed.filter(isValidAction);
   } catch {
     try {
       const parsed = JSON.parse(fs.readFileSync(legacyActionsConfigFile(), "utf8"));
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter((act) => act && typeof act.target === "string" && act.target.trim().length > 0);
+      if (Array.isArray(parsed)) return parsed.filter(isValidAction);
     } catch {
       return [];
     }
   }
+  return [];
 }
-function saveConfiguredActions(actions) {
+async function loadConfiguredActions() {
+  if (useHostStorage()) {
+    try {
+      const stored = await getIpcStorage().storage.get(ACTIONS_STORAGE_KEY);
+      if (Array.isArray(stored)) return stored.filter(isValidAction);
+      const legacy = readLegacyActionsFile();
+      if (legacy.length > 0) {
+        getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, legacy).catch(() => {
+        });
+        return legacy;
+      }
+      return [];
+    } catch {
+      return readLegacyActionsFile();
+    }
+  }
+  return readLegacyActionsFile();
+}
+async function saveConfiguredActions(actions) {
+  const valid = Array.isArray(actions) ? actions.filter(isValidAction) : [];
+  if (useHostStorage()) {
+    try {
+      await getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, valid);
+      return;
+    } catch {
+    }
+  }
   const file = actionsConfigFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(Array.isArray(actions) ? actions : [], null, 2));
+  fs.writeFileSync(file, JSON.stringify(valid, null, 2));
 }
 async function init() {
   try {
@@ -2340,6 +2590,10 @@ var hbInterval = setInterval(() => {
 }, 3e4);
 if (typeof hbInterval.unref === "function") hbInterval.unref();
 process.on("message", async (msg) => {
+  if (msg.type === "storage-response") {
+    routeStorageResponse(msg);
+    return;
+  }
   if (msg.type === "execute") {
     try {
       const { requestId, payload } = msg;
@@ -2693,15 +2947,13 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
       };
     }
     case "get_actions": {
-      const actions = loadConfiguredActions();
+      const actions = await loadConfiguredActions();
       return { ok: true, actions };
     }
     case "set_actions": {
       const incoming = Array.isArray(args?.actions) ? args.actions : [];
-      const valid = incoming.filter(
-        (a) => a && typeof a === "object" && typeof a.target === "string" && a.target.trim().length > 0
-      );
-      saveConfiguredActions(valid);
+      const valid = incoming.filter(isValidAction);
+      await saveConfiguredActions(valid);
       return {
         ok: true,
         actions: valid,

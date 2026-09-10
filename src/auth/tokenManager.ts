@@ -2,13 +2,20 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { ENCRYPTION_ALGORITHM, IV_LENGTH, ENCRYPTION_KEY_PATH } = require('../config/constants.ts');
+const {
+  CONNECTIONS_KEY,
+  LAST_CREDENTIALS_KEY,
+  ENTITIES_COLLECTION,
+  resolveBridge,
+  importLegacyDatabase,
+  defaultLegacyDbPath
+} = require('../sdk-backend.ts');
 
-// A chave legada era uma constante fixa versionada no código (pública, não é
-// segredo). Ela só serve para LER credenciais criadas por versões antigas; ao
-// ler, o getConnection re-criptografa com a chave real (.encryption-key /
-// ENCRYPTION_KEY). A resolução passa a ser: variável de ambiente local
-// MOMAI_SMARTHOME_LEGACY_KEY → arquivo não versionado data/.encryption-legacy-key
-// (modo 0600) → sem chave disponível, a credencial legada não é legível.
+// The legacy key was a fixed constant shipped in code (public, not a secret).
+// It only READS credentials created by old versions; on read, getConnection
+// re-encrypts with the real key (.encryption-key / ENCRYPTION_KEY).
+// Resolution order: MOMAI_SMARTHOME_LEGACY_KEY env -> unversioned
+// data/.encryption-legacy-key file (0600) -> unreadable without a key.
 function resolveLegacyKey() {
   const env = process.env.MOMAI_SMARTHOME_LEGACY_KEY;
   if (env && String(env).trim()) return String(env).trim();
@@ -22,13 +29,36 @@ function resolveLegacyKey() {
   return null;
 }
 
-class TokenManager {
-  dbManager: any = null
-  encryptionSecret: string = ''
+function legacyCredentialsPath() {
+  return path.join(path.dirname(defaultLegacyDbPath()), 'last_credentials.json');
+}
 
-  constructor(dbManager) {
-    this.dbManager = dbManager;
+class TokenManager {
+  _attachedBridge = null
+  encryptionSecret: string = ''
+  _legacyDone = false
+
+  constructor(bridge = null) {
+    // Backward compatible: anything without a storage area is ignored and the
+    // bridge resolves lazily per operation (worker IPC or memory fallback).
+    if (bridge && bridge.storage) this._attachedBridge = bridge;
     this.encryptionSecret = process.env.ENCRYPTION_KEY || this._loadOrCreateKey();
+  }
+
+  attachBridge(bridge) {
+    if (bridge && bridge.storage) this._attachedBridge = bridge;
+    return this;
+  }
+
+  async _store() {
+    const bridge = this._attachedBridge || resolveBridge();
+    if (!this._legacyDone) {
+      this._legacyDone = true;
+      try {
+        await importLegacyDatabase({ bridge });
+      } catch {}
+    }
+    return bridge;
   }
 
   _loadOrCreateKey(customDir = null) {
@@ -101,120 +131,140 @@ class TokenManager {
     return JSON.parse(decrypted);
   }
 
+  async _readConnections() {
+    const bridge = await this._store();
+    try {
+      return (await bridge.storage.get(CONNECTIONS_KEY)) || {};
+    } catch {
+      return {};
+    }
+  }
+
+  async _writeConnections(map) {
+    const bridge = await this._store();
+    await bridge.storage.set(CONNECTIONS_KEY, map);
+  }
+
   async saveConnection(id, providerType, config, name, email) {
-    await this.dbManager.init();
-    const encryptedObject = this.encrypt(config);
-    const encryptedJson = JSON.stringify(encryptedObject);
-
-    const sql = `
-      INSERT INTO connections (id, provider_type, name, config_encrypted, user_email, auto_connect, updated_at)
-      VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-      ON CONFLICT(id) DO UPDATE SET
-        provider_type = excluded.provider_type,
-        name = excluded.name,
-        config_encrypted = excluded.config_encrypted,
-        user_email = excluded.user_email,
-        auto_connect = 1,
-        updated_at = CURRENT_TIMESTAMP;
-    `;
-
-    await this.dbManager.run(sql, [id, providerType, name, encryptedJson, email]);
-
+    const map = await this._readConnections();
+    map[id] = {
+      id,
+      provider_type: providerType,
+      name,
+      user_email: email,
+      config: this.encrypt(config),
+      auto_connect: 1,
+      updated_at: new Date().toISOString()
+    };
+    await this._writeConnections(map);
   }
 
   async getLastCredentials() {
+    const bridge = await this._store();
     try {
-      const dbDir = path.dirname(this.dbManager.dbPath);
-      const credsPath = path.join(dbDir, 'last_credentials.json');
+      const stored = await bridge.storage.get(LAST_CREDENTIALS_KEY);
+      if (stored) return stored;
+    } catch {}
+    try {
+      const credsPath = legacyCredentialsPath();
       if (fs.existsSync(credsPath)) {
-        const content = fs.readFileSync(credsPath, 'utf8');
-        return JSON.parse(content);
+        return JSON.parse(fs.readFileSync(credsPath, 'utf8'));
       }
     } catch {}
     return null;
   }
 
+  async setLastCredentials(creds) {
+    const bridge = await this._store();
+    await bridge.storage.set(LAST_CREDENTIALS_KEY, creds);
+  }
+
   async clearLastCredentials() {
+    const bridge = await this._store();
     try {
-      const credsPath = path.join(path.dirname(this.dbManager.dbPath), 'last_credentials.json');
+      await bridge.storage.set(LAST_CREDENTIALS_KEY, null);
+    } catch {}
+    try {
+      const credsPath = legacyCredentialsPath();
       if (fs.existsSync(credsPath)) fs.unlinkSync(credsPath);
     } catch {}
   }
 
-  async getConnection(id) {
-    await this.dbManager.init();
-    const row = await this.dbManager.get(`SELECT * FROM connections WHERE id = ?`, [id]);
+  _configFromRecord(storedConfig) {
+    // Accepts the encrypted envelope (object or JSON string) and legacy
+    // plaintext configs. Returns { config, migrated }.
+    let payload = storedConfig;
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch {
+        if (payload.includes('http') || payload.includes('token')) {
+          try {
+            return { config: JSON.parse(payload), migrated: true };
+          } catch {}
+        }
+        return { config: null, migrated: false };
+      }
+    }
+    if (payload && payload.encryptedData && payload.iv && payload.authTag) {
+      try {
+        return { config: this.decrypt(payload), migrated: false };
+      } catch {
+        const candidatePaths = [
+          ENCRYPTION_KEY_PATH,
+          path.join(require('../config/constants.ts').DEFAULT_DB_PATH, '..', '.encryption-key'),
+          path.join(__dirname, '..', '..', 'data', '.encryption-key')
+        ];
+        for (const kPath of candidatePaths) {
+          try {
+            if (fs.existsSync(kPath)) {
+              const fileKey = fs.readFileSync(kPath, 'utf8').trim();
+              if (fileKey) return { config: this.decrypt(payload, fileKey), migrated: true };
+            }
+          } catch {}
+        }
+        const legacyKey = resolveLegacyKey();
+        if (legacyKey) {
+          try {
+            return { config: this.decrypt(payload, legacyKey), migrated: true };
+          } catch {}
+        }
+        return { config: null, migrated: false };
+      }
+    }
+    if (payload && typeof payload === 'object' && (payload.url || payload.token)) {
+      return { config: payload, migrated: true };
+    }
+    return { config: null, migrated: false };
+  }
 
+  async getConnection(id) {
+    const map = await this._readConnections();
+    const row = map[id];
     if (!row) return null;
 
-    let config = null;
-    let migrated = false;
-    try {
-      const encryptedPayload = JSON.parse(row.config_encrypted);
-      if (encryptedPayload && encryptedPayload.encryptedData && encryptedPayload.iv && encryptedPayload.authTag) {
-        try {
-          config = this.decrypt(encryptedPayload);
-        } catch {
-          const candidateKeys = [
-            ENCRYPTION_KEY_PATH,
-            path.join(require('../config/constants.ts').DEFAULT_DB_PATH, '..', '.encryption-key'),
-            path.join(__dirname, '..', '..', 'data', '.encryption-key')
-          ];
-          for (const kPath of candidateKeys) {
-            try {
-              if (fs.existsSync(kPath)) {
-                const fileKey = fs.readFileSync(kPath, 'utf8').trim();
-                if (fileKey) {
-                  config = this.decrypt(encryptedPayload, fileKey);
-                  migrated = true;
-                  break;
-                }
-              }
-            } catch {}
-          }
-          if (!config) {
-            // Último recurso: chave legada (env ou arquivo não versionado).
-            // Nunca hardcoded no código. Após ler, re-criptografa na linha de
-            // `if (migrated)` abaixo.
-            const legacyKey = resolveLegacyKey();
-            if (legacyKey) {
-              try {
-                config = this.decrypt(encryptedPayload, legacyKey);
-                migrated = true;
-              } catch {}
-            }
-          }
-        }
-      } else if (encryptedPayload && typeof encryptedPayload === 'object' && (encryptedPayload.url || encryptedPayload.token)) {
-        config = encryptedPayload;
-        migrated = true;
-      }
-    } catch {
-      try {
-        if (typeof row.config_encrypted === 'string' && (row.config_encrypted.includes('http') || row.config_encrypted.includes('token'))) {
-          config = JSON.parse(row.config_encrypted);
-          migrated = true;
-        }
-      } catch {}
-    }
+    const { config, migrated } = this._configFromRecord(row.config);
 
-    if (!config) {
+    let resolved = config;
+    let needsWrite = migrated;
+    if (!resolved) {
       const lastCreds = await this.getLastCredentials();
       if (lastCreds && lastCreds.url && lastCreds.token) {
-        config = { url: lastCreds.url, token: lastCreds.token };
-        migrated = true;
+        resolved = { url: lastCreds.url, token: lastCreds.token };
+        needsWrite = true;
       } else {
         console.error('[TokenManager] Erro ao descriptografar config da conexão', id);
         return null;
       }
     }
 
-    if (migrated) {
+    if (needsWrite) {
       try {
-        await this.dbManager.run(
-          `UPDATE connections SET config_encrypted = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          [JSON.stringify(this.encrypt(config)), id]
-        );
+        const fresh = await this._readConnections();
+        if (fresh[id]) {
+          fresh[id] = { ...fresh[id], config: this.encrypt(resolved), updated_at: new Date().toISOString() };
+          await this._writeConnections(fresh);
+        }
       } catch {}
     }
 
@@ -223,83 +273,119 @@ class TokenManager {
       providerType: row.provider_type,
       name: row.name,
       email: row.user_email,
-      config,
-      autoConnect: row.auto_connect === 1,
+      config: resolved,
+      autoConnect: row.auto_connect !== 0,
       updatedAt: row.updated_at
     };
   }
 
   async listConnections() {
-    await this.dbManager.init();
-    return this.dbManager.all(
-      `SELECT id, provider_type, name, user_email, auto_connect, updated_at
-       FROM connections
-       WHERE auto_connect = 1
-       ORDER BY updated_at DESC, rowid DESC`
-    );
+    const map = await this._readConnections();
+    return Object.values(map)
+      .filter((row) => row && row.auto_connect !== 0)
+      .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+      .map((row) => ({
+        id: row.id,
+        provider_type: row.provider_type,
+        name: row.name,
+        user_email: row.user_email,
+        auto_connect: row.auto_connect === 0 ? 0 : 1,
+        updated_at: row.updated_at
+      }));
   }
 
   async getLastConnection() {
-    await this.dbManager.init();
-    const row = await this.dbManager.get(
-      `SELECT id FROM connections ORDER BY updated_at DESC, rowid DESC LIMIT 1`
-    );
-    return row ? this.getConnection(row.id) : null;
+    const map = await this._readConnections();
+    const rows = Object.values(map);
+    if (rows.length === 0) return null;
+    rows.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+    return this.getConnection(rows[0].id);
   }
 
   async deactivateAllConnections() {
-    await this.dbManager.init();
-    await this.dbManager.run(`DELETE FROM cached_entities`);
-    await this.dbManager.run(`DELETE FROM rooms`);
-    await this.dbManager.run(`UPDATE connections SET auto_connect = 0`);
+    const map = await this._readConnections();
+    for (const row of Object.values(map)) {
+      if (row) row.auto_connect = 0;
+    }
+    await this._writeConnections(map);
+    const bridge = await this._store();
+    try {
+      await bridge.collections.clear(ENTITIES_COLLECTION, { olderThanMs: -1 });
+    } catch {}
   }
 
   async removeConnection(id) {
-    await this.dbManager.init();
-    await this.dbManager.run(`DELETE FROM cached_entities WHERE connection_id = ?`, [id]);
-    await this.dbManager.run(`DELETE FROM rooms WHERE connection_id = ?`, [id]);
-    await this.dbManager.run(`DELETE FROM connections WHERE id = ?`, [id]);
+    const map = await this._readConnections();
+    delete map[id];
+    await this._writeConnections(map);
+    const bridge = await this._store();
+    try {
+      const rows = await bridge.collections.list(ENTITIES_COLLECTION, { where: { connection_id: id }, limit: 500 });
+      for (const row of rows) {
+        try {
+          await bridge.collections.remove(ENTITIES_COLLECTION, row._rowId);
+        } catch {}
+      }
+    } catch {}
   }
 
   async cacheEntities(connectionId, entities) {
-    await this.dbManager.init();
-    await this.dbManager.run(`DELETE FROM cached_entities WHERE connection_id = ?`, [connectionId]);
+    const bridge = await this._store();
+    try {
+      const existing = await bridge.collections.list(ENTITIES_COLLECTION, { where: { connection_id: connectionId }, limit: 500 });
+      for (const row of existing) {
+        try {
+          await bridge.collections.remove(ENTITIES_COLLECTION, row._rowId);
+        } catch {}
+      }
+    } catch {}
 
-    for (const e of entities) {
-      await this.dbManager.run(
-        `INSERT OR REPLACE INTO cached_entities (entity_id, connection_id, name, domain, type_name, room, state_json, attributes_json, online, last_seen)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [
-          e.id,
-          connectionId,
-          e.name,
-          e.domain || '',
-          e.type || '',
-          e.room || '',
-          JSON.stringify(e.state || {}),
-          JSON.stringify(e.attributes || {}),
-          e.online ? 1 : 0
-        ]
-      );
+    for (const e of entities || []) {
+      try {
+        await bridge.collections.insert(ENTITIES_COLLECTION, {
+          connection_id: connectionId,
+          entity_id: e.id,
+          name: e.name,
+          domain: e.domain || '',
+          type: e.type || '',
+          room: e.room || '',
+          state: e.state || {},
+          attributes: e.attributes || {},
+          online: e.online ? 1 : 0
+        });
+      } catch {}
     }
   }
 
   async getCachedEntities(connectionId) {
-    await this.dbManager.init();
-    const rows = await this.dbManager.all(
-      `SELECT * FROM cached_entities WHERE connection_id = ? ORDER BY room, name`,
-      [connectionId]
-    );
-    return rows.map((r) => ({
-      id: r.entity_id,
-      name: r.name,
-      domain: r.domain,
-      type: r.type_name,
-      room: r.room,
-      state: JSON.parse(r.state_json || '{}'),
-      attributes: JSON.parse(r.attributes_json || '{}'),
-      online: Boolean(r.online)
-    }));
+    const bridge = await this._store();
+    const out = [];
+    let offset = 0;
+    for (;;) {
+      let rows = [];
+      try {
+        rows = await bridge.collections.list(ENTITIES_COLLECTION, { where: { connection_id: connectionId }, limit: 500, offset });
+      } catch {
+        break;
+      }
+      if (!rows || rows.length === 0) break;
+      for (const r of rows) {
+        out.push({
+          id: r.entity_id,
+          name: r.name,
+          domain: r.domain,
+          type: r.type,
+          room: r.room,
+          state: r.state || {},
+          attributes: r.attributes || {},
+          online: Boolean(r.online)
+        });
+      }
+      if (rows.length < 500) break;
+      offset += rows.length;
+    }
+    out.sort((a, b) => String(a.room || '').localeCompare(String(b.room || '')) || String(a.name || '').localeCompare(String(b.name || '')));
+    return out;
   }
 }
 

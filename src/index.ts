@@ -5,13 +5,12 @@ try {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 } catch (e) {}
 
-const DatabaseManager = require('./database/database.ts');
 const TokenManager = require('./auth/tokenManager.ts');
+const { resolveBridge } = require('./sdk-backend.ts');
 const HomeAssistantAuth = require('./auth/haAuth.ts');
 const DeviceManager = require('./integrations/deviceManager.ts');
 
 class MomAIHomeConnector extends EventEmitter {
-  dbManager: any = null
   tokenManager: any = null
   auth: any = null
   devices: any = null
@@ -19,12 +18,13 @@ class MomAIHomeConnector extends EventEmitter {
   connections: any[] = []
   lastCredentials: any = null
   _mutex: Promise<any> = Promise.resolve()
+  _attachedBridge: any = null
 
   constructor(options: any = {}) {
     super();
     this._lastWarnTs = 0;
-    this.dbManager = new DatabaseManager(options.dbPath);
-    this.tokenManager = new TokenManager(this.dbManager);
+    this.tokenManager = new TokenManager(options.bridge || null);
+    if (options.bridge) this._attachedBridge = options.bridge;
     this.auth = new HomeAssistantAuth(options.authOptions);
     this.devices = new DeviceManager();
 
@@ -42,6 +42,22 @@ class MomAIHomeConnector extends EventEmitter {
     this.connections = [];
   }
 
+  // Explicit bridge (tests and pool-style callers) wins, otherwise the
+  // worker IPC singleton or an ephemeral memory bridge. Single source of
+  // truth for connections lives in TokenManager, never in raw maps.
+  attachBridge(bridge) {
+    if (bridge && bridge.storage) {
+      this._attachedBridge = bridge;
+      if (this.tokenManager) this.tokenManager.attachBridge(bridge);
+    }
+    return this;
+  }
+
+  _tokens(momai) {
+    const bridge = this._attachedBridge || resolveBridge(momai);
+    if (this.tokenManager) this.tokenManager.attachBridge(bridge);
+    return this.tokenManager;
+  }
   // Log com throttle: quando o Home Assistant está fora, o init roda a cada
   // comando e cada warn ia para o main.log (escrita em disco no processo
   // principal) a cada poucos segundos — isso contribuía para micro-travamentos
@@ -54,17 +70,7 @@ class MomAIHomeConnector extends EventEmitter {
   }
 
   async init(momai) {
-    if (momai?.storage?.storageDir && this.dbManager) {
-      const customDbPath = path.join(momai.storage.storageDir, 'smarthome.sqlite');
-      if (this.dbManager.db && this.dbManager.dbPath !== customDbPath) {
-        await this.dbManager.close();
-      }
-      this.dbManager.dbPath = customDbPath;
-      if (this.tokenManager && typeof this.tokenManager.reloadKey === 'function') {
-        this.tokenManager.reloadKey(momai.storage.storageDir);
-      }
-    }
-    await this.dbManager.init();
+    this._tokens(momai);
     const conns = await this.tokenManager.listConnections();
 
     for (const conn of conns) {
@@ -135,17 +141,7 @@ class MomAIHomeConnector extends EventEmitter {
     if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) {
       throw new Error('A URL deve usar HTTP ou HTTPS e não pode conter credenciais');
     }
-    if (momai?.storage?.storageDir && this.dbManager) {
-      const customDbPath = path.join(momai.storage.storageDir, 'smarthome.sqlite');
-      if (this.dbManager.db && this.dbManager.dbPath !== customDbPath) {
-        await this.dbManager.close();
-      }
-      this.dbManager.dbPath = customDbPath;
-      if (this.tokenManager && typeof this.tokenManager.reloadKey === 'function') {
-        this.tokenManager.reloadKey(momai.storage.storageDir);
-      }
-    }
-    await this.dbManager.init();
+    this._tokens(momai);
     const displayName = name || 'Home Assistant';
 
     // Desconecta e remove conexões antigas do mesmo tipo para manter apenas a conexão ativa
@@ -201,18 +197,7 @@ class MomAIHomeConnector extends EventEmitter {
   }
 
   async getLastConnection(momai) {
-    if (momai?.storage?.storageDir && this.dbManager) {
-      const customDbPath = path.join(momai.storage.storageDir, 'smarthome.sqlite');
-      if (this.dbManager.db && this.dbManager.dbPath !== customDbPath) {
-        await this.dbManager.close();
-      }
-      if (this.dbManager.dbPath !== customDbPath) {
-        this.dbManager.dbPath = customDbPath;
-      }
-      if (this.tokenManager && typeof this.tokenManager.reloadKey === 'function') {
-        this.tokenManager.reloadKey(momai.storage.storageDir);
-      }
-    }
+    this._tokens(momai);
 
     try {
       const savedConnection = await this.tokenManager.getLastConnection();
@@ -220,21 +205,6 @@ class MomAIHomeConnector extends EventEmitter {
         return { url: savedConnection.config.url || '', token: savedConnection.config.token || '', name: savedConnection.name || '' };
       }
     } catch {}
-
-    if (momai?.storage) {
-      try {
-        const savedConns = await momai.storage.get('connections');
-        if (savedConns && typeof savedConns === 'object') {
-          const entries = Object.values<any>(savedConns);
-          if (entries.length > 0) {
-            const last = entries[entries.length - 1];
-            if (last && last.url) {
-              return { url: last.url, token: last.token || '', name: last.name || '' };
-            }
-          }
-        }
-      } catch {}
-    }
 
     if (this.lastCredentials && (this.lastCredentials.url || this.lastCredentials.token)) {
       return { url: this.lastCredentials.url || '', token: this.lastCredentials.token || '', name: this.lastCredentials.name || '' };
@@ -329,17 +299,11 @@ class MomAIHomeConnector extends EventEmitter {
   }
 
   async removeConnection(connectionId, momai) {
+    this._tokens(momai);
     const conn = this.connections.find((c) => c.id === connectionId);
     if (conn) {
       await this.devices.unregisterProvider(conn.type);
       this.connections = this.connections.filter((c) => c.id !== connectionId);
-    }
-    if (momai?.storage) {
-      try {
-        const existing = (await momai.storage.get('connections')) || {};
-        delete existing[connectionId];
-        await momai.storage.set('connections', existing);
-      } catch {}
     }
     await this.tokenManager.removeConnection(connectionId);
     this.isConnected = this.connections.length > 0;
@@ -347,17 +311,15 @@ class MomAIHomeConnector extends EventEmitter {
   }
 
   async disconnectAll(momai) {
+    this._tokens(momai);
     await this.devices.disconnectAll();
-    if (momai?.storage) {
-      try {
-        await momai.storage.set('connections', {});
-      } catch {}
-      try {
-        await momai.storage.set('last_credentials', null);
-      } catch {}
-    }
     await this.tokenManager.deactivateAllConnections().catch(() => {});
     await this.tokenManager.clearLastCredentials().catch(() => {});
+    // Persist the cleared transient credential through the same store so a
+    // restart never resurrects it.
+    try {
+      await this.tokenManager.setLastCredentials(null);
+    } catch {}
     this.connections = [];
     this.lastCredentials = null;
     this.auth.setCredentials('', '');

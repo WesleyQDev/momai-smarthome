@@ -365,10 +365,18 @@
     "storage":  {
                     "description":  "Guarda a conexão com a sua casa e as suas preferências neste computador. Ao desconectar, a reconexão automática é desligada, mas o endereço e o acesso ficam salvos para você conectar de novo.",
                     "locations":  [
-                                      "smarthome.sqlite (conexões criptografadas localmente em .encryption-key)",
-                                      "momai.storage: connections (credenciais do Home Assistant; criptografadas no banco local)",
-                                      "momai.storage: last_credentials (credencial transitória da última conexão, limpa ao desconectar)"
-                                  ]
+                                      "extension.db (conexões criptografadas localmente em .encryption-key)",
+                                      "momai.storage: smarthome_connections (credenciais do Home Assistant; criptografadas no banco local)",
+                                      "momai.storage: smarthome_last_credentials (credencial transitória da última conexão, limpa ao desconectar)"
+                                  ],
+                    "collections":  [
+                                        {
+                                            "name":  "cached_entities",
+                                            "indexes":  [
+                                                            "connection_id"
+                                                        ]
+                                        }
+                                    ]
                 },
     "locales":  {
                     "pt-BR":  {

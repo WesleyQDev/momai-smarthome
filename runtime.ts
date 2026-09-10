@@ -33,6 +33,27 @@ process.on('unhandledRejection', (reason) => {
 let deviceCache = { names: [], byRoom: {} }
 let ready = false
 
+const ACTIONS_STORAGE_KEY = 'actions-state_changed'
+
+// Host-owned store over IPC (isolated per dev mode) with filesystem fallback
+// for unit tests, where the worker is required without an IPC channel. The
+// bridge singleton lives in sdk-backend so the connector uses the same one.
+const { getWorkerBridge, routeStorageResponse } = require('./src/sdk-backend.ts')
+// Only inside the forked worker: unit tests require this file without an IPC
+// channel, and there the connector resolves an ephemeral memory bridge.
+if (typeof process.send === 'function') connector.attachBridge(getWorkerBridge())
+function getIpcStorage() {
+  return getWorkerBridge()
+}
+
+function useHostStorage() {
+  return typeof process.send === 'function'
+}
+
+function isValidAction(act) {
+  return act && typeof act === 'object' && typeof act.target === 'string' && act.target.trim().length > 0
+}
+
 // Actions config for the state_changed event (MOM-115). Kept in the extension's
 // own storage dir so the host can execute them generically when a device changes.
 function actionsConfigFile() {
@@ -45,27 +66,52 @@ function legacyActionsConfigFile() {
   return path.join(dataDir, 'extensions', 'momaismarthome', 'actions-state_changed.json')
 }
 
-function loadConfiguredActions() {
+function readLegacyActionsFile() {
   try {
     const parsed = JSON.parse(fs.readFileSync(actionsConfigFile(), 'utf8'))
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((act) => act && typeof act.target === 'string' && act.target.trim().length > 0)
+    if (Array.isArray(parsed)) return parsed.filter(isValidAction)
   } catch {
-    // fallback legado sem hífen
     try {
       const parsed = JSON.parse(fs.readFileSync(legacyActionsConfigFile(), 'utf8'))
-      if (!Array.isArray(parsed)) return []
-      return parsed.filter((act) => act && typeof act.target === 'string' && act.target.trim().length > 0)
+      if (Array.isArray(parsed)) return parsed.filter(isValidAction)
     } catch {
       return []
     }
   }
+  return []
 }
 
-function saveConfiguredActions(actions) {
+async function loadConfiguredActions() {
+  if (useHostStorage()) {
+    try {
+      const stored = await getIpcStorage().storage.get(ACTIONS_STORAGE_KEY)
+      if (Array.isArray(stored)) return stored.filter(isValidAction)
+      const legacy = readLegacyActionsFile()
+      if (legacy.length > 0) {
+        getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, legacy).catch(() => {})
+        return legacy
+      }
+      return []
+    } catch {
+      return readLegacyActionsFile()
+    }
+  }
+  return readLegacyActionsFile()
+}
+
+async function saveConfiguredActions(actions) {
+  const valid = Array.isArray(actions) ? actions.filter(isValidAction) : []
+  if (useHostStorage()) {
+    try {
+      await getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, valid)
+      return
+    } catch {
+      /* fall through to filesystem */
+    }
+  }
   const file = actionsConfigFile()
   fs.mkdirSync(path.dirname(file), { recursive: true })
-  fs.writeFileSync(file, JSON.stringify(Array.isArray(actions) ? actions : [], null, 2))
+  fs.writeFileSync(file, JSON.stringify(valid, null, 2))
 }
 
 async function init() {
@@ -400,6 +446,10 @@ const hbInterval = setInterval(() => {
 if (typeof hbInterval.unref === 'function') hbInterval.unref()
 
 process.on('message', async (msg) => {
+  if (msg.type === 'storage-response') {
+    routeStorageResponse(msg)
+    return
+  }
   if (msg.type === 'execute') {
     try {
       const { requestId, payload } = msg
@@ -816,21 +866,15 @@ async function executeTool(toolName, args, momai) {
     }
 
     case 'get_actions': {
-      const actions = loadConfiguredActions()
+      const actions = await loadConfiguredActions()
       return { ok: true, actions }
     }
 
     case 'set_actions': {
       const incoming = Array.isArray(args?.actions) ? args.actions : []
       // Valida o shape que a UI monta em page.tsx: { id?, target, tool, args?, when? }
-      const valid = incoming.filter(
-        (a) =>
-          a &&
-          typeof a === 'object' &&
-          typeof a.target === 'string' &&
-          a.target.trim().length > 0
-      )
-      saveConfiguredActions(valid)
+      const valid = incoming.filter(isValidAction)
+      await saveConfiguredActions(valid)
       return {
         ok: true,
         actions: valid,
