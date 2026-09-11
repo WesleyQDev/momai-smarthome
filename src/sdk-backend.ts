@@ -15,6 +15,7 @@ const ENTITIES_COLLECTION = 'cached_entities'
 
 function defaultDataDir() {
   return (
+    process.env.MOMAI_EXTENSION_STORAGE_DIR ||
     process.env.MOMAI_NODE_CORE_DATA_DIR ||
     process.env.MOMAI_DATA_DIR ||
     path.join(__dirname, '..', 'data')

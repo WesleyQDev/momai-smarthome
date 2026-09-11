@@ -62,12 +62,17 @@ class TokenManager {
   }
 
   _loadOrCreateKey(customDir = null) {
-    const candidatePaths = [
-      customDir ? path.join(customDir, '.encryption-key') : null,
-      ENCRYPTION_KEY_PATH,
-      path.join(require('../config/constants.ts').DEFAULT_DB_PATH, '..', '.encryption-key'),
-      path.join(__dirname, '..', '..', 'data', '.encryption-key')
-    ].filter(Boolean);
+    // When the host provides a mode-scoped dir, use only its key: the shared
+    // legacy key must never be picked up across Symlink/Testar Loja.
+    const modeStorageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR;
+    const candidatePaths = modeStorageDir
+      ? [path.join(modeStorageDir, '.encryption-key')]
+      : [
+          customDir ? path.join(customDir, '.encryption-key') : null,
+          ENCRYPTION_KEY_PATH,
+          path.join(require('../config/constants.ts').DEFAULT_DB_PATH, '..', '.encryption-key'),
+          path.join(__dirname, '..', '..', 'data', '.encryption-key')
+        ].filter(Boolean);
 
     for (const keyPath of candidatePaths) {
       try {

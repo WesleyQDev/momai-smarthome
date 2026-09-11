@@ -11,15 +11,18 @@ function fallbackDataDir() {
   return path.join(base, 'data');
 }
 
-const dataDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
+// Mode-scoped base (Symlink vs Testar Loja) so the extension's own database
+// and encryption key never cross environments. Older hosts fall back to the
+// shared data root.
+function storageBaseDir() {
+  return process.env.MOMAI_EXTENSION_STORAGE_DIR || process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
+}
 module.exports = {
   get DEFAULT_DB_PATH() {
-    const dDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
-    return process.env.DB_PATH || path.join(dDir, 'smarthome.sqlite');
+    return process.env.DB_PATH || path.join(storageBaseDir(), 'smarthome.sqlite');
   },
   get ENCRYPTION_KEY_PATH() {
-    const dDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
-    return process.env.ENCRYPTION_KEY_PATH || path.join(dDir, '.encryption-key');
+    return process.env.ENCRYPTION_KEY_PATH || path.join(storageBaseDir(), '.encryption-key');
   },
 
   HA_DEFAULT_URL: 'http://homeassistant.local:8123',

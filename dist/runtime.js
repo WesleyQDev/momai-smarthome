@@ -11,15 +11,15 @@ var require_constants = __commonJS({
       const base = path2.basename(__dirname) === "dist" ? path2.join(__dirname, "..") : path2.join(__dirname, "..", "..");
       return path2.join(base, "data");
     }
-    var dataDir2 = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
+    function storageBaseDir() {
+      return process.env.MOMAI_EXTENSION_STORAGE_DIR || process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
+    }
     module2.exports = {
       get DEFAULT_DB_PATH() {
-        const dDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
-        return process.env.DB_PATH || path2.join(dDir, "smarthome.sqlite");
+        return process.env.DB_PATH || path2.join(storageBaseDir(), "smarthome.sqlite");
       },
       get ENCRYPTION_KEY_PATH() {
-        const dDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
-        return process.env.ENCRYPTION_KEY_PATH || path2.join(dDir, ".encryption-key");
+        return process.env.ENCRYPTION_KEY_PATH || path2.join(storageBaseDir(), ".encryption-key");
       },
       HA_DEFAULT_URL: "http://homeassistant.local:8123",
       ENCRYPTION_ALGORITHM: "aes-256-gcm",
@@ -37,7 +37,7 @@ var require_ipc_storage = __commonJS({
       err.code = code;
       return err;
     }
-    function createIpcSmarthomeStorage({ send, onResponse, storageDir, timeoutMs = 3e4 } = {}) {
+    function createIpcSmarthomeStorage({ send, onResponse, storageDir: storageDir2, timeoutMs = 3e4 } = {}) {
       let seq = 0;
       const pending = /* @__PURE__ */ new Map();
       onResponse((msg) => {
@@ -77,7 +77,7 @@ var require_ipc_storage = __commonJS({
       const storageMethods = area("storage", ["get", "set", "getMany", "setMany", "delete", "listKeys", "migrate"]);
       return {
         storage: {
-          storageDir,
+          storageDir: storageDir2,
           get: storageMethods.get,
           set: async (key, value, opts) => {
             await call("storage.set", opts === void 0 ? [key, value] : [key, value, opts]);
@@ -110,7 +110,7 @@ var require_sdk_backend = __commonJS({
     var LEGACY_IMPORT_KEY = "smarthome_legacy_imported";
     var ENTITIES_COLLECTION = "cached_entities";
     function defaultDataDir() {
-      return process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path2.join(__dirname, "..", "data");
+      return process.env.MOMAI_EXTENSION_STORAGE_DIR || process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path2.join(__dirname, "..", "data");
     }
     function defaultLegacyDbPath() {
       return process.env.DB_PATH || path2.join(defaultDataDir(), "smarthome.sqlite");
@@ -349,7 +349,8 @@ var require_tokenManager = __commonJS({
         return bridge;
       }
       _loadOrCreateKey(customDir = null) {
-        const candidatePaths = [
+        const modeStorageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR;
+        const candidatePaths = modeStorageDir ? [path2.join(modeStorageDir, ".encryption-key")] : [
           customDir ? path2.join(customDir, ".encryption-key") : null,
           ENCRYPTION_KEY_PATH,
           path2.join(require_constants().DEFAULT_DB_PATH, "..", ".encryption-key"),
@@ -2217,7 +2218,8 @@ try {
 } catch (e) {
 }
 var dataDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path.join(__dirname, "data");
-process.env.DB_PATH = process.env.DB_PATH || path.join(dataDir, "smarthome.sqlite");
+var storageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR || dataDir;
+process.env.DB_PATH = process.env.DB_PATH || path.join(storageDir, "smarthome.sqlite");
 var connector = require_src();
 function safeSend(msg) {
   try {

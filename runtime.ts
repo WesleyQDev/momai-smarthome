@@ -5,8 +5,14 @@ try {
   require('dotenv').config({ path: path.join(__dirname, '.env') })
 } catch (e) {}
 
-const dataDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path.join(__dirname, 'data')
-process.env.DB_PATH = process.env.DB_PATH || path.join(dataDir, 'smarthome.sqlite')
+const dataDir =
+  process.env.MOMAI_NODE_CORE_DATA_DIR ||
+  process.env.MOMAI_DATA_DIR ||
+  path.join(__dirname, 'data')
+// MOMAI_EXTENSION_STORAGE_DIR is mode-scoped (Symlink vs Testar Loja) so the
+// extension database and key never cross environments.
+const storageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR || dataDir
+process.env.DB_PATH = process.env.DB_PATH || path.join(storageDir, 'smarthome.sqlite')
 
 const connector = require('./src/index.ts')
 
