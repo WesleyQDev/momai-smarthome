@@ -2859,6 +2859,17 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
       await connector.ensureConnected(momai2).catch(() => {
       });
       const allDevices = await connector.getDevices().catch(() => []);
+      const status = typeof connector.getStatus === "function" ? connector.getStatus() : null;
+      const connected = Boolean(connector.isConnected && status?.connected);
+      if (!connected) {
+        const conns = await connector.listConnections().catch(() => []);
+        if (!conns || conns.length === 0) {
+          const message2 = "Smart Home desconectado: nenhuma conex\xE3o do Home Assistant configurada. Abra o painel do MomAI Smart Home, informe a URL do Home Assistant (ex.: http://192.168.1.10:8123) e um Token de Acesso de Longa Dura\xE7\xE3o (Perfil do usu\xE1rio \u2192 Seguran\xE7a \u2192 Tokens de Acesso de Longa Dura\xE7\xE3o), conecte e tente novamente. Nenhum painel foi aberto.";
+          return { ok: false, error: message2, instruction: message2 };
+        }
+        const message = "Smart Home desconectado: n\xE3o foi poss\xEDvel alcan\xE7ar o Home Assistant. Verifique se ele est\xE1 ligado e na mesma rede, confira a URL e o token, reconecte no painel do MomAI Smart Home e tente novamente. Nenhum painel foi aberto.";
+        return { ok: false, error: message, instruction: message };
+      }
       let device = matchDeviceFromList(args.device_name, allDevices);
       if (!device && allDevices.length > 0) {
         device = allDevices.find((d) => d.domain === "media_player" || d.domain === "remote" || d.domain === "tv");

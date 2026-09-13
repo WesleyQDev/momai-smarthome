@@ -765,6 +765,20 @@ async function executeTool(toolName, args, momai) {
       await connector.ensureConnected(momai).catch(() => {})
       const allDevices = await connector.getDevices().catch(() => [])
 
+      // Never open the floating panel while disconnected. Return guidance so
+      // the assistant explains the outage and how to connect instead.
+      const status = typeof connector.getStatus === 'function' ? connector.getStatus() : null
+      const connected = Boolean(connector.isConnected && status?.connected)
+      if (!connected) {
+        const conns = await connector.listConnections().catch(() => [])
+        if (!conns || conns.length === 0) {
+          const message = 'Smart Home desconectado: nenhuma conexão do Home Assistant configurada. Abra o painel do MomAI Smart Home, informe a URL do Home Assistant (ex.: http://192.168.1.10:8123) e um Token de Acesso de Longa Duração (Perfil do usuário → Segurança → Tokens de Acesso de Longa Duração), conecte e tente novamente. Nenhum painel foi aberto.'
+          return { ok: false, error: message, instruction: message }
+        }
+        const message = 'Smart Home desconectado: não foi possível alcançar o Home Assistant. Verifique se ele está ligado e na mesma rede, confira a URL e o token, reconecte no painel do MomAI Smart Home e tente novamente. Nenhum painel foi aberto.'
+        return { ok: false, error: message, instruction: message }
+      }
+
       let device = matchDeviceFromList(args.device_name, allDevices)
       if (!device && allDevices.length > 0) {
         device = allDevices.find((d) => d.domain === 'media_player' || d.domain === 'remote' || d.domain === 'tv')

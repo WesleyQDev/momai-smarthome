@@ -190,7 +190,18 @@ async function runTests() {
     }
   }
 
+  // Online setup for overlay tests: force connected state so the
+  // disconnected guard does not block. Original methods restored below.
+  MomAIHomeConnector.isConnected = true
+  const origEnsureConnected = MomAIHomeConnector.ensureConnected.bind(MomAIHomeConnector)
+  const origGetStatus = MomAIHomeConnector.getStatus.bind(MomAIHomeConnector)
+  const origListConnections = MomAIHomeConnector.listConnections.bind(MomAIHomeConnector)
+  MomAIHomeConnector.ensureConnected = async () => MomAIHomeConnector.getStatus()
+  MomAIHomeConnector.getStatus = () => ({ connected: true, connections: [{ id: 'ha_test', type: 'homeassistant', name: 'Test' }], providerStatus: { providers: { homeassistant: { connected: true } }, connected: true } })
+  MomAIHomeConnector.listConnections = async () => [{ id: 'ha_test' } as any]
+
   MomAIHomeConnector.devices.providers.set('homeassistant', {
+    connected: true,
     listDevices: async () => [
       {
         id: 'media_player.tv_quarto',
@@ -227,6 +238,7 @@ async function runTests() {
     }
   }
   MomAIHomeConnector.devices.providers.set('homeassistant', {
+    connected: true,
     listDevices: async () => [
       {
         id: 'light.quarto',
@@ -244,6 +256,21 @@ async function runTests() {
   })
   assert('open_device_control luz abre com sucesso', openLightRes && openLightRes.ok === true && Boolean(lightEventDispatched))
   assert('open_device_control luz usa dimensões sem cortes (>= 540h, >= 320w)', lastLightOverlayPayload && lastLightOverlayPayload.overlaySize.height >= 540 && lastLightOverlayPayload.overlaySize.width >= 320)
+
+  // Offline guard: no overlay, guidance to connect instead (MOM-150).
+  MomAIHomeConnector.ensureConnected = origEnsureConnected
+  MomAIHomeConnector.getStatus = origGetStatus
+  MomAIHomeConnector.listConnections = origListConnections
+  MomAIHomeConnector.isConnected = false
+  MomAIHomeConnector.devices.providers.clear()
+  let offlineOverlay = false
+  const offlineRes = await runtime.executeTool('open_device_control', { device_name: 'TV da Sala' }, {
+    ...mockMomai,
+    sendEvent: (type: string) => { if (type === 'open_overlay') offlineOverlay = true }
+  })
+  const offlineText = String(offlineRes?.instruction || offlineRes?.error || '').toLowerCase()
+  assert('open_device_control offline nao abre overlay', offlineRes && offlineRes.ok === false && !offlineOverlay)
+  assert('open_device_control offline orienta como conectar', offlineText.includes('desconect') && offlineText.includes('painel'))
 
   let toggled: boolean = false
   MomAIHomeConnector.devices.providers.set('homeassistant', {
