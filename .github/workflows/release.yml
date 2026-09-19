@@ -38,7 +38,7 @@ jobs:
       - name: Create release ZIP with node_modules
         run: |
           ZIP="MomAISmartHome-${GITHUB_REF_NAME}.zip"
-          zip -r "$ZIP" manifest.json SKILL.md runtime.ts package.json README.md LICENSE icon.svg icon.png \
+          zip -r "$ZIP" manifest.json SKILL.md runtime.ts package.json README.md LICENSE icon.svg icon.png app.png \
             dist src node_modules -x "node_modules/.cache/*"
           echo "asset=$ZIP" >> "$GITHUB_ENV"
 

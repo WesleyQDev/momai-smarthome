@@ -3,7 +3,6 @@
   "panel.timeout": "El servidor de MomAI no respondió (timeout). Verifique si la app está ejecutándose.",
   "panel.networkError": "Error de red al comunicarse con el servidor",
   "panel.serviceError": "Error al ejecutar el servicio:",
-
   "connect.title": "Conectar a Home Assistant",
   "connect.description": "Ingrese la URL de su servidor Home Assistant y un Long-Lived Access Token.",
   "connect.urlLabel": "URL de Home Assistant",
@@ -21,10 +20,8 @@
   "connect.resync": "Resincronizar",
   "connect.tryReconnect": "Intentar Reconectar Ahora",
   "connect.tryReconnecting": "Intentando Reconectar...",
-
   "auth.subtitle": "Conecta tus dispositivos inteligentes a MomAI ingresando la dirección de tu servidor local o remoto.",
   "auth.loading": "Cargando...",
-
   "status.connected": "Conectado",
   "status.disconnected": "Sin conexión",
   "status.unavailable": "Home Assistant No Disponible",
@@ -34,7 +31,6 @@
   "status.saving": "Guardando…",
   "status.saveError": "Error al guardar. Inténtelo de nuevo.",
   "status.loading": "Cargando…",
-
   "domains.light": "Iluminación",
   "domains.switch": "Interruptor",
   "domains.fan": "Ventilador",
@@ -52,7 +48,6 @@
   "domains.remote": "Control Remoto",
   "domains.sun": "Sol",
   "domains.weather": "Clima",
-
   "device.on": "Encendido",
   "device.off": "Apagado",
   "device.active": "Activo",
@@ -71,23 +66,18 @@
   "device.controlable": "Controlables",
   "device.sensors": "Sensores y Estado",
   "device.current": "actual",
-
   "control.brightness": "Brillo",
   "control.color": "Color",
   "control.temperature": "Temperatura",
   "control.volume": "Volumen",
   "control.playPause": "Reproducir/Pausar",
-
   "filter.allDevices": "Todos los dispositivos",
   "filter.selectOther": "Seleccione otro filtro arriba para ver sus dispositivos.",
-
   "clock.devicesOn": "{active} de {total} dispositivos encendidos",
-
   "sun.day": "Día (Sobre el Horizonte)",
   "sun.night": "Noche (Bajo el Horizonte)",
   "sun.rise": "Amanecer",
   "sun.set": "Atardecer",
-
   "actions.title": "Acciones",
   "actions.description": "Acciones ejecutadas automáticamente cuando un dispositivo cambia de estado. Defina el disparador de cada acción (ej.: luz de la sala encendida → enviar mensaje por WhatsApp).",
   "actions.addAction": "+ Agregar acción",
@@ -109,7 +99,6 @@
   "actions.saveChanges": "Guardar cambios",
   "actions.when": "Cuando:",
   "actions.close": "Cerrar",
-
   "param.device": "Dispositivo",
   "param.action": "Acción",
   "param.brightness": "Brillo",
@@ -125,7 +114,6 @@
   "param.contact": "Contacto o número",
   "param.message": "Mensaje",
   "param.image": "Imagen",
-
   "tool.sendMessage": "Enviar mensaje",
   "tool.controlDevice": "Controlar dispositivo",
   "tool.setLightColor": "Color de luz",
@@ -138,35 +126,28 @@
   "tool.startMonitoring": "Iniciar monitoreo",
   "tool.listContacts": "Listar contactos",
   "tool.getHistory": "Historial",
-
   "state.on": "Encendido",
   "state.off": "Apagado",
-
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Estado",
   "placeholder.deviceRoom": "Habitación",
   "placeholder.entityId": "Entidad",
   "placeholder.image": "Imagen",
-
   "search.typeToSearch": "Escriba para buscar…",
   "search.typeNameOrNumber": "Escriba nombre o número",
-
   "contextMenu.openControl": "Abrir control",
   "contextMenu.turnOff": "Apagar",
   "contextMenu.turnOn": "Encender",
   "contextMenu.copyName": "Copiar nombre",
   "contextMenu.copyEntityId": "Copiar ID de entidad",
-
   "categories.lighting": "Iluminación y RGB",
   "categories.climate": "Climatización",
   "categories.locks": "Cerraduras y Sensores",
   "categories.media": "Medios y Smart TVs",
-
   "errors.connectFailed": "Error al conectar",
   "errors.disconnectFailed": "Error al desconectar",
   "errors.reconnectFailed": "Error al reconectar",
   "errors.serverUnavailable": "Servidor no disponible o sin conexión",
-
   "remote.home": "Menú Inicio (Home)",
   "remote.inputs": "Entradas de video (Outputs / HDMI / TV)",
   "remote.prev": "Pista anterior / Retroceder",
@@ -190,15 +171,12 @@
   "remote.switchToInput": "Cambiar a la entrada {src}",
   "remote.defaultRoom": "Sala",
   "remote.smartRemote": "Smart Remote",
-
   "weather.humidity": "Humedad",
   "weather.pressure": "Presión",
   "weather.wind": "Viento",
   "weather.unknown": "desconocido",
-
   "light.on": "Luz encendida",
   "light.off": "Luz apagada",
-
   "device.status": "Estado del Dispositivo",
   "device.statusOn": "Activo / Encendido",
   "device.statusOff": "Inactivo / Apagado",
@@ -207,7 +185,6 @@
   "device.humidity": "Humedad",
   "device.value": "Valor",
   "device.noRoom": "Habitación",
-
   "color.warmOrange": "Naranja Cálido",
   "color.softAmber": "Ámbar Suave",
   "color.warmWhite": "Blanco Cálido",
@@ -216,7 +193,12 @@
   "color.softPurple": "Morado Suave",
   "color.pastelPink": "Rosa Pastel",
   "color.coralRed": "Rojo Coral",
-
   "actions.edit": "Editar",
-  "actions.remove": "Eliminar"
+  "actions.remove": "Eliminar",
+  "widget.status.title": "Estado del hogar",
+  "widget.status.loading": "Cargando dispositivos…",
+  "widget.status.empty": "Sin dispositivos.",
+  "widget.toggles.title": "Accesos rápidos",
+  "widget.toggles.loading": "Cargando accesos…",
+  "widget.toggles.needsSetup": "Añade de nuevo desde la Galería y elige dispositivos."
 }

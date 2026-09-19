@@ -3,7 +3,6 @@
   "panel.timeout": "MomAI server did not respond (timeout). Check if the app is running.",
   "panel.networkError": "Network error communicating with the server",
   "panel.serviceError": "Error executing service:",
-
   "connect.title": "Connect to Home Assistant",
   "connect.description": "Enter your Home Assistant server URL and a Long-Lived Access Token.",
   "connect.urlLabel": "Home Assistant URL",
@@ -21,10 +20,8 @@
   "connect.resync": "Resync",
   "connect.tryReconnect": "Try Reconnecting Now",
   "connect.tryReconnecting": "Trying to Reconnect...",
-
   "auth.subtitle": "Connect your smart devices to MomAI by entering your local or remote server address.",
   "auth.loading": "Loading...",
-
   "status.connected": "Connected",
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant Unavailable",
@@ -34,7 +31,6 @@
   "status.saving": "Saving…",
   "status.saveError": "Error saving. Please try again.",
   "status.loading": "Loading…",
-
   "domains.light": "Lighting",
   "domains.switch": "Switch",
   "domains.fan": "Fan",
@@ -52,7 +48,6 @@
   "domains.remote": "Remote",
   "domains.sun": "Sun",
   "domains.weather": "Weather",
-
   "device.on": "On",
   "device.off": "Off",
   "device.active": "Active",
@@ -71,23 +66,18 @@
   "device.controlable": "Controllable",
   "device.sensors": "Sensors & Status",
   "device.current": "current",
-
   "control.brightness": "Brightness",
   "control.color": "Color",
   "control.temperature": "Temperature",
   "control.volume": "Volume",
   "control.playPause": "Play/Pause",
-
   "filter.allDevices": "All devices",
   "filter.selectOther": "Select another filter above to view your devices.",
-
   "clock.devicesOn": "{active} of {total} devices on",
-
   "sun.day": "Day (Above Horizon)",
   "sun.night": "Night (Below Horizon)",
   "sun.rise": "Sunrise",
   "sun.set": "Sunset",
-
   "actions.title": "Actions",
   "actions.description": "Actions executed automatically when a device changes state. Define each action's trigger (e.g., living room light turned on → send WhatsApp message).",
   "actions.addAction": "+ Add action",
@@ -109,7 +99,6 @@
   "actions.saveChanges": "Save changes",
   "actions.when": "When:",
   "actions.close": "Close",
-
   "param.device": "Device",
   "param.action": "Action",
   "param.brightness": "Brightness",
@@ -125,7 +114,6 @@
   "param.contact": "Contact or number",
   "param.message": "Message",
   "param.image": "Image",
-
   "tool.sendMessage": "Send message",
   "tool.controlDevice": "Control device",
   "tool.setLightColor": "Light color",
@@ -138,35 +126,28 @@
   "tool.startMonitoring": "Start monitoring",
   "tool.listContacts": "List contacts",
   "tool.getHistory": "History",
-
   "state.on": "On",
   "state.off": "Off",
-
   "placeholder.deviceName": "Device",
   "placeholder.deviceState": "State",
   "placeholder.deviceRoom": "Room",
   "placeholder.entityId": "Entity",
   "placeholder.image": "Image",
-
   "search.typeToSearch": "Type to search…",
   "search.typeNameOrNumber": "Type name or number",
-
   "contextMenu.openControl": "Open control",
   "contextMenu.turnOff": "Turn off",
   "contextMenu.turnOn": "Turn on",
   "contextMenu.copyName": "Copy name",
   "contextMenu.copyEntityId": "Copy entity ID",
-
   "categories.lighting": "Lighting & RGB",
   "categories.climate": "Climate",
   "categories.locks": "Locks & Sensors",
   "categories.media": "Media & Smart TVs",
-
   "errors.connectFailed": "Failed to connect",
   "errors.disconnectFailed": "Failed to disconnect",
   "errors.reconnectFailed": "Failed to reconnect",
   "errors.serverUnavailable": "Server unavailable or offline",
-
   "remote.home": "Home Menu (Home)",
   "remote.inputs": "Video inputs (Outputs / HDMI / TV)",
   "remote.prev": "Previous track / Media back",
@@ -190,15 +171,12 @@
   "remote.switchToInput": "Switch to input {src}",
   "remote.defaultRoom": "Living room",
   "remote.smartRemote": "Smart Remote",
-
   "weather.humidity": "Humidity",
   "weather.pressure": "Pressure",
   "weather.wind": "Wind",
   "weather.unknown": "unknown",
-
   "light.on": "Light on",
   "light.off": "Light off",
-
   "device.status": "Device Status",
   "device.statusOn": "Active / On",
   "device.statusOff": "Inactive / Off",
@@ -207,7 +185,6 @@
   "device.humidity": "Humidity",
   "device.value": "Value",
   "device.noRoom": "Room",
-
   "color.warmOrange": "Warm Orange",
   "color.softAmber": "Soft Amber",
   "color.warmWhite": "Warm White",
@@ -216,7 +193,12 @@
   "color.softPurple": "Soft Purple",
   "color.pastelPink": "Pastel Pink",
   "color.coralRed": "Coral Red",
-
   "actions.edit": "Edit",
-  "actions.remove": "Remove"
+  "actions.remove": "Remove",
+  "widget.status.title": "Home status",
+  "widget.status.loading": "Loading devices…",
+  "widget.status.empty": "No devices found.",
+  "widget.toggles.title": "Quick toggles",
+  "widget.toggles.loading": "Loading toggles…",
+  "widget.toggles.needsSetup": "Add again from the Gallery and select devices."
 }

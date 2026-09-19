@@ -1,9 +1,34 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const root = path.dirname(fileURLToPath(import.meta.url))
+
+function readManifestWidgets() {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
+    const widgets = Array.isArray(manifest?.ui?.widgets) ? manifest.ui.widgets : []
+    return widgets
+      .map((widget) => {
+        const entry = widget?.entry || widget?.file
+        if (!entry || typeof entry !== 'string' || !entry.startsWith('dist/') || !entry.endsWith('.js')) return null
+        const out = entry.slice('dist/'.length, -'.js'.length)
+        const id = widget?.id
+        const candidates = id ? [`src/widgets/${id}.tsx`, `src/widgets/${id}.ts`] : []
+        for (const candidate of candidates) {
+          if (fs.existsSync(path.join(root, candidate))) {
+            return { entry: path.join(root, candidate), outfile: path.join(root, 'dist', `${out}.js`) }
+          }
+        }
+        return null
+      })
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
 let esbuild
 try {
   esbuild = require('esbuild')
@@ -25,6 +50,7 @@ const workerEntry = path.join(root, 'runtime.ts')
 const workerOutfile = path.join(root, 'dist', 'runtime.js')
 
 if (esbuild?.build) {
+  const widgetBuilds = readManifestWidgets()
   await esbuild.build({
     entryPoints: [pageEntry],
     outfile: pageOutfile,
@@ -47,6 +73,19 @@ if (esbuild?.build) {
       '.png': 'dataurl'
     }
   })
+  for (const widget of widgetBuilds) {
+    await esbuild.build({
+      entryPoints: [widget.entry],
+      outfile: widget.outfile,
+      bundle: true,
+      format: 'esm',
+      target: 'es2020',
+      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      loader: {
+        '.png': 'dataurl'
+      }
+    })
+  }
   await esbuild.build({
     entryPoints: [workerEntry],
     outfile: workerOutfile,

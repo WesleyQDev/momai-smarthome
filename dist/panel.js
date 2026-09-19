@@ -204,7 +204,13 @@ var pt_BR_default = {
   "color.pastelPink": "Rosa Pastel",
   "color.coralRed": "Coral Vermelho",
   "actions.edit": "Editar",
-  "actions.remove": "Remover"
+  "actions.remove": "Remover",
+  "widget.status.title": "Status da casa",
+  "widget.status.loading": "Carregando dispositivos\u2026",
+  "widget.status.empty": "Nenhum dispositivo encontrado.",
+  "widget.toggles.title": "Toggles r\xE1pidos",
+  "widget.toggles.loading": "Carregando toggles\u2026",
+  "widget.toggles.needsSetup": "Adicione novamente pela Galeria e escolha os dispositivos."
 };
 
 // src/i18n/locales/en-US.json
@@ -404,7 +410,13 @@ var en_US_default = {
   "color.pastelPink": "Pastel Pink",
   "color.coralRed": "Coral Red",
   "actions.edit": "Edit",
-  "actions.remove": "Remove"
+  "actions.remove": "Remove",
+  "widget.status.title": "Home status",
+  "widget.status.loading": "Loading devices\u2026",
+  "widget.status.empty": "No devices found.",
+  "widget.toggles.title": "Quick toggles",
+  "widget.toggles.loading": "Loading toggles\u2026",
+  "widget.toggles.needsSetup": "Add again from the Gallery and select devices."
 };
 
 // src/i18n/locales/es.json
@@ -604,7 +616,13 @@ var es_default = {
   "color.pastelPink": "Rosa Pastel",
   "color.coralRed": "Rojo Coral",
   "actions.edit": "Editar",
-  "actions.remove": "Eliminar"
+  "actions.remove": "Eliminar",
+  "widget.status.title": "Estado del hogar",
+  "widget.status.loading": "Cargando dispositivos\u2026",
+  "widget.status.empty": "Sin dispositivos.",
+  "widget.toggles.title": "Accesos r\xE1pidos",
+  "widget.toggles.loading": "Cargando accesos\u2026",
+  "widget.toggles.needsSetup": "A\xF1ade de nuevo desde la Galer\xEDa y elige dispositivos."
 };
 
 // src/i18n/locales/de.json
@@ -804,7 +822,13 @@ var de_default = {
   "color.pastelPink": "Pastellrosa",
   "color.coralRed": "Korallenrot",
   "actions.edit": "Bearbeiten",
-  "actions.remove": "Entfernen"
+  "actions.remove": "Entfernen",
+  "widget.status.title": "Home-Status",
+  "widget.status.loading": "Ger\xE4te werden geladen\u2026",
+  "widget.status.empty": "Keine Ger\xE4te.",
+  "widget.toggles.title": "Schnellschalter",
+  "widget.toggles.loading": "Schalter werden geladen\u2026",
+  "widget.toggles.needsSetup": "Erneut \xFCber die Galerie hinzuf\xFCgen und Ger\xE4te w\xE4hlen."
 };
 
 // src/i18n/locales/fr.json
@@ -1004,7 +1028,13 @@ var fr_default = {
   "color.pastelPink": "Rose pastel",
   "color.coralRed": "Rouge corail",
   "actions.edit": "Modifier",
-  "actions.remove": "Supprimer"
+  "actions.remove": "Supprimer",
+  "widget.status.title": "\xC9tat de la maison",
+  "widget.status.loading": "Chargement\u2026",
+  "widget.status.empty": "Aucun appareil.",
+  "widget.toggles.title": "Raccourcis",
+  "widget.toggles.loading": "Chargement\u2026",
+  "widget.toggles.needsSetup": "Ajoutez \xE0 nouveau depuis la Galerie et choisissez des appareils."
 };
 
 // src/i18n/locales/it.json
@@ -1204,7 +1234,13 @@ var it_default = {
   "color.pastelPink": "Rosa pastello",
   "color.coralRed": "Rosso corallo",
   "actions.edit": "Modifica",
-  "actions.remove": "Rimuovi"
+  "actions.remove": "Rimuovi",
+  "widget.status.title": "Stato casa",
+  "widget.status.loading": "Caricamento dispositivi\u2026",
+  "widget.status.empty": "Nessun dispositivo.",
+  "widget.toggles.title": "Interruttori rapidi",
+  "widget.toggles.loading": "Caricamento\u2026",
+  "widget.toggles.needsSetup": "Aggiungi di nuovo dalla Galleria e scegli i dispositivi."
 };
 
 // src/i18n/index.tsx
