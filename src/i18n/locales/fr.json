@@ -198,6 +198,9 @@
   "widget.status.title": "État de la maison",
   "widget.status.loading": "Chargement…",
   "widget.status.empty": "Aucun appareil.",
+  "widget.status.customizeTitle": "Personnaliser l'état",
+  "widget.status.onlyOn": "Allumés uniquement",
+  "widget.status.limit": "Appareils max",
   "widget.toggles.title": "Raccourcis",
   "widget.toggles.loading": "Chargement…",
   "widget.toggles.needsSetup": "Ajoutez à nouveau depuis la Galerie et choisissez des appareils."

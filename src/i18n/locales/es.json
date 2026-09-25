@@ -198,6 +198,9 @@
   "widget.status.title": "Estado del hogar",
   "widget.status.loading": "Cargando dispositivos…",
   "widget.status.empty": "Sin dispositivos.",
+  "widget.status.customizeTitle": "Personalizar estado",
+  "widget.status.onlyOn": "Solo encendidos",
+  "widget.status.limit": "Máximo de dispositivos",
   "widget.toggles.title": "Accesos rápidos",
   "widget.toggles.loading": "Cargando accesos…",
   "widget.toggles.needsSetup": "Añade de nuevo desde la Galería y elige dispositivos."

@@ -198,6 +198,9 @@
   "widget.status.title": "Status da casa",
   "widget.status.loading": "Carregando dispositivos…",
   "widget.status.empty": "Nenhum dispositivo encontrado.",
+  "widget.status.customizeTitle": "Personalizar status",
+  "widget.status.onlyOn": "Somente ligados",
+  "widget.status.limit": "Máximo de dispositivos",
   "widget.toggles.title": "Toggles rápidos",
   "widget.toggles.loading": "Carregando toggles…",
   "widget.toggles.needsSetup": "Adicione novamente pela Galeria e escolha os dispositivos."

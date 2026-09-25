@@ -394,6 +394,10 @@ const tools = module.exports.tools = [
         room: {
           type: 'string',
           description: 'Filtrar por cômodo (opcional)'
+        },
+        connectionId: {
+          type: 'string',
+          description: 'Filtrar por uma conexão específica do Home Assistant (opcional)'
         }
       }
     }

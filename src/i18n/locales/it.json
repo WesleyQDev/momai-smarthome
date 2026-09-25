@@ -198,6 +198,9 @@
   "widget.status.title": "Stato casa",
   "widget.status.loading": "Caricamento dispositivi…",
   "widget.status.empty": "Nessun dispositivo.",
+  "widget.status.customizeTitle": "Personalizza stato",
+  "widget.status.onlyOn": "Solo accesi",
+  "widget.status.limit": "Dispositivi max",
   "widget.toggles.title": "Interruttori rapidi",
   "widget.toggles.loading": "Caricamento…",
   "widget.toggles.needsSetup": "Aggiungi di nuovo dalla Galleria e scegli i dispositivi."

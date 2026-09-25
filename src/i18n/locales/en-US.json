@@ -198,6 +198,9 @@
   "widget.status.title": "Home status",
   "widget.status.loading": "Loading devices…",
   "widget.status.empty": "No devices found.",
+  "widget.status.customizeTitle": "Customize status",
+  "widget.status.onlyOn": "Only on",
+  "widget.status.limit": "Max devices",
   "widget.toggles.title": "Quick toggles",
   "widget.toggles.loading": "Loading toggles…",
   "widget.toggles.needsSetup": "Add again from the Gallery and select devices."

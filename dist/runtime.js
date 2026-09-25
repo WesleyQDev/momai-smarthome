@@ -2536,6 +2536,10 @@ var tools = module.exports.tools = [
         room: {
           type: "string",
           description: "Filtrar por c\xF4modo (opcional)"
+        },
+        connectionId: {
+          type: "string",
+          description: "Filtrar por uma conex\xE3o espec\xEDfica do Home Assistant (opcional)"
         }
       }
     }

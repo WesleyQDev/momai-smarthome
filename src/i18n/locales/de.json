@@ -198,6 +198,9 @@
   "widget.status.title": "Home-Status",
   "widget.status.loading": "Geräte werden geladen…",
   "widget.status.empty": "Keine Geräte.",
+  "widget.status.customizeTitle": "Status anpassen",
+  "widget.status.onlyOn": "Nur eingeschaltete",
+  "widget.status.limit": "Max. Geräte",
   "widget.toggles.title": "Schnellschalter",
   "widget.toggles.loading": "Schalter werden geladen…",
   "widget.toggles.needsSetup": "Erneut über die Galerie hinzufügen und Geräte wählen."

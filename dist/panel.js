@@ -208,6 +208,9 @@ var pt_BR_default = {
   "widget.status.title": "Status da casa",
   "widget.status.loading": "Carregando dispositivos\u2026",
   "widget.status.empty": "Nenhum dispositivo encontrado.",
+  "widget.status.customizeTitle": "Personalizar status",
+  "widget.status.onlyOn": "Somente ligados",
+  "widget.status.limit": "M\xE1ximo de dispositivos",
   "widget.toggles.title": "Toggles r\xE1pidos",
   "widget.toggles.loading": "Carregando toggles\u2026",
   "widget.toggles.needsSetup": "Adicione novamente pela Galeria e escolha os dispositivos."
@@ -414,6 +417,9 @@ var en_US_default = {
   "widget.status.title": "Home status",
   "widget.status.loading": "Loading devices\u2026",
   "widget.status.empty": "No devices found.",
+  "widget.status.customizeTitle": "Customize status",
+  "widget.status.onlyOn": "Only on",
+  "widget.status.limit": "Max devices",
   "widget.toggles.title": "Quick toggles",
   "widget.toggles.loading": "Loading toggles\u2026",
   "widget.toggles.needsSetup": "Add again from the Gallery and select devices."
@@ -620,6 +626,9 @@ var es_default = {
   "widget.status.title": "Estado del hogar",
   "widget.status.loading": "Cargando dispositivos\u2026",
   "widget.status.empty": "Sin dispositivos.",
+  "widget.status.customizeTitle": "Personalizar estado",
+  "widget.status.onlyOn": "Solo encendidos",
+  "widget.status.limit": "M\xE1ximo de dispositivos",
   "widget.toggles.title": "Accesos r\xE1pidos",
   "widget.toggles.loading": "Cargando accesos\u2026",
   "widget.toggles.needsSetup": "A\xF1ade de nuevo desde la Galer\xEDa y elige dispositivos."
@@ -826,6 +835,9 @@ var de_default = {
   "widget.status.title": "Home-Status",
   "widget.status.loading": "Ger\xE4te werden geladen\u2026",
   "widget.status.empty": "Keine Ger\xE4te.",
+  "widget.status.customizeTitle": "Status anpassen",
+  "widget.status.onlyOn": "Nur eingeschaltete",
+  "widget.status.limit": "Max. Ger\xE4te",
   "widget.toggles.title": "Schnellschalter",
   "widget.toggles.loading": "Schalter werden geladen\u2026",
   "widget.toggles.needsSetup": "Erneut \xFCber die Galerie hinzuf\xFCgen und Ger\xE4te w\xE4hlen."
@@ -1032,6 +1044,9 @@ var fr_default = {
   "widget.status.title": "\xC9tat de la maison",
   "widget.status.loading": "Chargement\u2026",
   "widget.status.empty": "Aucun appareil.",
+  "widget.status.customizeTitle": "Personnaliser l'\xE9tat",
+  "widget.status.onlyOn": "Allum\xE9s uniquement",
+  "widget.status.limit": "Appareils max",
   "widget.toggles.title": "Raccourcis",
   "widget.toggles.loading": "Chargement\u2026",
   "widget.toggles.needsSetup": "Ajoutez \xE0 nouveau depuis la Galerie et choisissez des appareils."
@@ -1238,6 +1253,9 @@ var it_default = {
   "widget.status.title": "Stato casa",
   "widget.status.loading": "Caricamento dispositivi\u2026",
   "widget.status.empty": "Nessun dispositivo.",
+  "widget.status.customizeTitle": "Personalizza stato",
+  "widget.status.onlyOn": "Solo accesi",
+  "widget.status.limit": "Dispositivi max",
   "widget.toggles.title": "Interruttori rapidi",
   "widget.toggles.loading": "Caricamento\u2026",
   "widget.toggles.needsSetup": "Aggiungi di nuovo dalla Galleria e scegli i dispositivi."
