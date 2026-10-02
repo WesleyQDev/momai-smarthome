@@ -28,7 +28,7 @@ class BaseProvider extends EventEmitter {
     throw new Error('turnOff() must be implemented by subclass')
   }
 
-  async getStatus() {
+  getStatus() {
     return { connected: this.connected, name: this.name }
   }
 }

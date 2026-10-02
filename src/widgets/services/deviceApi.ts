@@ -1,3 +1,5 @@
+import sdk from 'momai:sdk'
+
 function getBaseUrl(): string {
   try {
     const fromHost =
@@ -23,6 +25,15 @@ export interface WidgetDevice {
 }
 
 async function callCommand(toolName: string, args: Record<string, unknown> = {}): Promise<any> {
+  try {
+    if (sdk?.api?.post) {
+      const res = await sdk.api.post('/extensions/momai-smarthome/command', { toolName, args })
+      return (res as any)?.data ?? res
+    }
+  } catch (err) {
+    console.warn('[smarthome-widget] SDK command failed, falling back to fetch:', err)
+  }
+
   const res = await fetch(`${getBaseUrl()}/extensions/momai-smarthome/command`, {
     method: 'POST',
     headers: {
@@ -41,12 +52,18 @@ async function callCommand(toolName: string, args: Record<string, unknown> = {})
 export async function fetchWidgetDevices(): Promise<WidgetDevice[]> {
   const data = await callCommand('list_devices', {})
   const list: any[] = data?.devices ?? data?.data?.devices ?? []
-  return list.map((item) => ({
-    id: String(item.entity_id ?? item.id ?? ''),
-    name: String(item.name ?? item.entity_id ?? 'Device'),
-    state: String(item.state ?? 'unknown'),
-    room: item.room ? String(item.room) : undefined
-  })).filter((device) => device.id !== '')
+  return list
+    .map((item) => ({
+      id: String(item.entity_id ?? item.id ?? ''),
+      name: String(item.name ?? item.entity_id ?? 'Device'),
+      state: String(item.state ?? 'unknown'),
+      room: item.room ? String(item.room) : undefined
+    }))
+    .filter((device) => device.id !== '')
+}
+
+export async function setWidgetDeviceState(deviceId: string, turnOn: boolean): Promise<void> {
+  await callCommand('control_device', { device_name: deviceId, action: turnOn ? 'on' : 'off' })
 }
 
 export async function toggleWidgetDevice(deviceId: string): Promise<void> {

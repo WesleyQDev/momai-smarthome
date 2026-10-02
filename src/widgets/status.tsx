@@ -42,7 +42,7 @@ export default function SmarthomeStatusWidget({
           {visible.map((device) => (
             <div
               key={device.id}
-              className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-bg/50 border border-border/20"
+              className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/40"
             >
               <span className="text-xs text-text truncate">{device.name}</span>
               <span className={isOnState(device.state) ? 'text-[10px] font-bold text-accent' : 'text-[10px] text-text-muted'}>

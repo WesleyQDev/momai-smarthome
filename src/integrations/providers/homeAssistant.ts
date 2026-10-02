@@ -154,9 +154,18 @@ class HomeAssistantProvider extends BaseProvider {
       }
 
       on('error', (err) => {
-        const msg = err?.message || String(err || '')
-        if (!msg.includes('closed before the connection was established')) {
-          console.warn('[HAProvider] Erro no WebSocket:', msg)
+        if (this.ws !== ws) {
+          // Ignora erros de socket anterior que já foi substituído ou descartado
+          return
+        }
+        const rawMsg = (err && (err.error?.message || err.message)) || (typeof err === 'string' ? err : '')
+        const msg = String(rawMsg || err || '')
+        const isAbort =
+          msg.includes('closed before it was established') ||
+          msg.includes('closed before the connection was established') ||
+          msg.includes('was closed before')
+        if (!isAbort) {
+          console.warn('[HAProvider] Erro no WebSocket:', msg || '[object ErrorEvent]')
         }
       })
 
@@ -202,6 +211,16 @@ class HomeAssistantProvider extends BaseProvider {
       try {
         this.emit('connection_changed', { connected, error: this.lastError })
       } catch (e) {}
+    }
+  }
+
+  getStatus() {
+    return {
+      connected: this.connected,
+      wsConnected: this.wsConnected,
+      name: this.name,
+      url: this.url,
+      lastError: this.lastError
     }
   }
 
@@ -317,6 +336,9 @@ class HomeAssistantProvider extends BaseProvider {
       const socket = this.ws
       this.ws = null
       try {
+        if (typeof socket.removeAllListeners === 'function') {
+          socket.removeAllListeners('error')
+        }
         if (typeof socket.on === 'function') {
           socket.on('error', () => {})
         } else if (typeof socket.addEventListener === 'function') {

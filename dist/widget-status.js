@@ -1275,23 +1275,31 @@ function resolveBaseLocale(navLang) {
   if (base === "it") return "it";
   return DEFAULT_LOCALE;
 }
-var SmartHomeI18nContext = createContext({
-  locale: DEFAULT_LOCALE,
-  t: (key) => key
-});
-function useSmartHomeI18n() {
-  return useContext(SmartHomeI18nContext);
-}
-function translateSh(key, vars) {
-  let locale = DEFAULT_LOCALE;
+function getInitialLocale() {
   try {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("momai_locale");
-      if (saved && dictionaries[saved]) locale = saved;
-      else if (saved) locale = resolveBaseLocale(saved);
-      else if (navigator?.language) locale = resolveBaseLocale(navigator.language);
+      if (saved && dictionaries[saved]) return saved;
+      if (saved) return resolveBaseLocale(saved);
+      const navLang = navigator?.language || "";
+      if (navLang) return resolveBaseLocale(navLang);
     }
   } catch {
+  }
+  return DEFAULT_LOCALE;
+}
+function translateSh(key, vars, lang) {
+  let locale = lang || DEFAULT_LOCALE;
+  if (!lang) {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = window?.__MOMAI_LOCALE__ || localStorage.getItem("momai_locale");
+        if (saved && dictionaries[saved]) locale = saved;
+        else if (saved) locale = resolveBaseLocale(saved);
+        else if (navigator?.language) locale = resolveBaseLocale(navigator.language);
+      }
+    } catch {
+    }
   }
   const dict = dictionaries[locale] || dictionaries[DEFAULT_LOCALE] || {};
   let text = dict[key] || dictionaries[DEFAULT_LOCALE]?.[key] || key;
@@ -1302,11 +1310,49 @@ function translateSh(key, vars) {
   }
   return text;
 }
+var defaultContextValue = {
+  locale: DEFAULT_LOCALE,
+  t: (key, vars) => translateSh(key, vars)
+};
+var SmartHomeI18nContext = createContext(defaultContextValue);
+function useSmartHomeI18n() {
+  const ctx = useContext(SmartHomeI18nContext);
+  const [locale, setLocale] = useState(getInitialLocale);
+  useEffect(() => {
+    const handler = (e) => {
+      const ce = e;
+      if (ce?.detail?.locale) setLocale(resolveBaseLocale(ce.detail.locale));
+    };
+    const storageHandler = (e) => {
+      if (e.key === "momai_locale" && e.newValue) {
+        setLocale(resolveBaseLocale(e.newValue));
+      }
+    };
+    window.addEventListener("momai:locale-changed", handler);
+    window.addEventListener("storage", storageHandler);
+    return () => {
+      window.removeEventListener("momai:locale-changed", handler);
+      window.removeEventListener("storage", storageHandler);
+    };
+  }, []);
+  const standaloneT = useCallback(
+    (key, vars) => {
+      return translateSh(key, vars, locale);
+    },
+    [locale]
+  );
+  if (ctx && ctx !== defaultContextValue) {
+    return ctx;
+  }
+  return { locale, t: standaloneT };
+}
 
 // src/widgets/hooks/useStatusWidget.ts
 import { useEffect as useEffect2, useState as useState2 } from "react";
+import sdk2 from "momai:sdk";
 
 // src/widgets/services/deviceApi.ts
+import sdk from "momai:sdk";
 function getBaseUrl() {
   try {
     const fromHost = window?.momaiAPI?.getApiBaseUrl?.() || window?.api?.getApiBaseUrl?.();
@@ -1323,6 +1369,14 @@ function getToken() {
   }
 }
 async function callCommand(toolName, args = {}) {
+  try {
+    if (sdk?.api?.post) {
+      const res2 = await sdk.api.post("/extensions/momai-smarthome/command", { toolName, args });
+      return res2?.data ?? res2;
+    }
+  } catch (err) {
+    console.warn("[smarthome-widget] SDK command failed, falling back to fetch:", err);
+  }
   const res = await fetch(`${getBaseUrl()}/extensions/momai-smarthome/command`, {
     method: "POST",
     headers: {
@@ -1346,7 +1400,8 @@ async function fetchWidgetDevices() {
 
 // src/widgets/hooks/useStatusWidget.ts
 function isOnState(state) {
-  return ["on", "open", "playing", "unlocked"].includes(state.toLowerCase());
+  const s = (state || "").toLowerCase().trim();
+  return ["on", "open", "playing", "unlocked", "ativo", "ligado", "home", "above_horizon", "cool", "heat", "auto"].includes(s);
 }
 function useStatusWidget(isEditing) {
   const [state, setState] = useState2({ loading: true, error: "", devices: [] });
@@ -1370,6 +1425,26 @@ function useStatusWidget(isEditing) {
     return () => {
       cancelled = true;
     };
+  }, [isEditing]);
+  useEffect2(() => {
+    if (isEditing) return;
+    try {
+      if (typeof sdk2 !== "undefined" && sdk2?.events?.subscribe) {
+        const unsub = sdk2.events.subscribe("state_changed", (evt) => {
+          const entityId = evt?.entityId || evt?.device?.id;
+          if (!entityId) return;
+          const newState = String(evt?.deviceState ?? evt?.device?.state?.rawState ?? evt?.device?.state ?? "");
+          setState((prev) => ({
+            ...prev,
+            devices: prev.devices.map(
+              (d) => d.id === entityId ? { ...d, state: newState || d.state } : d
+            )
+          }));
+        });
+        return unsub;
+      }
+    } catch {
+    }
   }, [isEditing]);
   return state;
 }
@@ -1416,7 +1491,7 @@ function SmarthomeStatusWidget({
     "div",
     {
       key: device.id,
-      className: "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-bg/50 border border-border/20"
+      className: "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/40"
     },
     /* @__PURE__ */ React.createElement("span", { className: "text-xs text-text truncate" }, device.name),
     /* @__PURE__ */ React.createElement("span", { className: isOnState(device.state) ? "text-[10px] font-bold text-accent" : "text-[10px] text-text-muted" }, device.state)

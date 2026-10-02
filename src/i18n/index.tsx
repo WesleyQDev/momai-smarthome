@@ -42,15 +42,39 @@ function getInitialLocale(): string {
   return DEFAULT_LOCALE
 }
 
+export function translateSh(key: string, vars?: Record<string, string | number>, lang?: string): string {
+  let locale = lang || DEFAULT_LOCALE
+  if (!lang) {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = (window as any)?.__MOMAI_LOCALE__ || localStorage.getItem('momai_locale')
+        if (saved && dictionaries[saved]) locale = saved
+        else if (saved) locale = resolveBaseLocale(saved)
+        else if (navigator?.language) locale = resolveBaseLocale(navigator.language)
+      }
+    } catch {}
+  }
+  const dict = dictionaries[locale] || dictionaries[DEFAULT_LOCALE] || {}
+  let text = dict[key] || dictionaries[DEFAULT_LOCALE]?.[key] || key
+  if (vars) {
+    for (const [varKey, varValue] of Object.entries(vars)) {
+      text = text.replaceAll(`{${varKey}}`, String(varValue))
+    }
+  }
+  return text
+}
+
 interface SmartHomeI18nContextValue {
   locale: string
   t: (key: string, vars?: Record<string, string | number>) => string
 }
 
-const SmartHomeI18nContext = createContext<SmartHomeI18nContextValue>({
+const defaultContextValue: SmartHomeI18nContextValue = {
   locale: DEFAULT_LOCALE,
-  t: (key) => key,
-})
+  t: (key, vars) => translateSh(key, vars),
+}
+
+const SmartHomeI18nContext = createContext<SmartHomeI18nContextValue>(defaultContextValue)
 
 export function SmartHomeI18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocale] = useState<string>(getInitialLocale)
@@ -58,7 +82,7 @@ export function SmartHomeI18nProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const handler = (e: Event) => {
       const ce = e as CustomEvent<{ locale: string }>
-      if (ce?.detail?.locale) setLocale(ce.detail.locale)
+      if (ce?.detail?.locale) setLocale(resolveBaseLocale(ce.detail.locale))
     }
     const storageHandler = (e: StorageEvent) => {
       if (e.key === 'momai_locale' && e.newValue) {
@@ -75,14 +99,7 @@ export function SmartHomeI18nProvider({ children }: { children: React.ReactNode 
 
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>): string => {
-      const dict = dictionaries[locale] || dictionaries[DEFAULT_LOCALE] || {}
-      let text = dict[key] || dictionaries[DEFAULT_LOCALE]?.[key] || key
-      if (vars) {
-        for (const [varKey, varValue] of Object.entries(vars)) {
-          text = text.replaceAll(`{${varKey}}`, String(varValue))
-        }
-      }
-      return text
+      return translateSh(key, vars, locale)
     },
     [locale]
   )
@@ -97,28 +114,37 @@ export function SmartHomeI18nProvider({ children }: { children: React.ReactNode 
 }
 
 export function useSmartHomeI18n() {
-  return useContext(SmartHomeI18nContext)
-}
+  const ctx = useContext(SmartHomeI18nContext)
+  const [locale, setLocale] = useState<string>(getInitialLocale)
 
-// Synchronous lookup for module-level code paths (fetch timeout handlers)
-// that cannot call the hook. Resolves the stored host locale the same way
-// getInitialLocale does and falls back to pt-BR, then to the key itself.
-export function translateSh(key: string, vars?: Record<string, string | number>): string {
-  let locale = DEFAULT_LOCALE
-  try {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('momai_locale')
-      if (saved && dictionaries[saved]) locale = saved
-      else if (saved) locale = resolveBaseLocale(saved)
-      else if (navigator?.language) locale = resolveBaseLocale(navigator.language)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ locale: string }>
+      if (ce?.detail?.locale) setLocale(resolveBaseLocale(ce.detail.locale))
     }
-  } catch {}
-  const dict = dictionaries[locale] || dictionaries[DEFAULT_LOCALE] || {}
-  let text = dict[key] || dictionaries[DEFAULT_LOCALE]?.[key] || key
-  if (vars) {
-    for (const [varKey, varValue] of Object.entries(vars)) {
-      text = text.replaceAll(`{${varKey}}`, String(varValue))
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === 'momai_locale' && e.newValue) {
+        setLocale(resolveBaseLocale(e.newValue))
+      }
     }
+    window.addEventListener('momai:locale-changed', handler)
+    window.addEventListener('storage', storageHandler)
+    return () => {
+      window.removeEventListener('momai:locale-changed', handler)
+      window.removeEventListener('storage', storageHandler)
+    }
+  }, [])
+
+  const standaloneT = useCallback(
+    (key: string, vars?: Record<string, string | number>): string => {
+      return translateSh(key, vars, locale)
+    },
+    [locale]
+  )
+
+  if (ctx && ctx !== defaultContextValue) {
+    return ctx
   }
-  return text
+
+  return { locale, t: standaloneT }
 }

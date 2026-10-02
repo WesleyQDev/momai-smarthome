@@ -49,6 +49,8 @@ const panelOutfile = path.join(root, 'dist', 'panel.js')
 const workerEntry = path.join(root, 'runtime.ts')
 const workerOutfile = path.join(root, 'dist', 'runtime.js')
 
+const uiExternals = ['react', 'react-dom', 'react/jsx-runtime', 'momai:sdk']
+
 if (esbuild?.build) {
   const widgetBuilds = readManifestWidgets()
   await esbuild.build({
@@ -57,7 +59,7 @@ if (esbuild?.build) {
     bundle: true,
     format: 'esm',
     target: 'es2020',
-    external: ['react', 'react-dom', 'react/jsx-runtime'],
+    external: uiExternals,
     loader: {
       '.png': 'dataurl'
     }
@@ -68,7 +70,7 @@ if (esbuild?.build) {
     bundle: true,
     format: 'esm',
     target: 'es2020',
-    external: ['react', 'react-dom', 'react/jsx-runtime'],
+    external: uiExternals,
     loader: {
       '.png': 'dataurl'
     }
@@ -80,7 +82,7 @@ if (esbuild?.build) {
       bundle: true,
       format: 'esm',
       target: 'es2020',
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      external: uiExternals,
       loader: {
         '.png': 'dataurl'
       }
@@ -98,11 +100,11 @@ if (esbuild?.build) {
   console.log('[momai-smart-home] build done (via programmatic esbuild)')
 } else {
   const { execSync } = await import('node:child_process')
-  execSync(`npx esbuild "${pageEntry}" --bundle --format=esm --target=es2020 --outfile="${pageOutfile}" --external:react --external:react-dom --external:react/jsx-runtime --loader:.png=dataurl`, {
+  execSync(`npx esbuild "${pageEntry}" --bundle --format=esm --target=es2020 --outfile="${pageOutfile}" --external:react --external:react-dom --external:react/jsx-runtime --external:momai:sdk --loader:.png=dataurl`, {
     stdio: 'inherit',
     cwd: root
   })
-  execSync(`npx esbuild "${panelEntry}" --bundle --format=esm --target=es2020 --outfile="${panelOutfile}" --external:react --external:react-dom --external:react/jsx-runtime --loader:.png=dataurl`, {
+  execSync(`npx esbuild "${panelEntry}" --bundle --format=esm --target=es2020 --outfile="${panelOutfile}" --external:react --external:react-dom --external:react/jsx-runtime --external:momai:sdk --loader:.png=dataurl`, {
     stdio: 'inherit',
     cwd: root
   })

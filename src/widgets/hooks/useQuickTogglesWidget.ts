@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchWidgetDevices, toggleWidgetDevice, type WidgetDevice } from '../services/deviceApi'
+import sdk from 'momai:sdk'
+import { isOnState } from './useStatusWidget'
+import {
+  fetchWidgetDevices,
+  setWidgetDeviceState,
+  type WidgetDevice
+} from '../services/deviceApi'
 
 export interface QuickTogglesConfig {
   entityIds?: string[]
@@ -49,14 +55,56 @@ export function useQuickTogglesWidget(isEditing: boolean, entityIds: string[]): 
     void refresh()
   }, [isEditing, refresh])
 
+  // Real-time synchronization when devices change in Home Assistant
+  useEffect(() => {
+    if (isEditing) return
+    try {
+      if (typeof sdk !== 'undefined' && sdk?.events?.subscribe) {
+        const unsub = sdk.events.subscribe('state_changed', (evt: any) => {
+          const entityId = evt?.entityId || evt?.device?.id
+          if (!entityId) return
+          const newState = String(evt?.deviceState ?? evt?.device?.state?.rawState ?? evt?.device?.state ?? '')
+          setRows((prev) =>
+            prev.map((row) =>
+              row.id === entityId
+                ? { ...row, state: newState || (isOnState(newState) ? 'on' : 'off'), pending: false }
+                : row
+            )
+          )
+        })
+        return unsub
+      }
+    } catch {}
+  }, [isEditing])
+
   const toggle = useCallback(
     async (device: ToggleRow): Promise<void> => {
-      setRows((prev) => prev.map((row) => (row.id === device.id ? { ...row, pending: true } : row)))
+      const currentOn = isOnState(device.state)
+      const targetOn = !currentOn
+
+      // Optimistic update: flip state immediately
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === device.id ? { ...row, state: targetOn ? 'on' : 'off', pending: true } : row
+        )
+      )
+
       try {
-        await toggleWidgetDevice(device.id)
-        await refresh()
+        // Explicitly set 'on' or 'off' so the action is never inverted by latency or stale state
+        await setWidgetDeviceState(device.id, targetOn)
+        setRows((prev) =>
+          prev.map((row) => (row.id === device.id ? { ...row, pending: false } : row))
+        )
+        setTimeout(() => {
+          void refresh()
+        }, 600)
       } catch {
-        setRows((prev) => prev.map((row) => (row.id === device.id ? { ...row, pending: false } : row)))
+        // Revert to previous state on error
+        setRows((prev) =>
+          prev.map((row) =>
+            row.id === device.id ? { ...row, state: currentOn ? 'on' : 'off', pending: false } : row
+          )
+        )
       }
     },
     [refresh]

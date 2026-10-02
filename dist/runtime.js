@@ -711,7 +711,7 @@ var require_provider = __commonJS({
       async turnOff(deviceId, params = {}) {
         throw new Error("turnOff() must be implemented by subclass");
       }
-      async getStatus() {
+      getStatus() {
         return { connected: this.connected, name: this.name };
       }
     };
@@ -875,9 +875,14 @@ var require_homeAssistant = __commonJS({
             }
           };
           on("error", (err) => {
-            const msg = err?.message || String(err || "");
-            if (!msg.includes("closed before the connection was established")) {
-              console.warn("[HAProvider] Erro no WebSocket:", msg);
+            if (this.ws !== ws) {
+              return;
+            }
+            const rawMsg = err && (err.error?.message || err.message) || (typeof err === "string" ? err : "");
+            const msg = String(rawMsg || err || "");
+            const isAbort = msg.includes("closed before it was established") || msg.includes("closed before the connection was established") || msg.includes("was closed before");
+            if (!isAbort) {
+              console.warn("[HAProvider] Erro no WebSocket:", msg || "[object ErrorEvent]");
             }
           });
           on("open", () => {
@@ -918,6 +923,15 @@ var require_homeAssistant = __commonJS({
           } catch (e) {
           }
         }
+      }
+      getStatus() {
+        return {
+          connected: this.connected,
+          wsConnected: this.wsConnected,
+          name: this.name,
+          url: this.url,
+          lastError: this.lastError
+        };
       }
       // Falha transitória (ha_network/ha_timeout): uma leve queda de rede não deve
       // derrubar a conexão nem mostrar a tela de "desconectado" na UI. Mantém o
@@ -1021,6 +1035,9 @@ var require_homeAssistant = __commonJS({
           const socket = this.ws;
           this.ws = null;
           try {
+            if (typeof socket.removeAllListeners === "function") {
+              socket.removeAllListeners("error");
+            }
             if (typeof socket.on === "function") {
               socket.on("error", () => {
               });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import sdk from 'momai:sdk'
 import { fetchWidgetDevices, type WidgetDevice } from '../services/deviceApi'
 
 interface StatusState {
@@ -8,7 +9,8 @@ interface StatusState {
 }
 
 export function isOnState(state: string): boolean {
-  return ['on', 'open', 'playing', 'unlocked'].includes(state.toLowerCase())
+  const s = (state || '').toLowerCase().trim()
+  return ['on', 'open', 'playing', 'unlocked', 'ativo', 'ligado', 'home', 'above_horizon', 'cool', 'heat', 'auto'].includes(s)
 }
 
 export function useStatusWidget(isEditing: boolean): StatusState {
@@ -34,6 +36,27 @@ export function useStatusWidget(isEditing: boolean): StatusState {
     return () => {
       cancelled = true
     }
+  }, [isEditing])
+
+  // Real-time synchronization when devices change in Home Assistant
+  useEffect(() => {
+    if (isEditing) return
+    try {
+      if (typeof sdk !== 'undefined' && sdk?.events?.subscribe) {
+        const unsub = sdk.events.subscribe('state_changed', (evt: any) => {
+          const entityId = evt?.entityId || evt?.device?.id
+          if (!entityId) return
+          const newState = String(evt?.deviceState ?? evt?.device?.state?.rawState ?? evt?.device?.state ?? '')
+          setState((prev) => ({
+            ...prev,
+            devices: prev.devices.map((d) =>
+              d.id === entityId ? { ...d, state: newState || d.state } : d
+            )
+          }))
+        })
+        return unsub
+      }
+    } catch {}
   }, [isEditing])
 
   return state

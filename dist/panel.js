@@ -1294,16 +1294,39 @@ function getInitialLocale() {
   }
   return DEFAULT_LOCALE;
 }
-var SmartHomeI18nContext = createContext({
+function translateSh(key, vars, lang) {
+  let locale = lang || DEFAULT_LOCALE;
+  if (!lang) {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = window?.__MOMAI_LOCALE__ || localStorage.getItem("momai_locale");
+        if (saved && dictionaries[saved]) locale = saved;
+        else if (saved) locale = resolveBaseLocale(saved);
+        else if (navigator?.language) locale = resolveBaseLocale(navigator.language);
+      }
+    } catch {
+    }
+  }
+  const dict = dictionaries[locale] || dictionaries[DEFAULT_LOCALE] || {};
+  let text = dict[key] || dictionaries[DEFAULT_LOCALE]?.[key] || key;
+  if (vars) {
+    for (const [varKey, varValue] of Object.entries(vars)) {
+      text = text.replaceAll(`{${varKey}}`, String(varValue));
+    }
+  }
+  return text;
+}
+var defaultContextValue = {
   locale: DEFAULT_LOCALE,
-  t: (key) => key
-});
+  t: (key, vars) => translateSh(key, vars)
+};
+var SmartHomeI18nContext = createContext(defaultContextValue);
 function SmartHomeI18nProvider({ children }) {
   const [locale, setLocale] = useState(getInitialLocale);
   useEffect(() => {
     const handler = (e) => {
       const ce = e;
-      if (ce?.detail?.locale) setLocale(ce.detail.locale);
+      if (ce?.detail?.locale) setLocale(resolveBaseLocale(ce.detail.locale));
     };
     const storageHandler = (e) => {
       if (e.key === "momai_locale" && e.newValue) {
@@ -1319,14 +1342,7 @@ function SmartHomeI18nProvider({ children }) {
   }, []);
   const t = useCallback(
     (key, vars) => {
-      const dict = dictionaries[locale] || dictionaries[DEFAULT_LOCALE] || {};
-      let text = dict[key] || dictionaries[DEFAULT_LOCALE]?.[key] || key;
-      if (vars) {
-        for (const [varKey, varValue] of Object.entries(vars)) {
-          text = text.replaceAll(`{${varKey}}`, String(varValue));
-        }
-      }
-      return text;
+      return translateSh(key, vars, locale);
     },
     [locale]
   );
@@ -1334,7 +1350,35 @@ function SmartHomeI18nProvider({ children }) {
   return /* @__PURE__ */ React.createElement(SmartHomeI18nContext.Provider, { value }, children);
 }
 function useSmartHomeI18n() {
-  return useContext(SmartHomeI18nContext);
+  const ctx = useContext(SmartHomeI18nContext);
+  const [locale, setLocale] = useState(getInitialLocale);
+  useEffect(() => {
+    const handler = (e) => {
+      const ce = e;
+      if (ce?.detail?.locale) setLocale(resolveBaseLocale(ce.detail.locale));
+    };
+    const storageHandler = (e) => {
+      if (e.key === "momai_locale" && e.newValue) {
+        setLocale(resolveBaseLocale(e.newValue));
+      }
+    };
+    window.addEventListener("momai:locale-changed", handler);
+    window.addEventListener("storage", storageHandler);
+    return () => {
+      window.removeEventListener("momai:locale-changed", handler);
+      window.removeEventListener("storage", storageHandler);
+    };
+  }, []);
+  const standaloneT = useCallback(
+    (key, vars) => {
+      return translateSh(key, vars, locale);
+    },
+    [locale]
+  );
+  if (ctx && ctx !== defaultContextValue) {
+    return ctx;
+  }
+  return { locale, t: standaloneT };
 }
 
 // src/components/SvgIcons.tsx

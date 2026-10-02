@@ -1,7 +1,7 @@
 {
   "id": "momai-smarthome",
   "name": "MomAI Smart Home",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "category": "utility",
   "tags": [
     "smart home",
@@ -119,7 +119,7 @@
     "network"
   ],
   "sdkVersion": 1,
-  "momai_compat": ">=1.13.0",
+  "momai_compat": ">=1.15.0",
   "sidebar": true,
   "ui": {
     "page": "dist/page.js",
@@ -134,7 +134,29 @@
         "entry": "dist/widget-status.js",
         "type": "momai-smarthome-status-widget",
         "defaultSize": "compact_2x1",
-        "supportsTransparency": true
+        "supportsTransparency": true,
+        "galleryPreview": [
+          {
+            "type": "metric",
+            "label": "Dispositivos ligados",
+            "value": "3 / 6"
+          },
+          {
+            "type": "list",
+            "items": [
+              {
+                "title": "Luz da sala",
+                "subtitle": "Ligada",
+                "trailing": "Sala"
+              },
+              {
+                "title": "Ar-condicionado",
+                "subtitle": "Desligado",
+                "trailing": "Quarto"
+              }
+            ]
+          }
+        ]
       },
       {
         "id": "quick-toggles",
@@ -156,7 +178,29 @@
           "hintField": "room",
           "configField": "entityIds",
           "limit": 6
-        }
+        },
+        "galleryPreview": [
+          {
+            "type": "toggle-list",
+            "items": [
+              {
+                "title": "Luz da sala",
+                "detail": "Sala",
+                "enabled": true
+              },
+              {
+                "title": "Luz do quarto",
+                "detail": "Quarto",
+                "enabled": false
+              },
+              {
+                "title": "Televisão",
+                "detail": "Sala",
+                "enabled": false
+              }
+            ]
+          }
+        ]
       }
     ]
   },
