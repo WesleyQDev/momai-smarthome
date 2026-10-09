@@ -1,5 +1,14 @@
 import React, { useState, useRef } from 'react'
 import { useSmartHomeI18n } from '../i18n'
+import { extFetch } from '../shared/hostApi'
+import {
+  CONTROLLABLE_DOMAINS,
+  DOMAIN_KEYS,
+  getDomainLabel,
+  type Device,
+  type EntityAttributes,
+  type EntityState
+} from '../shared/device'
 import {
   SvgPower,
   SvgSun,
@@ -21,105 +30,72 @@ import {
   getDynamicSvgIcon
 } from './SvgIcons'
 
-export interface EntityState {
-  on?: boolean
-  brightness?: number | null
-  temperature?: number | null
-  targetTemperature?: number | null
-  hvacMode?: string
-  hvacModes?: string[]
-  position?: number | null
-  isOpen?: boolean
-  value?: string
-  unit?: string
-  locked?: boolean
-  volume?: number | null
-  mediaTitle?: string | null
-  colorTemp?: number | null
-  rawState?: string
-  elevation?: number | null
-  azimuth?: number | null
-  rising?: boolean
-  humidity?: number | null
-  pressure?: number | null
-  windSpeed?: number | null
-  deviceClass?: string
-}
-
-export interface EntityAttributes {
-  supported?: string[]
-  next_rising?: string
-  next_setting?: string
-  next_dawn?: string
-  next_dusk?: string
-  deviceClass?: string
-  unitOfMeasurement?: string
-  haIcon?: string
-  source_list?: string[]
-  relatedEntities?: Device[]
-  [key: string]: unknown
-}
-
-export interface Device {
-  id: string
-  name: string
-  type: string
-  domain: string
-  icon: string
-  room: string
-  provider: string
-  online: boolean
-  state: EntityState
-  attributes: EntityAttributes
-}
+export type { Device, EntityAttributes, EntityState } from '../shared/device'
+export { CONTROLLABLE_DOMAINS } from '../shared/device'
 
 function volumeToPercent(volume: number | null | undefined): number {
   if (volume === null || volume === undefined || !Number.isFinite(volume)) return 0
   return Math.max(0, Math.min(100, Math.round(volume * 100)))
 }
 
-const DOMAIN_KEYS: Record<string, string> = {
-  light: 'domains.light',
-  switch: 'domains.switch',
-  fan: 'domains.fan',
-  cover: 'domains.cover',
-  lock: 'domains.lock',
-  climate: 'domains.climate',
-  sensor: 'domains.sensor',
-  binary_sensor: 'domains.binarySensor',
-  media_player: 'domains.mediaPlayer',
-  camera: 'domains.camera',
-  vacuum: 'domains.vacuum',
-  scene: 'domains.scene',
-  automation: 'domains.automation',
-  alarm_control_panel: 'domains.alarm',
-  remote: 'domains.remote',
-  sun: 'domains.sun',
-  weather: 'domains.weather'
+// Minimum interval between color commands sent to Home Assistant while the
+// user drags the color wheel.
+const COLOR_THROTTLE_MS = 200
+// Minimum interval between brightness/temperature commands while dragging.
+const SLIDER_THROTTLE_MS = 120
+
+/**
+ * Throttles a send function to one call per interval, always delivering the
+ * last value (trailing edge). Used by the drag sliders and the color wheel so
+ * dragging does not flood Home Assistant with requests.
+ */
+function useThrottledSend<T>(intervalMs: number, send: (value: T) => void) {
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingRef = React.useRef<T | null>(null)
+  const lastSentAtRef = React.useRef(0)
+  const sendRef = React.useRef(send)
+
+  React.useEffect(() => {
+    sendRef.current = send
+  })
+
+  const flush = React.useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    if (pendingRef.current !== null) {
+      const value = pendingRef.current
+      pendingRef.current = null
+      lastSentAtRef.current = Date.now()
+      sendRef.current(value)
+    }
+  }, [])
+
+  const schedule = React.useCallback(
+    (value: T) => {
+      pendingRef.current = value
+      const elapsed = Date.now() - lastSentAtRef.current
+      if (elapsed >= intervalMs) {
+        flush()
+      } else if (!timerRef.current) {
+        timerRef.current = setTimeout(flush, intervalMs - elapsed)
+      }
+    },
+    [intervalMs, flush]
+  )
+
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [])
+
+  return { schedule, flush }
 }
-
-function getDomainLabel(domain: string, t: (key: string) => string): string {
-  const key = DOMAIN_KEYS[domain]
-  return key ? t(key) : domain
-}
-
-const CONTROLLABLE_DOMAINS_LIST = [
-  'light',
-  'switch',
-  'fan',
-  'cover',
-  'lock',
-  'climate',
-  'media_player',
-  'vacuum',
-  'alarm_control_panel',
-  'camera',
-  'automation',
-  'scene',
-  'remote'
-]
-
-export const CONTROLLABLE_DOMAINS = CONTROLLABLE_DOMAINS_LIST
 
 // Re-export Svg components for backward compatibility
 export {
@@ -192,7 +168,7 @@ export function getDynamicIcon(device: Device): React.ReactElement {
   return getDynamicSvgIcon(device, 20)
 }
 
-export function ColorWheelPicker({ selectedHex, onChange }: { selectedHex: string; onChange: (rgb: [number, number, number], hex: string) => void }) {
+export function ColorWheelPicker({ selectedHex, onChange, onCommit }: { selectedHex: string; onChange: (rgb: [number, number, number], hex: string) => void; onCommit?: () => void }) {
   const wheelRef = useRef<HTMLDivElement>(null)
   const [handlePos, setHandlePos] = useState<{ x: number; y: number }>({ x: 170, y: 170 })
 
@@ -226,6 +202,7 @@ export function ColorWheelPicker({ selectedHex, onChange }: { selectedHex: strin
       style={{ WebkitAppRegion: 'no-drag' } as any}
       onPointerDown={handlePointer}
       onPointerMove={(e) => { if (e.buttons === 1) handlePointer(e) }}
+      onPointerUp={onCommit}
     >
       <div className="sh-color-wheel-handle" style={{ left: `${handlePos.x}px`, top: `${handlePos.y}px` }} />
     </div>
@@ -263,6 +240,9 @@ export function DeviceControlCardContent({
   // pouco depois da última interação, permitindo que o estado volte a ser
   // sincronizado em vez de congelar o card até o fechamento.
   const interactionResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Pointer-drag state for the vertical brightness/temperature sliders.
+  const brightnessDraggingRef = React.useRef(false)
+  const tempDraggingRef = React.useRef(false)
 
   React.useEffect(() => {
     // When user is interacting (slider drag, toggle click), don't override
@@ -286,6 +266,15 @@ export function DeviceControlCardContent({
   const volumeDevice = currentDevice.domain === 'media_player'
     ? currentDevice
     : (effectiveAllDevices.find((candidate) => candidate.domain === 'media_player' && (candidate.name.toLowerCase().trim() === currentDevice.name.toLowerCase().trim() || candidate.id === currentDevice.id)) || currentDevice)
+  // Media services only accept media_player entities. Remote-only devices (and
+  // cards whose volume device is a different entity) resolve the matching
+  // media player; otherwise keep the device itself so working setups do not
+  // change behavior.
+  const mediaTargetId = currentDevice.domain === 'media_player'
+    ? currentDevice.id
+    : (effectiveAllDevices.find((candidate) => candidate.domain === 'media_player' && (candidate.name.toLowerCase().trim() === currentDevice.name.toLowerCase().trim() || candidate.id === currentDevice.id))?.id
+      || effectiveAllDevices.find((candidate) => candidate.domain === 'media_player')?.id
+      || currentDevice.id)
   const [brightness, setBrightnessState] = useState<number>(currentDevice.state?.brightness ?? 94)
   const [tempPct, setTempPctState] = useState<number>(85)
   const [activeTab, setActiveTab] = useState<'brightness' | 'color' | 'temp'>('brightness')
@@ -439,73 +428,53 @@ export function DeviceControlCardContent({
     { key: 'color.coralRed', color: '#f87171', rgb: [248, 113, 113] }
   ]
 
-  function getApiBaseUrl(): string {
-    if (typeof window !== 'undefined' && (window as any).api?.getApiBaseUrl) {
-      return (window as any).api.getApiBaseUrl()
-    }
-    return 'http://127.0.0.1:8050'
-  }
-
-  function getSessionToken(): string {
-    if (typeof window !== 'undefined' && (window as any).api?.getSessionToken) {
-      return (window as any).api.getSessionToken()
-    }
-    return ''
-  }
-
   async function defaultCallService(domain: string, service: string, data: any = {}, providerType = 'homeassistant') {
-    const baseUrl = getApiBaseUrl()
-    const token = getSessionToken()
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 10000)
-    try {
-      const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': token
-        },
-        body: JSON.stringify({
-          toolName: 'callService',
-          args: { domain, service, data, providerType }
-        }),
-        signal: controller.signal
-      })
-      return await res.json()
-    } catch (err) {
-      console.error('[SmartHome] defaultCallService error:', err)
-    } finally {
-      clearTimeout(timer)
-    }
+    return extFetch('/extensions/momai-smarthome/command', {
+      toolName: 'callService',
+      args: { domain, service, data, providerType }
+    })
   }
 
   const executeService = async (domain: string, service: string, data: any) => {
     if (callServiceApi) {
       try {
-        console.log(`[SmartHome] executeService via callServiceApi: ${domain}/${service}`)
         const res = await callServiceApi(domain, service, data, 'homeassistant')
-        console.log('[SmartHome] executeService callServiceApi result:', JSON.stringify(res))
         if (res !== undefined) return res
       } catch (err) {
-        console.error('[SmartHome] callServiceApi failed:', err)
+        console.warn('[SmartHome] callServiceApi failed:', err)
       }
     }
-    
+
     const winApi = (window as any).api
     if (typeof winApi?.callService === 'function') {
       try {
-        console.log(`[SmartHome] executeService via winApi.callService: ${domain}/${service}`)
-        const res = await winApi.callService(domain, service, data, 'homeassistant')
-        console.log('[SmartHome] executeService winApi result:', JSON.stringify(res))
-        return res
+        return await winApi.callService(domain, service, data, 'homeassistant')
       } catch (err) {
-        console.error('[SmartHome] window.api.callService failed:', err)
+        console.warn('[SmartHome] window.api.callService failed:', err)
       }
     }
-    
-    console.log(`[SmartHome] executeService via defaultCallService: ${domain}/${service}`)
+
     return defaultCallService(domain, service, data, 'homeassistant')
   }
+
+  // Throttled senders for the drag controls: the sliders and the color wheel
+  // fire on every pointer move, so the service call is coalesced and the last
+  // value is always delivered on release.
+  const brightnessThrottle = useThrottledSend<number>(SLIDER_THROTTLE_MS, (pct) => {
+    executeService('light', 'turn_on', { entity_id: device.id, brightness_pct: pct }).catch(() => {
+      isUserInteractingRef.current = false
+    })
+  })
+  const tempThrottle = useThrottledSend<number>(SLIDER_THROTTLE_MS, (kelvin) => {
+    executeService('light', 'turn_on', { entity_id: device.id, color_temp_kelvin: kelvin }).catch(() => {
+      isUserInteractingRef.current = false
+    })
+  })
+  const colorThrottle = useThrottledSend<[number, number, number]>(COLOR_THROTTLE_MS, (rgb) => {
+    executeService('light', 'turn_on', { entity_id: device.id, rgb_color: rgb }).catch(() => {
+      isUserInteractingRef.current = false
+    })
+  })
 
   React.useEffect(() => {
     if (device.domain !== 'remote' && device.domain !== 'media_player') return
@@ -513,32 +482,27 @@ export function DeviceControlCardContent({
     let disposed = false
     let syncing = false
     let consecutiveErrors = 0
+    let backoffUntil = 0
 
     const syncVolumeFromHomeAssistant = async () => {
-      if (syncing || disposed || consecutiveErrors >= 2) return
+      // After repeated failures, back off for 30s instead of giving up for
+      // good: a short network blip used to freeze the volume display until
+      // the overlay was reopened.
+      if (syncing || disposed || Date.now() < backoffUntil) return
       syncing = true
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 4000)
       try {
-        const response = await fetch(`${getApiBaseUrl()}/extensions/momai-smarthome/command`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Session-Token': getSessionToken()
-          },
-          body: JSON.stringify({
-            toolName: 'getDeviceState',
-            args: { deviceId: volumeDevice.id, providerType: 'homeassistant' }
-          }),
-          signal: controller.signal
-        })
-        if (!response.ok) {
+        const result = await extFetch(
+          '/extensions/momai-smarthome/command',
+          { toolName: 'getDeviceState', args: { deviceId: volumeDevice.id, providerType: 'homeassistant' } },
+          4000
+        )
+        if (result?.ok === false) {
           consecutiveErrors++
+          if (consecutiveErrors >= 2) backoffUntil = Date.now() + 30000
           return
         }
-
-        const result = await response.json()
         consecutiveErrors = 0
+        backoffUntil = 0
         const refreshedDevice = result?.device as Device | null
         if (disposed || refreshedDevice?.state?.volume == null) {
           return
@@ -547,10 +511,10 @@ export function DeviceControlCardContent({
         const nextVolumePercent = volumeToPercent(refreshedDevice.state.volume)
         volumePercentRef.current = nextVolumePercent
         setVolumePercent(nextVolumePercent)
-      } catch (err) {
+      } catch {
         consecutiveErrors++
+        if (consecutiveErrors >= 2) backoffUntil = Date.now() + 30000
       } finally {
-        clearTimeout(timer)
         syncing = false
       }
     }
@@ -584,12 +548,7 @@ export function DeviceControlCardContent({
     brightnessRef.current = pct
     if (pct > 0 && !isOn) setIsOn(true)
     if (pct === 0 && isOn) setIsOn(false)
-    executeService('light', 'turn_on', {
-      entity_id: device.id,
-      brightness_pct: pct
-    }).catch(() => {
-      isUserInteractingRef.current = false
-    })
+    brightnessThrottle.schedule(pct)
   }
 
   const handleTempSliderChange = (pct: number) => {
@@ -597,13 +556,7 @@ export function DeviceControlCardContent({
     setTempPctState(pct)
     tempPctRef.current = pct
     if (!isOn) setIsOn(true)
-    const kelvinVal = Math.round(6500 - (pct / 100) * (6500 - 2000))
-    executeService('light', 'turn_on', {
-      entity_id: device.id,
-      color_temp_kelvin: kelvinVal
-    }).catch(() => {
-      isUserInteractingRef.current = false
-    })
+    tempThrottle.schedule(Math.round(6500 - (pct / 100) * (6500 - 2000)))
   }
 
   const handleColorChange = (rgb: [number, number, number], hex: string) => {
@@ -611,12 +564,41 @@ export function DeviceControlCardContent({
     setSelectedRgbHex(hex)
     selectedRgbHexRef.current = hex
     if (!isOn) setIsOn(true)
-    executeService('light', 'turn_on', {
-      entity_id: device.id,
-      rgb_color: rgb
-    }).catch(() => {
-      isUserInteractingRef.current = false
-    })
+    colorThrottle.schedule(rgb)
+  }
+
+  // Vertical slider drag: the value follows the pointer while the button is
+  // held (previously only a click worked, so the user could never drag to the
+  // ends). Pointer capture keeps the drag alive outside the element.
+  const pctFromPointer = (event: React.PointerEvent<HTMLDivElement>): number => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (!rect.height) return 0
+    const offsetY = event.clientY - rect.top
+    return Math.max(0, Math.min(100, Math.round(((rect.height - offsetY) / rect.height) * 100)))
+  }
+
+  const startSliderDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+    draggingRef: React.MutableRefObject<boolean>
+  ) => {
+    event.preventDefault()
+    draggingRef.current = true
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {}
+  }
+
+  const endSliderDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+    draggingRef: React.MutableRefObject<boolean>,
+    flush: () => void
+  ) => {
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    } catch {}
+    flush()
   }
 
   // Domínio de controle do toggle. O botão power é compartilhado por todos os
@@ -656,17 +638,19 @@ export function DeviceControlCardContent({
     const domain = device.domain
     const cmdUpper = command.toUpperCase()
 
-    // 1. Tratamento de mídia padrão para reprodução
+    // 1. Tratamento de mídia padrão para reprodução. These services only
+    // accept media_player entities, so remote-only cards target the matching
+    // media player instead of the remote entity.
     if (cmdUpper === 'PLAY' || cmdUpper === 'PAUSE' || cmdUpper === 'PLAY_PAUSE') {
-      await executeService('media_player', 'media_play_pause', { entity_id: targetId })
+      await executeService('media_player', 'media_play_pause', { entity_id: mediaTargetId })
       return
     }
     if (cmdUpper === 'PREV' || cmdUpper === 'PREVIOUS') {
-      await executeService('media_player', 'media_previous_track', { entity_id: targetId })
+      await executeService('media_player', 'media_previous_track', { entity_id: mediaTargetId })
       return
     }
     if (cmdUpper === 'NEXT') {
-      await executeService('media_player', 'media_next_track', { entity_id: targetId })
+      await executeService('media_player', 'media_next_track', { entity_id: mediaTargetId })
       return
     }
 
@@ -726,99 +710,9 @@ export function DeviceControlCardContent({
       }
     }
 
-    // 3. Suporte às Entradas TV, HDMI 1, HDMI 2, HDMI 3 e AV
-    const inputActivityMap: Record<string, string> = {
-      'TV': 'passthrough://media_0',
-      'TV1': 'passthrough://media_0',
-      'HDMI 1': 'passthrough://media_1',
-      'HDMI1': 'passthrough://media_1',
-      'HDMI 2': 'passthrough://media_2',
-      'HDMI2': 'passthrough://media_2',
-      'HDMI 3': 'passthrough://media_3',
-      'HDMI3': 'passthrough://media_3',
-      'AV': 'passthrough://media_av'
-    }
-
-    const isTvCmd = cmdUpper === 'TV' || cmdUpper === 'TV1' || cmdUpper === 'LIVE TV' || cmdUpper === 'TV AO VIVO'
-    const isInputCmd = Boolean(inputActivityMap[cmdUpper]) || isTvCmd
-
-    if (isInputCmd) {
-      const act = inputActivityMap[cmdUpper] || 'passthrough://media_0'
-
-      // 3a. Tentar media_player.select_source com a string exata do comando (ex: 'TV', 'HDMI 1', etc.)
-      try {
-        await executeService('media_player', 'select_source', { entity_id: targetId, source: command })
-      } catch (e) {}
-
-      // 3b. Se for comando de TV, procurar no source_list da entidade por termos equivalentes a TV ao vivo
-      if (isTvCmd) {
-        const sourceList = (device.attributes?.source_list as string[]) || (currentDevice.attributes?.source_list as string[]) || []
-        const matchedSource = sourceList.find((s) => {
-          const l = String(s).toLowerCase().trim()
-          return l === 'tv' || l === 'live tv' || l === 'tv ao vivo' || l === 'dtv' || l === 'tv/dtv' || l === 'antenna' || l === 'tuner' || l === 'sintonizador'
-        })
-        if (matchedSource) {
-          try {
-            await executeService('media_player', 'select_source', { entity_id: targetId, source: matchedSource })
-          } catch (e) {}
-        }
-
-        // Tentar app sintonizador de TV do TCL / Google TV / Android TV
-        try {
-          await executeService('media_player', 'play_media', {
-            entity_id: targetId,
-            media_content_type: 'app',
-            media_content_id: 'com.tcl.tv'
-          })
-        } catch (e) {}
-      }
-
-      // 3c. Tentar media_player.play_media com a URI passthrough
-      const chromecastMedia = effectiveAllDevices.find((d) => d.domain === 'media_player' && d.id !== targetId)
-      const targetMediaId = chromecastMedia ? chromecastMedia.id : targetId
-
-      try {
-        await executeService('media_player', 'play_media', {
-          entity_id: targetMediaId,
-          media_content_type: 'app',
-          media_content_id: act
-        })
-      } catch (e) {}
-
-      try {
-        await executeService('media_player', 'play_media', {
-          entity_id: targetId,
-          media_content_type: 'app',
-          media_content_id: act
-        })
-      } catch (e) {}
-
-      // 3d. Tentar remote.turn_on com a activity passthrough no controle remoto
-      const candidateRemote = effectiveAllDevices.find((d) => d.domain === 'remote')
-      if (candidateRemote) {
-        try {
-          await executeService('remote', 'turn_on', {
-            entity_id: candidateRemote.id,
-            activity: act
-          })
-        } catch (e) {}
-      }
-
-      // 3e. Tentar remote.send_command com comandos universais de entrada de TV
-      const remoteTargetId = candidateRemote?.id || (domain === 'media_player' ? targetId.replace('media_player.', 'remote.') : null)
-      if (remoteTargetId) {
-        for (const inputCmd of ['TV_INPUT', 'INPUT', 'TV', 'LIVE_TV']) {
-          try {
-            await executeService('remote', 'send_command', {
-              entity_id: remoteTargetId,
-              command: [inputCmd]
-            })
-          } catch (e) {}
-        }
-      }
-
-      return
-    }
+    // 3. Input switching (TV, HDMI, AV and custom sources) is delegated to
+    // the worker/provider, which owns the sequential attempts with source
+    // confirmation. See handleSelectSource.
 
     // Mapeamento universal de comandos para Android TV
     const androidTvCommandMap: Record<string, string[]> = {
@@ -886,7 +780,17 @@ export function DeviceControlCardContent({
 
   const handleSelectSource = async (source: string) => {
     setShowInputSelector(false)
-    await handleSendRemoteCommand(source)
+    // Input switching is implemented once in the worker/provider (sequential
+    // attempts + source confirmation). The UI only requests the source by
+    // name, including custom entries from the TV's own source list.
+    try {
+      await extFetch('/extensions/momai-smarthome/command', {
+        toolName: 'control_tv_remote',
+        args: { device_name: device.id, command: source }
+      })
+    } catch (err) {
+      console.warn('[SmartHome] Falha ao trocar a entrada da TV:', err)
+    }
   }
 
   const handleVolumeChange = async (direction: 'down' | 'up') => {
@@ -1021,7 +925,7 @@ export function DeviceControlCardContent({
               aria-label={isMuted ? t('remote.unmute') : t('remote.mute')}
               onClick={() => {
                 setIsMuted(!isMuted)
-                executeService('media_player', 'volume_mute', { entity_id: device.id, is_volume_muted: !isMuted })
+                executeService('media_player', 'volume_mute', { entity_id: volumeDevice.id, is_volume_muted: !isMuted })
               }}
             >
               {isMuted ? <SvgMuteStrikethrough size={18} /> : <SvgMute size={18} />}
@@ -1091,12 +995,19 @@ export function DeviceControlCardContent({
           <div
             className="sh-pill-slider-container"
             style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const clickY = e.clientY - rect.top
-              const pct = Math.max(0, Math.min(100, Math.round(((rect.height - clickY) / rect.height) * 100)))
-              handleBrightnessChange(pct)
+            onPointerDown={(e) => {
+              startSliderDrag(e, brightnessDraggingRef)
+              handleBrightnessChange(pctFromPointer(e))
             }}
+            onPointerMove={(e) => {
+              if (!brightnessDraggingRef.current) return
+              handleBrightnessChange(pctFromPointer(e))
+            }}
+            onPointerUp={(e) => {
+              handleBrightnessChange(pctFromPointer(e))
+              endSliderDrag(e, brightnessDraggingRef, brightnessThrottle.flush)
+            }}
+            onPointerCancel={(e) => endSliderDrag(e, brightnessDraggingRef, brightnessThrottle.flush)}
           >
             <div
               className="sh-pill-slider-fill"
@@ -1112,7 +1023,7 @@ export function DeviceControlCardContent({
 
         {activeTab === 'color' && (
           <div style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}>
-            <ColorWheelPicker selectedHex={selectedRgbHex} onChange={handleColorChange} />
+            <ColorWheelPicker selectedHex={selectedRgbHex} onChange={handleColorChange} onCommit={colorThrottle.flush} />
             <div className="sh-color-grid">
               {COLOR_PRESETS.map((preset) => (
                 <button
@@ -1131,12 +1042,19 @@ export function DeviceControlCardContent({
           <div
             className="sh-pill-slider-container"
             style={isOverlay ? { WebkitAppRegion: 'no-drag' } as any : undefined}
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const clickY = e.clientY - rect.top
-              const pct = Math.max(0, Math.min(100, Math.round(((rect.height - clickY) / rect.height) * 100)))
-              handleTempSliderChange(pct)
+            onPointerDown={(e) => {
+              startSliderDrag(e, tempDraggingRef)
+              handleTempSliderChange(pctFromPointer(e))
             }}
+            onPointerMove={(e) => {
+              if (!tempDraggingRef.current) return
+              handleTempSliderChange(pctFromPointer(e))
+            }}
+            onPointerUp={(e) => {
+              handleTempSliderChange(pctFromPointer(e))
+              endSliderDrag(e, tempDraggingRef, tempThrottle.flush)
+            }}
+            onPointerCancel={(e) => endSliderDrag(e, tempDraggingRef, tempThrottle.flush)}
           >
             <div
               className="sh-pill-slider-fill"

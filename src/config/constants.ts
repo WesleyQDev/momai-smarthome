@@ -18,9 +18,6 @@ function storageBaseDir() {
   return process.env.MOMAI_EXTENSION_STORAGE_DIR || process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
 }
 module.exports = {
-  get DEFAULT_DB_PATH() {
-    return process.env.DB_PATH || path.join(storageBaseDir(), 'smarthome.sqlite');
-  },
   get ENCRYPTION_KEY_PATH() {
     return process.env.ENCRYPTION_KEY_PATH || path.join(storageBaseDir(), '.encryption-key');
   },

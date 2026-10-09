@@ -115,6 +115,108 @@ class HomeAssistantProvider extends BaseProvider {
     this._isDisconnecting = false
     this._transientErrCount = 0
     this._disconnectCheckTimer = null
+    // entity_id -> area name, resolved from the HA registries over WebSocket.
+    // The REST /api/states payload does not carry area information, so this
+    // map is the only way to know each device's room.
+    this._areaByEntity = new Map()
+    this._areasAttempted = false
+    // Pending WebSocket request/response calls (registry lookups).
+    this._wsPending = new Map()
+    // Entities that do not expose a media_player `source` attribute; input
+    // verification is skipped for them instead of probing on every attempt.
+    this._noSourceEntities = new Set()
+  }
+
+  async _wsRequest(type, timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+      if (!this.ws || !this.wsConnected || typeof this.ws.send !== 'function') {
+        reject(new Error('WebSocket do Home Assistant não está conectado'))
+        return
+      }
+      const id = ++this.wsMessageId
+      const timer = setTimeout(() => {
+        this._wsPending.delete(id)
+        reject(new Error(`Tempo limite na consulta ${type} ao Home Assistant`))
+      }, timeoutMs)
+      if (timer.unref) timer.unref()
+      this._wsPending.set(id, { resolve, reject, timer })
+      try {
+        this.ws.send(JSON.stringify({ id, type }))
+      } catch (err) {
+        clearTimeout(timer)
+        this._wsPending.delete(id)
+        reject(err)
+      }
+    })
+  }
+
+  _rejectPendingWsRequests(reason) {
+    for (const [id, pending] of this._wsPending.entries()) {
+      clearTimeout(pending.timer)
+      this._wsPending.delete(id)
+      try {
+        pending.reject(new Error(reason))
+      } catch {}
+    }
+  }
+
+  // Resolves each entity's room from the HA area/entity/device registries.
+  // Best effort: hosts without a WebSocket (or older HA) simply keep room ''.
+  async _loadAreaRegistry() {
+    if (!this.wsConnected) return
+    try {
+      const [areas, entities, devices] = await Promise.all([
+        this._wsRequest('config/area_registry/list'),
+        this._wsRequest('config/entity_registry/list'),
+        this._wsRequest('config/device_registry/list')
+      ])
+      const areaNameById = new Map(
+        (Array.isArray(areas) ? areas : [])
+          .filter((a) => a && a.area_id)
+          .map((a) => [a.area_id, a.name || ''])
+      )
+      const deviceAreaById = new Map(
+        (Array.isArray(devices) ? devices : [])
+          .filter((d) => d && d.id)
+          .map((d) => [d.id, d.area_id || null])
+      )
+      const next = new Map()
+      for (const entry of Array.isArray(entities) ? entities : []) {
+        if (!entry || !entry.entity_id) continue
+        const areaId = entry.area_id || (entry.device_id ? deviceAreaById.get(entry.device_id) : null)
+        const name = areaId ? areaNameById.get(areaId) : null
+        if (name) next.set(entry.entity_id, name)
+      }
+      this._areaByEntity = next
+      this._areasAttempted = true
+    } catch (err) {
+      // Registry unavailable: keep whatever was resolved before, retry on the
+      // next WebSocket reconnect.
+      this._areasAttempted = false
+      console.warn('[HAProvider] Não foi possível carregar os cômodos:', err?.message || err)
+    }
+  }
+
+  // Confirms an input switch by reading the media_player's `source` attribute.
+  // Returns true (confirmed), false (state changed to something else) or null
+  // (cannot verify: no source attribute, no connection, or probe failure).
+  async _confirmSource(entityId, candidates) {
+    if (this._noSourceEntities.has(entityId)) return null
+    const probe = await this.getDeviceState(entityId)
+    if (!probe) return null
+    if (probe.state?.source == null) {
+      this._noSourceEntities.add(entityId)
+      return null
+    }
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    const state = await this.getDeviceState(entityId)
+    const current = String(state?.state?.source || '').toLowerCase().trim()
+    if (!current) return null
+    return candidates.some((candidate) => {
+      const wanted = String(candidate || '').toLowerCase().trim()
+      if (!wanted) return false
+      return current === wanted || current.includes(wanted) || wanted.includes(current)
+    })
   }
 
   _getWsUrl() {
@@ -272,6 +374,18 @@ class HomeAssistantProvider extends BaseProvider {
   _handleWsMessage(msg) {
     if (!msg || typeof msg !== 'object') return
 
+    if (msg.type === 'result' && msg.id && this._wsPending.has(msg.id)) {
+      const pending = this._wsPending.get(msg.id)
+      clearTimeout(pending.timer)
+      this._wsPending.delete(msg.id)
+      if (msg.success) {
+        pending.resolve(msg.result)
+      } else {
+        pending.reject(new Error(msg.error?.message || 'Falha na consulta ao Home Assistant'))
+      }
+      return
+    }
+
     if (msg.type === 'auth_required') {
       if (this.ws && (this.ws.readyState === 1 || (WebSocket && this.ws.readyState === WebSocket.OPEN))) {
         this.ws.send(JSON.stringify({ type: 'auth', access_token: this.token }))
@@ -289,12 +403,16 @@ class HomeAssistantProvider extends BaseProvider {
           event_type: 'state_changed'
         }))
       }
+      // Room names come from the registries, not from /api/states.
+      this._areasAttempted = false
+      this._loadAreaRegistry().catch(() => {})
       return
     }
 
     if (msg.type === 'auth_invalid') {
       console.warn('[HAProvider] Autenticação WebSocket recusada pelo Home Assistant:', msg.message)
       this.wsConnected = false
+      this._rejectPendingWsRequests('Autenticação do WebSocket recusada')
       this._setConnected(false, 'Token do Home Assistant inválido ou expirado (HTTP 401 Unauthorized)')
       return
     }
@@ -328,6 +446,7 @@ class HomeAssistantProvider extends BaseProvider {
   }
 
   _closeWebSocket(resetConnected = true) {
+    this._rejectPendingWsRequests('WebSocket do Home Assistant foi encerrado')
     if (this.wsReconnectTimer) {
       clearTimeout(this.wsReconnectTimer)
       this.wsReconnectTimer = null
@@ -565,6 +684,13 @@ class HomeAssistantProvider extends BaseProvider {
       return []
     }
 
+    // Rooms are resolved from the registries once per WebSocket session; if the
+    // map is still empty (e.g. the socket reconnected mid-listing), try again
+    // before normalizing the entities.
+    if (!this._areasAttempted && this.wsConnected && this._areaByEntity.size === 0) {
+      await this._loadAreaRegistry().catch(() => {})
+    }
+
     try {
       const states = await this._get('/api/states')
       const devices = states
@@ -767,60 +893,89 @@ class HomeAssistantProvider extends BaseProvider {
     const isTvCmd = cmdUpper === 'TV' || cmdUpper === 'TV1' || cmdUpper === 'LIVE TV' || cmdUpper === 'TV AO VIVO'
     const isInputCmd = Boolean(inputActivityMap[cmdUpper]) || isTvCmd
 
+    // Any command that matches the player's own source list is a source switch,
+    // even when it is not one of the mapped labels (e.g. "Apple TV"). Reserved
+    // media/navigation buttons are never treated as sources, so a TV with a
+    // source called "Play" or "Music" does not hijack the play button.
+    const RESERVED_MEDIA_COMMANDS = new Set([
+      'PLAY', 'PAUSE', 'PLAY_PAUSE', 'STOP', 'PREV', 'PREVIOUS', 'NEXT',
+      'UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER', 'OK', 'BACK', 'HOME', 'MENU',
+      'VOLUME_UP', 'VOL_UP', 'VOLUME_DOWN', 'VOL_DOWN', 'MUTE', 'UNMUTE'
+    ])
+    if (!isInputCmd && !RESERVED_MEDIA_COMMANDS.has(cmdUpper) && typeof command === 'string') {
+      const wantedSource = command.toLowerCase().trim()
+      for (const mp of mediaPlayers) {
+        const sourceMatch = (mp.attributes?.source_list || []).find(
+          (s) => String(s).toLowerCase().trim() === wantedSource
+        )
+        if (!sourceMatch) continue
+        try {
+          await this._post('/api/services/media_player/select_source', { entity_id: mp.entity_id, source: sourceMatch })
+          const confirmed = await this._confirmSource(mp.entity_id, [sourceMatch])
+          if (confirmed !== false) return { success: true }
+        } catch (e) {
+          // fall through to the generic input chain below
+        }
+      }
+    }
+
     if (isInputCmd) {
       const act = inputActivityMap[cmdUpper] || 'passthrough://media_0'
       let inputExecuted = false
       let inputLastErr = null
 
-      // 1. Tentar media_player.select_source com o nome da entrada fornecido
-      for (const mp of mediaPlayers) {
+      const attempt = async (fn) => {
         try {
-          await this._post('/api/services/media_player/select_source', { entity_id: mp.entity_id, source: command })
+          await fn()
           inputExecuted = true
-        } catch (e) { inputLastErr = e }
+        } catch (e) {
+          inputLastErr = e
+        }
+      }
+      // Stops the fallback chain as soon as the TV reports the requested
+      // source. When the player does not expose `source`, verification is
+      // impossible and the full chain still runs (previous behavior).
+      const confirmedSwitch = async (entityId, candidates) => {
+        const verdict = await this._confirmSource(entityId, candidates)
+        return verdict === true
+      }
 
-        // Se for comando de TV, procurar termos equivalentes no source_list oficial da TV no HA
-        if (isTvCmd && Array.isArray(mp.attributes?.source_list)) {
+      // 1. select_source with the exact command label
+      for (const mp of mediaPlayers) {
+        await attempt(() => this._post('/api/services/media_player/select_source', { entity_id: mp.entity_id, source: command }))
+        if (await confirmedSwitch(mp.entity_id, [command])) return { success: true }
+      }
+
+      // 2. Live-TV aliases from the official source_list
+      if (isTvCmd) {
+        for (const mp of mediaPlayers) {
+          if (!Array.isArray(mp.attributes?.source_list)) continue
           const matchedSource = mp.attributes.source_list.find((s) => {
             const l = String(s).toLowerCase().trim()
             return l === 'tv' || l === 'live tv' || l === 'tv ao vivo' || l === 'dtv' || l === 'tv/dtv' || l === 'antenna' || l === 'tuner' || l === 'sintonizador'
           })
-          if (matchedSource) {
-            try {
-              await this._post('/api/services/media_player/select_source', { entity_id: mp.entity_id, source: matchedSource })
-              inputExecuted = true
-            } catch (e) { inputLastErr = e }
-          }
+          if (!matchedSource) continue
+          await attempt(() => this._post('/api/services/media_player/select_source', { entity_id: mp.entity_id, source: matchedSource }))
+          if (await confirmedSwitch(mp.entity_id, [matchedSource, 'tv', 'live tv'])) return { success: true }
         }
       }
 
-      // 2. Tentar media_player.play_media com a URI passthrough e com.tcl.tv
+      // 3. play_media with the passthrough URI and the TV tuner app
       for (const mp of mediaPlayers) {
-        try {
-          await this._post('/api/services/media_player/play_media', { entity_id: mp.entity_id, media_content_type: 'app', media_content_id: act })
-          inputExecuted = true
-        } catch (e) { inputLastErr = e }
+        await attempt(() => this._post('/api/services/media_player/play_media', { entity_id: mp.entity_id, media_content_type: 'app', media_content_id: act }))
+        if (await confirmedSwitch(mp.entity_id, [command, act])) return { success: true }
         if (isTvCmd) {
-          try {
-            await this._post('/api/services/media_player/play_media', { entity_id: mp.entity_id, media_content_type: 'app', media_content_id: 'com.tcl.tv' })
-            inputExecuted = true
-          } catch (e) { inputLastErr = e }
+          await attempt(() => this._post('/api/services/media_player/play_media', { entity_id: mp.entity_id, media_content_type: 'app', media_content_id: 'com.tcl.tv' }))
+          if (await confirmedSwitch(mp.entity_id, [command])) return { success: true }
         }
       }
 
-      // 3. Tentar remote.turn_on com a activity passthrough no controle remoto
+      // 4. Remote fallbacks (activity + universal input commands). Kept
+      // unconditional so setups that cannot confirm the source keep working.
       for (const rm of remotes) {
-        try {
-          await this._post('/api/services/remote/turn_on', { entity_id: rm.entity_id, activity: act })
-          inputExecuted = true
-        } catch (e) { inputLastErr = e }
-
-        // 4. Tentar remote.send_command com comandos universais de entrada de TV
+        await attempt(() => this._post('/api/services/remote/turn_on', { entity_id: rm.entity_id, activity: act }))
         for (const inputCmd of ['TV_INPUT', 'INPUT', 'TV', 'LIVE_TV']) {
-          try {
-            await this._post('/api/services/remote/send_command', { entity_id: rm.entity_id, command: [inputCmd] })
-            inputExecuted = true
-          } catch (e) { inputLastErr = e }
+          await attempt(() => this._post('/api/services/remote/send_command', { entity_id: rm.entity_id, command: [inputCmd] }))
         }
       }
 
@@ -864,34 +1019,13 @@ class HomeAssistantProvider extends BaseProvider {
       }
 
       const targetCmd = remoteCmdMap[cmdUpper] || cmdUpper
+      // Remote button names are identifiers; reject anything else so an
+      // arbitrary model-provided string never reaches the device blindly.
+      if (typeof targetCmd !== 'string' || !/^[A-Za-z0-9_ -]+$/.test(targetCmd)) {
+        return { success: false, error: `Comando remoto inválido: ${command}` }
+      }
       const commandArray = [targetCmd]
       return this._post('/api/services/remote/send_command', { entity_id: deviceId, command: commandArray, ...extra })
-    }
-
-    // 1. YouTube e Netflix via select_source ou play_media (Android TV App ID / Deep Link)
-    if (cmdUpper === 'YOUTUBE' || cmdUpper === 'NETFLIX') {
-      const sourceName = cmdUpper === 'YOUTUBE' ? 'YouTube' : 'Netflix'
-      const appId = cmdUpper === 'YOUTUBE' ? 'com.google.android.youtube.tv' : 'com.netflix.ninja'
-
-      try {
-        const res = await this.controlMedia(deviceId, 'source', sourceName)
-        if (res?.success !== false) return res
-      } catch (e) {}
-
-      try {
-        const res = await this._post('/api/services/media_player/play_media', {
-          entity_id: deviceId,
-          media_content_type: 'app',
-          media_content_id: appId
-        })
-        if (res?.success !== false) return res
-      } catch (e) {}
-
-      return this._post('/api/services/media_player/play_media', {
-        entity_id: deviceId,
-        media_content_type: 'url',
-        media_content_id: cmdUpper === 'YOUTUBE' ? 'https://www.youtube.com' : 'https://www.netflix.com'
-      })
     }
 
     // 2. Comandos de navegação / ação em media_player
@@ -919,6 +1053,13 @@ class HomeAssistantProvider extends BaseProvider {
       volume_up: 'volume_up',
       volume_down: 'volume_down'
     }
+    // Only known actions may become service names. Without this check an
+    // arbitrary value would be interpolated into the request path, allowing
+    // path traversal to any endpoint on the Home Assistant host.
+    const allowedActions = new Set([...Object.keys(serviceMap), 'volume', 'mute', 'unmute', 'source'])
+    if (typeof action !== 'string' || !allowedActions.has(action)) {
+      return { success: false, error: `Ação de mídia inválida: ${action}` }
+    }
 
     if (action === 'volume' && value !== undefined) {
       const level = Number(value) / 100
@@ -940,11 +1081,17 @@ class HomeAssistantProvider extends BaseProvider {
       return this._post('/api/services/media_player/select_source', { entity_id: deviceId, source: value })
     }
 
-    const service = serviceMap[action] || action
+    const service = serviceMap[action]
+    if (!service) {
+      return { success: false, error: `Ação de mídia inválida: ${action}` }
+    }
     return this._post(`/api/services/${domain}/${service}`, { entity_id: deviceId })
   }
 
   async setClimate(deviceId, temperature, hvacMode) {
+    if ((temperature === undefined || temperature === null || temperature === '') && !hvacMode) {
+      return { success: false, error: 'Informe a temperatura ou o modo de operação do clima.' }
+    }
     const results = []
     if (temperature !== undefined && temperature !== null) {
       const tempNum = Number(temperature)
@@ -1017,7 +1164,7 @@ class HomeAssistantProvider extends BaseProvider {
       domain,
       icon: domainInfo.icon,
       provider: this.name,
-      room: attrs.area_id || attrs.area || '',
+      room: this._areaByEntity.get(state.entity_id) || attrs.area_id || attrs.area || '',
       online: rawState !== 'unavailable' && rawState !== 'unknown',
       state: {
         on: isOn,

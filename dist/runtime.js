@@ -1,7 +1,26 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/config/constants.ts
 var require_constants = __commonJS({
@@ -15,9 +34,6 @@ var require_constants = __commonJS({
       return process.env.MOMAI_EXTENSION_STORAGE_DIR || process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || fallbackDataDir();
     }
     module2.exports = {
-      get DEFAULT_DB_PATH() {
-        return process.env.DB_PATH || path2.join(storageBaseDir(), "smarthome.sqlite");
-      },
       get ENCRYPTION_KEY_PATH() {
         return process.env.ENCRYPTION_KEY_PATH || path2.join(storageBaseDir(), ".encryption-key");
       },
@@ -37,7 +53,7 @@ var require_ipc_storage = __commonJS({
       err.code = code;
       return err;
     }
-    function createIpcSmarthomeStorage({ send, onResponse, storageDir: storageDir2, timeoutMs = 3e4 } = {}) {
+    function createIpcSmarthomeStorage({ send, onResponse, storageDir, timeoutMs = 3e4 } = {}) {
       let seq = 0;
       const pending = /* @__PURE__ */ new Map();
       onResponse((msg) => {
@@ -63,7 +79,7 @@ var require_ipc_storage = __commonJS({
           if (timer.unref) timer.unref();
           pending.set(requestId, { resolve, reject, timer });
           try {
-            send({ type: "storage-request", requestId, method, args });
+            send({ type: "storage-request", requestId, method, args, extensionId: "momai-smarthome" });
           } catch (err) {
             pending.delete(requestId);
             clearTimeout(timer);
@@ -77,7 +93,7 @@ var require_ipc_storage = __commonJS({
       const storageMethods = area("storage", ["get", "set", "getMany", "setMany", "delete", "listKeys", "migrate"]);
       return {
         storage: {
-          storageDir: storageDir2,
+          storageDir,
           get: storageMethods.get,
           set: async (key, value, opts) => {
             await call("storage.set", opts === void 0 ? [key, value] : [key, value, opts]);
@@ -112,8 +128,8 @@ var require_sdk_backend = __commonJS({
     function defaultDataDir() {
       return process.env.MOMAI_EXTENSION_STORAGE_DIR || process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path2.join(__dirname, "..", "data");
     }
-    function defaultLegacyDbPath() {
-      return process.env.DB_PATH || path2.join(defaultDataDir(), "smarthome.sqlite");
+    function legacyCredentialsPath() {
+      return path2.join(defaultDataDir(), "last_credentials.json");
     }
     function createMemoryBridge() {
       const kv = /* @__PURE__ */ new Map();
@@ -200,7 +216,7 @@ var require_sdk_backend = __commonJS({
       }
     }
     var memoryFallback = null;
-    function resolveBridge(explicitMomai) {
+    function resolveBridge2(explicitMomai) {
       const usable = explicitMomai && explicitMomai.storage && typeof explicitMomai.storage.get === "function" && typeof explicitMomai.storage.set === "function";
       if (usable && explicitMomai.collections) return explicitMomai;
       if (usable) {
@@ -211,73 +227,32 @@ var require_sdk_backend = __commonJS({
       if (!memoryFallback) memoryFallback = createMemoryBridge();
       return memoryFallback;
     }
-    function defaultOpenDb(dbPath) {
-      const BetterSqlite3 = require("better-sqlite3");
-      const db = new BetterSqlite3(dbPath, { readonly: true });
-      return {
-        all: (sql, params = []) => db.prepare(sql).all(...params),
-        close: () => db.close()
-      };
-    }
-    async function importLegacyDatabase({ dbPath = defaultLegacyDbPath(), bridge, openDb = defaultOpenDb } = {}) {
+    async function importLegacyState({ bridge } = {}) {
       const store = bridge.storage;
       try {
         if (await store.get(LEGACY_IMPORT_KEY)) return { imported: false, reason: "already" };
       } catch {
         return { imported: false, reason: "unavailable" };
       }
-      let connections = [];
+      let importedCredentials = false;
       try {
-        if (fs2.existsSync(dbPath)) {
-          const handle = openDb(dbPath);
-          try {
-            connections = handle.all(
-              "SELECT id, provider_type, name, config_encrypted, user_email, auto_connect, updated_at FROM connections"
-            ) || [];
-          } catch {
-            connections = [];
-          } finally {
-            try {
-              handle.close();
-            } catch {
-            }
+        const existing = await store.get(LAST_CREDENTIALS_KEY);
+        if (!existing) {
+          const credsPath = legacyCredentialsPath();
+          if (fs2.existsSync(credsPath)) {
+            await store.set(LAST_CREDENTIALS_KEY, JSON.parse(fs2.readFileSync(credsPath, "utf8")));
+            importedCredentials = true;
           }
         }
       } catch {
-        connections = [];
+        importedCredentials = false;
       }
       try {
-        const current = await store.get(CONNECTIONS_KEY) || {};
-        let added = 0;
-        for (const row of connections) {
-          if (!row || !row.id || current[row.id]) continue;
-          current[row.id] = {
-            id: row.id,
-            provider_type: row.provider_type || "homeassistant",
-            name: row.name || "Home Assistant",
-            user_email: row.user_email || "local",
-            config: row.config_encrypted,
-            auto_connect: row.auto_connect === 0 ? 0 : 1,
-            updated_at: row.updated_at || (/* @__PURE__ */ new Date()).toISOString()
-          };
-          added++;
-        }
-        if (added > 0) await store.set(CONNECTIONS_KEY, current);
-        try {
-          const creds = await store.get(LAST_CREDENTIALS_KEY);
-          if (!creds) {
-            const legacyCreds = path2.join(path2.dirname(dbPath), "last_credentials.json");
-            if (fs2.existsSync(legacyCreds)) {
-              await store.set(LAST_CREDENTIALS_KEY, JSON.parse(fs2.readFileSync(legacyCreds, "utf8")));
-            }
-          }
-        } catch {
-        }
         await store.set(LEGACY_IMPORT_KEY, true);
-        return { imported: added > 0, connections: added };
       } catch {
         return { imported: false, reason: "unavailable" };
       }
+      return { imported: importedCredentials };
     }
     module2.exports = {
       CONNECTIONS_KEY,
@@ -287,9 +262,9 @@ var require_sdk_backend = __commonJS({
       createMemoryBridge,
       getWorkerBridge: getWorkerBridge2,
       routeStorageResponse: routeStorageResponse2,
-      resolveBridge,
-      importLegacyDatabase,
-      defaultLegacyDbPath
+      resolveBridge: resolveBridge2,
+      importLegacyState,
+      legacyCredentialsPath
     };
   }
 });
@@ -304,11 +279,13 @@ var require_tokenManager = __commonJS({
     var {
       CONNECTIONS_KEY,
       LAST_CREDENTIALS_KEY,
+      LEGACY_IMPORT_KEY,
       ENTITIES_COLLECTION,
-      resolveBridge,
-      importLegacyDatabase,
-      defaultLegacyDbPath
+      resolveBridge: resolveBridge2,
+      importLegacyState,
+      legacyCredentialsPath
     } = require_sdk_backend();
+    var ENCRYPTION_KEY_STORAGE_KEY = "smarthome_encryption_key";
     function resolveLegacyKey() {
       const env = process.env.MOMAI_SMARTHOME_LEGACY_KEY;
       if (env && String(env).trim()) return String(env).trim();
@@ -322,66 +299,88 @@ var require_tokenManager = __commonJS({
       }
       return null;
     }
-    function legacyCredentialsPath() {
-      return path2.join(path2.dirname(defaultLegacyDbPath()), "last_credentials.json");
-    }
     var TokenManager = class {
       constructor(bridge = null) {
         this._attachedBridge = null;
         this.encryptionSecret = "";
         this._legacyDone = false;
+        this._keyPromise = null;
         if (bridge && bridge.storage) this._attachedBridge = bridge;
-        this.encryptionSecret = process.env.ENCRYPTION_KEY || this._loadOrCreateKey();
+        this.encryptionSecret = process.env.ENCRYPTION_KEY || "";
       }
       attachBridge(bridge) {
         if (bridge && bridge.storage) this._attachedBridge = bridge;
         return this;
       }
       async _store() {
-        const bridge = this._attachedBridge || resolveBridge();
+        const bridge = this._attachedBridge || resolveBridge2();
+        await this._ensureKey();
         if (!this._legacyDone) {
           this._legacyDone = true;
           try {
-            await importLegacyDatabase({ bridge });
+            await importLegacyState({ bridge });
           } catch {
           }
         }
         return bridge;
       }
-      _loadOrCreateKey(customDir = null) {
-        const modeStorageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR;
-        const candidatePaths = modeStorageDir ? [path2.join(modeStorageDir, ".encryption-key")] : [
-          customDir ? path2.join(customDir, ".encryption-key") : null,
-          ENCRYPTION_KEY_PATH,
-          path2.join(require_constants().DEFAULT_DB_PATH, "..", ".encryption-key"),
-          path2.join(__dirname, "..", "..", "data", ".encryption-key")
-        ].filter(Boolean);
-        for (const keyPath2 of candidatePaths) {
+      async _ensureKey() {
+        if (this.encryptionSecret) return this.encryptionSecret;
+        if (!this._keyPromise) {
+          this._keyPromise = this._resolveKey().catch((err) => {
+            this._keyPromise = null;
+            throw err;
+          });
+        }
+        return this._keyPromise;
+      }
+      // Resolution order: env override -> host store -> one-time migration from a
+      // legacy .encryption-key file -> newly generated key stored in the host
+      // store. The extension never writes the key to disk anymore.
+      async _resolveKey() {
+        const bridge = this._attachedBridge || resolveBridge2();
+        try {
+          const stored = await bridge.storage.get(ENCRYPTION_KEY_STORAGE_KEY);
+          if (typeof stored === "string" && stored.trim()) {
+            this.encryptionSecret = stored.trim();
+            return this.encryptionSecret;
+          }
+        } catch {
+        }
+        for (const keyPath of this._legacyKeyPaths()) {
           try {
-            if (fs2.existsSync(keyPath2)) {
-              const existing = fs2.readFileSync(keyPath2, "utf8").trim();
-              if (existing) return existing;
+            if (fs2.existsSync(keyPath)) {
+              const existing = fs2.readFileSync(keyPath, "utf8").trim();
+              if (existing) {
+                this.encryptionSecret = existing;
+                try {
+                  await bridge.storage.set(ENCRYPTION_KEY_STORAGE_KEY, existing);
+                } catch {
+                }
+                return existing;
+              }
             }
           } catch {
           }
         }
-        const keyPath = candidatePaths[0];
         const key = crypto.randomBytes(32).toString("hex");
+        this.encryptionSecret = key;
         try {
-          fs2.mkdirSync(path2.dirname(keyPath), { recursive: true });
-          fs2.writeFileSync(keyPath, key, { encoding: "utf8", mode: 384 });
+          await bridge.storage.set(ENCRYPTION_KEY_STORAGE_KEY, key);
         } catch {
         }
         return key;
       }
-      reloadKey(customDir) {
-        if (process.env.ENCRYPTION_KEY) {
-          this.encryptionSecret = process.env.ENCRYPTION_KEY;
-        } else {
-          this.encryptionSecret = this._loadOrCreateKey(customDir);
-        }
+      _legacyKeyPaths() {
+        const modeStorageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR;
+        return [
+          ENCRYPTION_KEY_PATH,
+          modeStorageDir ? path2.join(modeStorageDir, ".encryption-key") : null,
+          path2.join(__dirname, "..", "..", "data", ".encryption-key")
+        ].filter(Boolean).filter((keyPath, index, all) => all.indexOf(keyPath) === index);
       }
       _getKey() {
+        if (!this.encryptionSecret) throw new Error("Encryption key is not initialized");
         return crypto.createHash("sha256").update(String(this.encryptionSecret)).digest();
       }
       encrypt(data) {
@@ -441,9 +440,12 @@ var require_tokenManager = __commonJS({
         } catch {
         }
         try {
-          const credsPath = legacyCredentialsPath();
-          if (fs2.existsSync(credsPath)) {
-            return JSON.parse(fs2.readFileSync(credsPath, "utf8"));
+          const imported = await bridge.storage.get(LEGACY_IMPORT_KEY);
+          if (!imported) {
+            const credsPath = legacyCredentialsPath();
+            if (fs2.existsSync(credsPath)) {
+              return JSON.parse(fs2.readFileSync(credsPath, "utf8"));
+            }
           }
         } catch {
         }
@@ -484,12 +486,7 @@ var require_tokenManager = __commonJS({
           try {
             return { config: this.decrypt(payload), migrated: false };
           } catch {
-            const candidatePaths = [
-              ENCRYPTION_KEY_PATH,
-              path2.join(require_constants().DEFAULT_DB_PATH, "..", ".encryption-key"),
-              path2.join(__dirname, "..", "..", "data", ".encryption-key")
-            ];
-            for (const kPath of candidatePaths) {
+            for (const kPath of this._legacyKeyPaths()) {
               try {
                 if (fs2.existsSync(kPath)) {
                   const fileKey = fs2.readFileSync(kPath, "utf8").trim();
@@ -843,6 +840,93 @@ var require_homeAssistant = __commonJS({
         this._isDisconnecting = false;
         this._transientErrCount = 0;
         this._disconnectCheckTimer = null;
+        this._areaByEntity = /* @__PURE__ */ new Map();
+        this._areasAttempted = false;
+        this._wsPending = /* @__PURE__ */ new Map();
+        this._noSourceEntities = /* @__PURE__ */ new Set();
+      }
+      async _wsRequest(type, timeoutMs = 5e3) {
+        return new Promise((resolve, reject) => {
+          if (!this.ws || !this.wsConnected || typeof this.ws.send !== "function") {
+            reject(new Error("WebSocket do Home Assistant n\xE3o est\xE1 conectado"));
+            return;
+          }
+          const id = ++this.wsMessageId;
+          const timer = setTimeout(() => {
+            this._wsPending.delete(id);
+            reject(new Error(`Tempo limite na consulta ${type} ao Home Assistant`));
+          }, timeoutMs);
+          if (timer.unref) timer.unref();
+          this._wsPending.set(id, { resolve, reject, timer });
+          try {
+            this.ws.send(JSON.stringify({ id, type }));
+          } catch (err) {
+            clearTimeout(timer);
+            this._wsPending.delete(id);
+            reject(err);
+          }
+        });
+      }
+      _rejectPendingWsRequests(reason) {
+        for (const [id, pending] of this._wsPending.entries()) {
+          clearTimeout(pending.timer);
+          this._wsPending.delete(id);
+          try {
+            pending.reject(new Error(reason));
+          } catch {
+          }
+        }
+      }
+      // Resolves each entity's room from the HA area/entity/device registries.
+      // Best effort: hosts without a WebSocket (or older HA) simply keep room ''.
+      async _loadAreaRegistry() {
+        if (!this.wsConnected) return;
+        try {
+          const [areas, entities, devices] = await Promise.all([
+            this._wsRequest("config/area_registry/list"),
+            this._wsRequest("config/entity_registry/list"),
+            this._wsRequest("config/device_registry/list")
+          ]);
+          const areaNameById = new Map(
+            (Array.isArray(areas) ? areas : []).filter((a) => a && a.area_id).map((a) => [a.area_id, a.name || ""])
+          );
+          const deviceAreaById = new Map(
+            (Array.isArray(devices) ? devices : []).filter((d) => d && d.id).map((d) => [d.id, d.area_id || null])
+          );
+          const next = /* @__PURE__ */ new Map();
+          for (const entry of Array.isArray(entities) ? entities : []) {
+            if (!entry || !entry.entity_id) continue;
+            const areaId = entry.area_id || (entry.device_id ? deviceAreaById.get(entry.device_id) : null);
+            const name = areaId ? areaNameById.get(areaId) : null;
+            if (name) next.set(entry.entity_id, name);
+          }
+          this._areaByEntity = next;
+          this._areasAttempted = true;
+        } catch (err) {
+          this._areasAttempted = false;
+          console.warn("[HAProvider] N\xE3o foi poss\xEDvel carregar os c\xF4modos:", err?.message || err);
+        }
+      }
+      // Confirms an input switch by reading the media_player's `source` attribute.
+      // Returns true (confirmed), false (state changed to something else) or null
+      // (cannot verify: no source attribute, no connection, or probe failure).
+      async _confirmSource(entityId, candidates) {
+        if (this._noSourceEntities.has(entityId)) return null;
+        const probe = await this.getDeviceState(entityId);
+        if (!probe) return null;
+        if (probe.state?.source == null) {
+          this._noSourceEntities.add(entityId);
+          return null;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        const state = await this.getDeviceState(entityId);
+        const current = String(state?.state?.source || "").toLowerCase().trim();
+        if (!current) return null;
+        return candidates.some((candidate) => {
+          const wanted = String(candidate || "").toLowerCase().trim();
+          if (!wanted) return false;
+          return current === wanted || current.includes(wanted) || wanted.includes(current);
+        });
       }
       _getWsUrl() {
         try {
@@ -977,6 +1061,17 @@ var require_homeAssistant = __commonJS({
       }
       _handleWsMessage(msg) {
         if (!msg || typeof msg !== "object") return;
+        if (msg.type === "result" && msg.id && this._wsPending.has(msg.id)) {
+          const pending = this._wsPending.get(msg.id);
+          clearTimeout(pending.timer);
+          this._wsPending.delete(msg.id);
+          if (msg.success) {
+            pending.resolve(msg.result);
+          } else {
+            pending.reject(new Error(msg.error?.message || "Falha na consulta ao Home Assistant"));
+          }
+          return;
+        }
         if (msg.type === "auth_required") {
           if (this.ws && (this.ws.readyState === 1 || WebSocket && this.ws.readyState === WebSocket.OPEN)) {
             this.ws.send(JSON.stringify({ type: "auth", access_token: this.token }));
@@ -993,11 +1088,15 @@ var require_homeAssistant = __commonJS({
               event_type: "state_changed"
             }));
           }
+          this._areasAttempted = false;
+          this._loadAreaRegistry().catch(() => {
+          });
           return;
         }
         if (msg.type === "auth_invalid") {
           console.warn("[HAProvider] Autentica\xE7\xE3o WebSocket recusada pelo Home Assistant:", msg.message);
           this.wsConnected = false;
+          this._rejectPendingWsRequests("Autentica\xE7\xE3o do WebSocket recusada");
           this._setConnected(false, "Token do Home Assistant inv\xE1lido ou expirado (HTTP 401 Unauthorized)");
           return;
         }
@@ -1027,6 +1126,7 @@ var require_homeAssistant = __commonJS({
         }
       }
       _closeWebSocket(resetConnected = true) {
+        this._rejectPendingWsRequests("WebSocket do Home Assistant foi encerrado");
         if (this.wsReconnectTimer) {
           clearTimeout(this.wsReconnectTimer);
           this.wsReconnectTimer = null;
@@ -1253,6 +1353,10 @@ var require_homeAssistant = __commonJS({
         if (!this.connected) {
           return [];
         }
+        if (!this._areasAttempted && this.wsConnected && this._areaByEntity.size === 0) {
+          await this._loadAreaRegistry().catch(() => {
+          });
+        }
         try {
           const states = await this._get("/api/states");
           const devices = states.filter((s) => {
@@ -1429,62 +1533,89 @@ var require_homeAssistant = __commonJS({
         };
         const isTvCmd = cmdUpper === "TV" || cmdUpper === "TV1" || cmdUpper === "LIVE TV" || cmdUpper === "TV AO VIVO";
         const isInputCmd = Boolean(inputActivityMap[cmdUpper]) || isTvCmd;
+        const RESERVED_MEDIA_COMMANDS = /* @__PURE__ */ new Set([
+          "PLAY",
+          "PAUSE",
+          "PLAY_PAUSE",
+          "STOP",
+          "PREV",
+          "PREVIOUS",
+          "NEXT",
+          "UP",
+          "DOWN",
+          "LEFT",
+          "RIGHT",
+          "ENTER",
+          "OK",
+          "BACK",
+          "HOME",
+          "MENU",
+          "VOLUME_UP",
+          "VOL_UP",
+          "VOLUME_DOWN",
+          "VOL_DOWN",
+          "MUTE",
+          "UNMUTE"
+        ]);
+        if (!isInputCmd && !RESERVED_MEDIA_COMMANDS.has(cmdUpper) && typeof command === "string") {
+          const wantedSource = command.toLowerCase().trim();
+          for (const mp of mediaPlayers) {
+            const sourceMatch = (mp.attributes?.source_list || []).find(
+              (s) => String(s).toLowerCase().trim() === wantedSource
+            );
+            if (!sourceMatch) continue;
+            try {
+              await this._post("/api/services/media_player/select_source", { entity_id: mp.entity_id, source: sourceMatch });
+              const confirmed = await this._confirmSource(mp.entity_id, [sourceMatch]);
+              if (confirmed !== false) return { success: true };
+            } catch (e) {
+            }
+          }
+        }
         if (isInputCmd) {
           const act = inputActivityMap[cmdUpper] || "passthrough://media_0";
           let inputExecuted = false;
           let inputLastErr = null;
-          for (const mp of mediaPlayers) {
+          const attempt = async (fn) => {
             try {
-              await this._post("/api/services/media_player/select_source", { entity_id: mp.entity_id, source: command });
+              await fn();
               inputExecuted = true;
             } catch (e) {
               inputLastErr = e;
             }
-            if (isTvCmd && Array.isArray(mp.attributes?.source_list)) {
+          };
+          const confirmedSwitch = async (entityId, candidates) => {
+            const verdict = await this._confirmSource(entityId, candidates);
+            return verdict === true;
+          };
+          for (const mp of mediaPlayers) {
+            await attempt(() => this._post("/api/services/media_player/select_source", { entity_id: mp.entity_id, source: command }));
+            if (await confirmedSwitch(mp.entity_id, [command])) return { success: true };
+          }
+          if (isTvCmd) {
+            for (const mp of mediaPlayers) {
+              if (!Array.isArray(mp.attributes?.source_list)) continue;
               const matchedSource = mp.attributes.source_list.find((s) => {
                 const l = String(s).toLowerCase().trim();
                 return l === "tv" || l === "live tv" || l === "tv ao vivo" || l === "dtv" || l === "tv/dtv" || l === "antenna" || l === "tuner" || l === "sintonizador";
               });
-              if (matchedSource) {
-                try {
-                  await this._post("/api/services/media_player/select_source", { entity_id: mp.entity_id, source: matchedSource });
-                  inputExecuted = true;
-                } catch (e) {
-                  inputLastErr = e;
-                }
-              }
+              if (!matchedSource) continue;
+              await attempt(() => this._post("/api/services/media_player/select_source", { entity_id: mp.entity_id, source: matchedSource }));
+              if (await confirmedSwitch(mp.entity_id, [matchedSource, "tv", "live tv"])) return { success: true };
             }
           }
           for (const mp of mediaPlayers) {
-            try {
-              await this._post("/api/services/media_player/play_media", { entity_id: mp.entity_id, media_content_type: "app", media_content_id: act });
-              inputExecuted = true;
-            } catch (e) {
-              inputLastErr = e;
-            }
+            await attempt(() => this._post("/api/services/media_player/play_media", { entity_id: mp.entity_id, media_content_type: "app", media_content_id: act }));
+            if (await confirmedSwitch(mp.entity_id, [command, act])) return { success: true };
             if (isTvCmd) {
-              try {
-                await this._post("/api/services/media_player/play_media", { entity_id: mp.entity_id, media_content_type: "app", media_content_id: "com.tcl.tv" });
-                inputExecuted = true;
-              } catch (e) {
-                inputLastErr = e;
-              }
+              await attempt(() => this._post("/api/services/media_player/play_media", { entity_id: mp.entity_id, media_content_type: "app", media_content_id: "com.tcl.tv" }));
+              if (await confirmedSwitch(mp.entity_id, [command])) return { success: true };
             }
           }
           for (const rm of remotes) {
-            try {
-              await this._post("/api/services/remote/turn_on", { entity_id: rm.entity_id, activity: act });
-              inputExecuted = true;
-            } catch (e) {
-              inputLastErr = e;
-            }
+            await attempt(() => this._post("/api/services/remote/turn_on", { entity_id: rm.entity_id, activity: act }));
             for (const inputCmd of ["TV_INPUT", "INPUT", "TV", "LIVE_TV"]) {
-              try {
-                await this._post("/api/services/remote/send_command", { entity_id: rm.entity_id, command: [inputCmd] });
-                inputExecuted = true;
-              } catch (e) {
-                inputLastErr = e;
-              }
+              await attempt(() => this._post("/api/services/remote/send_command", { entity_id: rm.entity_id, command: [inputCmd] }));
             }
           }
           if (inputExecuted) return { success: true };
@@ -1522,31 +1653,11 @@ var require_homeAssistant = __commonJS({
             TV_INPUT: "TV_INPUT"
           };
           const targetCmd = remoteCmdMap[cmdUpper] || cmdUpper;
+          if (typeof targetCmd !== "string" || !/^[A-Za-z0-9_ -]+$/.test(targetCmd)) {
+            return { success: false, error: `Comando remoto inv\xE1lido: ${command}` };
+          }
           const commandArray = [targetCmd];
           return this._post("/api/services/remote/send_command", { entity_id: deviceId, command: commandArray, ...extra });
-        }
-        if (cmdUpper === "YOUTUBE" || cmdUpper === "NETFLIX") {
-          const sourceName = cmdUpper === "YOUTUBE" ? "YouTube" : "Netflix";
-          const appId = cmdUpper === "YOUTUBE" ? "com.google.android.youtube.tv" : "com.netflix.ninja";
-          try {
-            const res = await this.controlMedia(deviceId, "source", sourceName);
-            if (res?.success !== false) return res;
-          } catch (e) {
-          }
-          try {
-            const res = await this._post("/api/services/media_player/play_media", {
-              entity_id: deviceId,
-              media_content_type: "app",
-              media_content_id: appId
-            });
-            if (res?.success !== false) return res;
-          } catch (e) {
-          }
-          return this._post("/api/services/media_player/play_media", {
-            entity_id: deviceId,
-            media_content_type: "url",
-            media_content_id: cmdUpper === "YOUTUBE" ? "https://www.youtube.com" : "https://www.netflix.com"
-          });
         }
         if (["UP", "DOWN", "LEFT", "RIGHT", "ENTER", "OK", "BACK", "HOME", "MENU"].includes(cmdUpper)) {
           try {
@@ -1571,6 +1682,10 @@ var require_homeAssistant = __commonJS({
           volume_up: "volume_up",
           volume_down: "volume_down"
         };
+        const allowedActions = /* @__PURE__ */ new Set([...Object.keys(serviceMap), "volume", "mute", "unmute", "source"]);
+        if (typeof action !== "string" || !allowedActions.has(action)) {
+          return { success: false, error: `A\xE7\xE3o de m\xEDdia inv\xE1lida: ${action}` };
+        }
         if (action === "volume" && value !== void 0) {
           const level = Number(value) / 100;
           if (!Number.isFinite(level)) {
@@ -1590,10 +1705,16 @@ var require_homeAssistant = __commonJS({
         if (action === "source" && value) {
           return this._post("/api/services/media_player/select_source", { entity_id: deviceId, source: value });
         }
-        const service = serviceMap[action] || action;
+        const service = serviceMap[action];
+        if (!service) {
+          return { success: false, error: `A\xE7\xE3o de m\xEDdia inv\xE1lida: ${action}` };
+        }
         return this._post(`/api/services/${domain}/${service}`, { entity_id: deviceId });
       }
       async setClimate(deviceId, temperature, hvacMode) {
+        if ((temperature === void 0 || temperature === null || temperature === "") && !hvacMode) {
+          return { success: false, error: "Informe a temperatura ou o modo de opera\xE7\xE3o do clima." };
+        }
         const results = [];
         if (temperature !== void 0 && temperature !== null) {
           const tempNum = Number(temperature);
@@ -1656,7 +1777,7 @@ var require_homeAssistant = __commonJS({
           domain,
           icon: domainInfo.icon,
           provider: this.name,
-          room: attrs.area_id || attrs.area || "",
+          room: this._areaByEntity.get(state.entity_id) || attrs.area_id || attrs.area || "",
           online: rawState !== "unavailable" && rawState !== "unknown",
           state: {
             on: isOn,
@@ -1925,7 +2046,7 @@ var require_src = __commonJS({
     } catch (e) {
     }
     var TokenManager = require_tokenManager();
-    var { resolveBridge } = require_sdk_backend();
+    var { resolveBridge: resolveBridge2 } = require_sdk_backend();
     var HomeAssistantAuth = require_haAuth();
     var DeviceManager = require_deviceManager();
     var MomAIHomeConnector = class extends EventEmitter {
@@ -1967,7 +2088,7 @@ var require_src = __commonJS({
         return this;
       }
       _tokens(momai2) {
-        const bridge = this._attachedBridge || resolveBridge(momai2);
+        const bridge = this._attachedBridge || resolveBridge2(momai2);
         if (this.tokenManager) this.tokenManager.attachBridge(bridge);
         return this.tokenManager;
       }
@@ -2227,6 +2348,64 @@ var require_src = __commonJS({
   }
 });
 
+// src/shared/device.ts
+var device_exports = {};
+__export(device_exports, {
+  CONTROLLABLE_DOMAINS: () => CONTROLLABLE_DOMAINS,
+  DOMAIN_KEYS: () => DOMAIN_KEYS,
+  getDomainLabel: () => getDomainLabel,
+  getOverlaySizeForDomain: () => getOverlaySizeForDomain
+});
+function getDomainLabel(domain, t) {
+  const key = DOMAIN_KEYS[domain];
+  return key ? t(key) : domain;
+}
+function getOverlaySizeForDomain(domain) {
+  if (domain === "media_player" || domain === "remote") return { width: 320, height: 520 };
+  if (domain === "light") return { width: 320, height: 540 };
+  if (domain === "climate") return { width: 320, height: 460 };
+  return { width: 300, height: 440 };
+}
+var DOMAIN_KEYS, CONTROLLABLE_DOMAINS;
+var init_device = __esm({
+  "src/shared/device.ts"() {
+    DOMAIN_KEYS = {
+      light: "domains.light",
+      switch: "domains.switch",
+      fan: "domains.fan",
+      cover: "domains.cover",
+      lock: "domains.lock",
+      climate: "domains.climate",
+      sensor: "domains.sensor",
+      binary_sensor: "domains.binarySensor",
+      media_player: "domains.mediaPlayer",
+      camera: "domains.camera",
+      vacuum: "domains.vacuum",
+      scene: "domains.scene",
+      automation: "domains.automation",
+      alarm_control_panel: "domains.alarm",
+      remote: "domains.remote",
+      sun: "domains.sun",
+      weather: "domains.weather"
+    };
+    CONTROLLABLE_DOMAINS = [
+      "light",
+      "switch",
+      "fan",
+      "cover",
+      "lock",
+      "climate",
+      "media_player",
+      "vacuum",
+      "alarm_control_panel",
+      "camera",
+      "automation",
+      "scene",
+      "remote"
+    ];
+  }
+});
+
 // runtime.ts
 var path = require("path");
 var fs = require("fs");
@@ -2235,9 +2414,8 @@ try {
 } catch (e) {
 }
 var dataDir = process.env.MOMAI_NODE_CORE_DATA_DIR || process.env.MOMAI_DATA_DIR || path.join(__dirname, "data");
-var storageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR || dataDir;
-process.env.DB_PATH = process.env.DB_PATH || path.join(storageDir, "smarthome.sqlite");
 var connector = require_src();
+var { getOverlaySizeForDomain: getOverlaySizeForDomain2 } = (init_device(), __toCommonJS(device_exports));
 function safeSend(msg) {
   try {
     if (typeof process.send === "function") process.send(msg);
@@ -2251,70 +2429,51 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (reason) => {
   console.error("[runtime] Rejei\xE7\xE3o n\xE3o tratada no worker (continuando):", reason);
 });
-var deviceCache = { names: [], byRoom: {} };
 var ready = false;
 var ACTIONS_STORAGE_KEY = "actions-state_changed";
-var { getWorkerBridge, routeStorageResponse } = require_sdk_backend();
+var { getWorkerBridge, routeStorageResponse, resolveBridge } = require_sdk_backend();
 if (typeof process.send === "function") connector.attachBridge(getWorkerBridge());
 function getIpcStorage() {
-  return getWorkerBridge();
-}
-function useHostStorage() {
-  return typeof process.send === "function";
+  return resolveBridge();
 }
 function isValidAction(act) {
   return act && typeof act === "object" && typeof act.target === "string" && act.target.trim().length > 0;
 }
-function actionsConfigFile() {
-  return path.join(dataDir, "extensions", "momai-smarthome", "actions-state_changed.json");
-}
-function legacyActionsConfigFile() {
-  return path.join(dataDir, "extensions", "momaismarthome", "actions-state_changed.json");
+function legacyActionsConfigFiles() {
+  return [
+    // Canonical path usa hífen (id do registry = momai-smarthome). Mantém
+    // leitura do legado sem hífen para migração.
+    path.join(dataDir, "extensions", "momai-smarthome", "actions-state_changed.json"),
+    path.join(dataDir, "extensions", "momaismarthome", "actions-state_changed.json")
+  ];
 }
 function readLegacyActionsFile() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(actionsConfigFile(), "utf8"));
-    if (Array.isArray(parsed)) return parsed.filter(isValidAction);
-  } catch {
+  for (const file of legacyActionsConfigFiles()) {
     try {
-      const parsed = JSON.parse(fs.readFileSync(legacyActionsConfigFile(), "utf8"));
+      const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
       if (Array.isArray(parsed)) return parsed.filter(isValidAction);
     } catch {
-      return [];
     }
   }
   return [];
 }
 async function loadConfiguredActions() {
-  if (useHostStorage()) {
-    try {
-      const stored = await getIpcStorage().storage.get(ACTIONS_STORAGE_KEY);
-      if (Array.isArray(stored)) return stored.filter(isValidAction);
-      const legacy = readLegacyActionsFile();
-      if (legacy.length > 0) {
-        getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, legacy).catch(() => {
-        });
-        return legacy;
-      }
-      return [];
-    } catch {
-      return readLegacyActionsFile();
-    }
+  try {
+    const stored = await getIpcStorage().storage.get(ACTIONS_STORAGE_KEY);
+    if (Array.isArray(stored)) return stored.filter(isValidAction);
+  } catch {
   }
-  return readLegacyActionsFile();
+  const legacy = readLegacyActionsFile();
+  if (legacy.length > 0) {
+    getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, legacy).catch(() => {
+    });
+    return legacy;
+  }
+  return [];
 }
 async function saveConfiguredActions(actions) {
   const valid = Array.isArray(actions) ? actions.filter(isValidAction) : [];
-  if (useHostStorage()) {
-    try {
-      await getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, valid);
-      return;
-    } catch {
-    }
-  }
-  const file = actionsConfigFile();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(valid, null, 2));
+  await getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, valid);
 }
 async function init() {
   try {
@@ -2393,16 +2552,7 @@ async function refreshDeviceCache() {
   try {
     await connector.ensureConnected().catch(() => {
     });
-    const devices = typeof connector.syncDevices === "function" ? await connector.syncDevices() : await connector.getDevices();
-    const names = devices.map((d) => `${d.name} (${d.id})`);
-    const byRoom = {};
-    for (const d of devices) {
-      const room = d.room || "outros";
-      if (!byRoom[room]) byRoom[room] = [];
-      byRoom[room].push(d.name);
-    }
-    deviceCache = { names, byRoom };
-    return devices;
+    return typeof connector.syncDevices === "function" ? await connector.syncDevices() : await connector.getDevices();
   } catch {
     return [];
   }
@@ -2412,7 +2562,7 @@ var syncInterval = setInterval(async () => {
     await refreshDeviceCache().catch(() => {
     });
   }
-}, 3e4);
+}, 3e5);
 if (typeof syncInterval.unref === "function") syncInterval.unref();
 var tools = module.exports.tools = [
   {
@@ -2640,29 +2790,50 @@ process.on("disconnect", () => {
 function normalizeString(str) {
   return String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
-var CLIMATE_MODE_LABELS = {
-  cool: "frio",
-  heat: "quente",
-  fan_only: "ventila\xE7\xE3o",
-  auto: "autom\xE1tico",
-  dry: "seco",
-  heat_cool: "autom\xE1tico (aquecer/resfriar)",
-  off: "desligado"
-};
-function deviceStateLabel(device) {
+function deviceStateCode(device) {
   const domain = device?.domain;
   const raw = String(device?.state?.rawState ?? "").toLowerCase().trim();
   const on = Boolean(device?.state?.on);
   if (domain === "climate") {
-    return CLIMATE_MODE_LABELS[raw] || raw || (on ? "ligado" : "desligado");
+    return raw || (on ? "on" : "off");
   }
   if (domain === "sensor" || domain === "binary_sensor" || domain === "sun" || domain === "weather") {
-    if (raw === "on" || raw === "home" || raw === "active" || raw === "above_horizon") return "ativo";
-    if (raw === "off" || raw === "away" || raw === "closed" || raw === "below_horizon") return "inativo";
-    if (raw) return raw;
-    return on ? "ativo" : "inativo";
+    return raw || (on ? "on" : "off");
   }
   return on ? "on" : "off";
+}
+var STOP_WORDS = /* @__PURE__ */ new Set(["da", "do", "das", "dos", "de", "a", "o", "e", "para", "com", "meu", "minha", "seu", "sua"]);
+var SYNONYMS = {
+  tv: ["televisao", "television", "tv", "media_player", "remote"],
+  televisao: ["tv", "television", "televisao", "media_player"],
+  luz: ["lampada", "iluminacao", "light", "led"],
+  lampada: ["luz", "iluminacao", "light", "led"],
+  ar: ["clima", "termostato", "arcondicionado", "climate"],
+  clima: ["ar", "termostato", "climate"]
+};
+function queryTokens(normQuery) {
+  return normQuery.split(/\s+/).map((w) => w.replace(/[^a-z0-9]/g, "")).filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
+}
+function scoreDeviceMatch(tokens, device) {
+  const normName = normalizeString(device.name);
+  const normId = normalizeString(device.id);
+  const normRoom = normalizeString(device.room);
+  let score = 0;
+  for (const token of tokens) {
+    const matchPatterns = SYNONYMS[token] || [token];
+    if (matchPatterns.some((p) => normName.includes(p))) score += 3;
+    if (matchPatterns.some((p) => normId.includes(p))) score += 2;
+    if (matchPatterns.some((p) => normRoom.includes(p))) score += 2;
+  }
+  return score;
+}
+function rankDeviceMatches(query, devices) {
+  if (!query || typeof query !== "string" || !Array.isArray(devices) || devices.length === 0) return [];
+  const normQuery = normalizeString(query);
+  if (!normQuery) return [];
+  const tokens = queryTokens(normQuery);
+  if (tokens.length === 0) return [];
+  return devices.map((device) => ({ device, score: scoreDeviceMatch(tokens, device) })).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score);
 }
 function matchDeviceFromList(query, devices) {
   if (!query || typeof query !== "string" || !Array.isArray(devices) || devices.length === 0) return null;
@@ -2676,39 +2847,43 @@ function matchDeviceFromList(query, devices) {
     (d) => normalizeString(d.name).includes(normQuery) || normalizeString(d.id).includes(normQuery)
   );
   if (partial) return partial;
-  const STOP_WORDS = /* @__PURE__ */ new Set(["da", "do", "das", "dos", "de", "a", "o", "e", "para", "com", "meu", "minha", "seu", "sua"]);
-  const tokens = normQuery.split(/\s+/).map((w) => w.replace(/[^a-z0-9]/g, "")).filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
-  if (tokens.length === 0) return null;
-  const SYNONYMS = {
-    tv: ["televisao", "television", "tv", "media_player", "remote"],
-    televisao: ["tv", "television", "televisao", "media_player"],
-    luz: ["lampada", "iluminacao", "light", "led"],
-    lampada: ["luz", "iluminacao", "light", "led"],
-    ar: ["clima", "termostato", "arcondicionado", "climate"],
-    clima: ["ar", "termostato", "climate"]
+  const ranked = rankDeviceMatches(query, devices);
+  return ranked.length > 0 ? ranked[0].device : null;
+}
+function summarizeDevice(device) {
+  return {
+    name: device.name,
+    id: device.id,
+    room: device.room || null,
+    domain: device.domain,
+    type: device.type || device.domain
   };
-  let bestDevice = null;
-  let maxScore = 0;
-  for (const device of devices) {
-    const normName = normalizeString(device.name);
-    const normId = normalizeString(device.id);
-    const normRoom = normalizeString(device.room);
-    let score = 0;
-    for (const token of tokens) {
-      const matchPatterns = SYNONYMS[token] || [token];
-      const matchesName = matchPatterns.some((p) => normName.includes(p));
-      const matchesId = matchPatterns.some((p) => normId.includes(p));
-      const matchesRoom = matchPatterns.some((p) => normRoom.includes(p));
-      if (matchesName) score += 3;
-      if (matchesId) score += 2;
-      if (matchesRoom) score += 2;
-    }
-    if (score > maxScore) {
-      maxScore = score;
-      bestDevice = device;
-    }
+}
+function resolveDeviceQuery(query, devices) {
+  if (!query || typeof query !== "string" || !Array.isArray(devices) || devices.length === 0) {
+    return { device: null, candidates: [] };
   }
-  return maxScore > 0 ? bestDevice : null;
+  const normQuery = normalizeString(query);
+  if (!normQuery) return { device: null, candidates: [] };
+  const exact = devices.find(
+    (d) => normalizeString(d.name) === normQuery || normalizeString(d.id) === normQuery
+  );
+  if (exact) return { device: exact, candidates: [] };
+  const ranked = rankDeviceMatches(query, devices);
+  if (ranked.length === 0) return { device: null, candidates: [] };
+  const topScore = ranked[0].score;
+  const tied = ranked.filter((entry) => entry.score === topScore).map((entry) => entry.device);
+  if (tied.length > 1 || tied[0].domain === "lock") {
+    return { device: null, candidates: tied.slice(0, 5) };
+  }
+  return { device: tied[0], candidates: [] };
+}
+async function resolveDevice(query, momai2) {
+  if (!query || typeof query !== "string") return { device: null, candidates: [] };
+  await connector.ensureConnected(momai2).catch(() => {
+  });
+  const devices = await connector.getDevices().catch(() => []);
+  return resolveDeviceQuery(query, devices);
 }
 async function matchDevice(query, momai2) {
   if (!query || typeof query !== "string") return null;
@@ -2716,6 +2891,14 @@ async function matchDevice(query, momai2) {
   });
   const devices = await connector.getDevices().catch(() => []);
   return matchDeviceFromList(query, devices);
+}
+function ambiguousDeviceResult(query, candidates) {
+  return {
+    ok: false,
+    ambiguous: true,
+    candidates: candidates.map(summarizeDevice),
+    error: `Mais de um dispositivo corresponde a "${query}".`
+  };
 }
 async function executeTool(toolName, args, momai2) {
   if (typeof toolName === "object" && toolName !== null) {
@@ -2740,7 +2923,12 @@ async function executeTool(toolName, args, momai2) {
           instruction: `Erro: Informe device_name e action. Dispositivos dispon\xEDveis: ${names || "Nenhum conectado"}`
         };
       }
-      const device = await matchDevice(args.device_name, momai2);
+      if (!["on", "off", "toggle"].includes(args.action)) {
+        return { ok: false, error: `A\xE7\xE3o inv\xE1lida: ${args.action}. Use on, off ou toggle.` };
+      }
+      const resolution = await resolveDevice(args.device_name, momai2);
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates);
+      const device = resolution.device;
       if (!device) {
         const all = await connector.getDevices();
         const errorMsg = `Dispositivo "${args.device_name}" n\xE3o encontrado. Dispon\xEDveis: ${all.map((d) => d.name).join(", ")}`;
@@ -2759,7 +2947,6 @@ async function executeTool(toolName, args, momai2) {
       } else {
         result = await connector.turnOffDevice(device.id, provider);
       }
-      await refreshDeviceCache();
       if (result && result.success === false) {
         const errorMsg = `Falha ao ${args.action === "on" ? "ligar" : "desligar"} "${device.name}": ${result.error || "erro desconhecido"}`;
         return { ok: false, error: errorMsg, instruction: errorMsg };
@@ -2769,7 +2956,12 @@ async function executeTool(toolName, args, momai2) {
     }
     case "set_light_color": {
       if (!args.device_name) return { ok: false, error: "Informe device_name", instruction: "Informe device_name" };
-      const device = await matchDevice(args.device_name, momai2);
+      if (args.color == null && args.brightness == null && args.color_temp == null) {
+        return { ok: false, error: "Informe ao menos color, brightness ou color_temp.", instruction: "Informe ao menos color, brightness ou color_temp." };
+      }
+      const resolution = await resolveDevice(args.device_name, momai2);
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates);
+      const device = resolution.device;
       if (!device) {
         const all = await connector.getDevices();
         const errorMsg = `Dispositivo "${args.device_name}" n\xE3o encontrado. Dispon\xEDveis: ${all.map((d) => d.name).join(", ")}`;
@@ -2781,14 +2973,15 @@ async function executeTool(toolName, args, momai2) {
         brightness: args.brightness,
         color_temp: args.color_temp
       });
-      await refreshDeviceCache();
       if (result && result.success === false) return { ok: false, error: result.error || "Falha ao atualizar a luz", instruction: result.error || "Falha ao atualizar a luz" };
       const successMsg = `Luz "${device.name}" ajustada com sucesso.`;
       return { ok: true, device: device.name, result, instruction: successMsg };
     }
     case "control_tv_remote": {
       if (!args.device_name) return { ok: false, error: "Informe device_name", instruction: "Informe device_name" };
-      const device = await matchDevice(args.device_name, momai2);
+      const resolution = await resolveDevice(args.device_name, momai2);
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates);
+      const device = resolution.device;
       if (!device) {
         const all = await connector.getDevices();
         const errorMsg = `Dispositivo "${args.device_name}" n\xE3o encontrado. Dispon\xEDveis: ${all.map((d) => d.name).join(", ")}`;
@@ -2809,7 +3002,12 @@ async function executeTool(toolName, args, momai2) {
     }
     case "control_climate": {
       if (!args.device_name) return { ok: false, error: "Informe device_name", instruction: "Informe device_name" };
-      const device = await matchDevice(args.device_name, momai2);
+      if ((args.temperature === void 0 || args.temperature === null || args.temperature === "") && !args.hvac_mode) {
+        return { ok: false, error: "Informe temperature ou hvac_mode.", instruction: "Informe temperature ou hvac_mode." };
+      }
+      const resolution = await resolveDevice(args.device_name, momai2);
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates);
+      const device = resolution.device;
       if (!device) {
         const all = await connector.getDevices();
         const errorMsg = `Dispositivo "${args.device_name}" n\xE3o encontrado. Dispon\xEDveis: ${all.map((d) => d.name).join(", ")}`;
@@ -2830,8 +3028,7 @@ async function executeTool(toolName, args, momai2) {
     case "list_devices": {
       await connector.ensureConnected(momai2).catch(() => {
       });
-      const devices = await connector.getDevices(args.connectionId);
-      if ((!devices || devices.length === 0) && !connector.isConnected) {
+      if (!connector.isConnected) {
         const conns = await connector.listConnections().catch(() => []);
         if (conns.length === 0) {
           return {
@@ -2846,13 +3043,14 @@ async function executeTool(toolName, args, momai2) {
           instruction: "Erro: N\xE3o foi poss\xEDvel se conectar ao Home Assistant. Verifique a URL, token ou status da rede."
         };
       }
-      const filtered = args.room ? devices.filter((d) => d.room?.toLowerCase() === args.room.toLowerCase()) : devices;
+      const devices = await connector.getDevices(args.connectionId);
+      const filtered = args.room ? devices.filter((d) => normalizeString(d.room) === normalizeString(args.room)) : devices;
       const list = filtered.map((d) => ({
         name: d.name,
         id: d.id,
         type: d.domain,
         room: d.room || null,
-        state: deviceStateLabel(d),
+        state: deviceStateCode(d),
         value: d.domain === "sensor" ? d.state.value : null,
         temperature: d.state.temperature || d.state.targetTemperature || null,
         brightness: d.state.brightness || null
@@ -2867,7 +3065,10 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
       };
     }
     case "query_device": {
-      const device = await matchDevice(args.device_name, momai2);
+      if (!args.device_name) return { ok: false, error: "Informe device_name", instruction: "Informe device_name" };
+      const resolution = await resolveDevice(args.device_name, momai2);
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates);
+      const device = resolution.device;
       if (!device) {
         const all = await connector.getDevices().catch(() => []);
         const names = all.map((d) => d.name).join(", ");
@@ -2891,42 +3092,13 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
         const message = "Smart Home desconectado: n\xE3o foi poss\xEDvel alcan\xE7ar o Home Assistant. Verifique se ele est\xE1 ligado e na mesma rede, confira a URL e o token, reconecte no painel do MomAI Smart Home e tente novamente. Nenhum painel foi aberto.";
         return { ok: false, error: message, instruction: message };
       }
-      let device = matchDeviceFromList(args.device_name, allDevices);
-      if (!device && allDevices.length > 0) {
-        device = allDevices.find((d) => d.domain === "media_player" || d.domain === "remote" || d.domain === "tv");
-      }
+      const resolution = resolveDeviceQuery(args.device_name, allDevices);
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates);
+      const device = resolution.device;
       if (!device) {
-        const rawName = String(args.device_name || "Controle").trim();
-        const norm = normalizeString(rawName);
-        let domain = "media_player";
-        if (norm.includes("luz") || norm.includes("lampada") || norm.includes("iluminacao") || norm.includes("led")) {
-          domain = "light";
-        } else if (norm.includes("ar") || norm.includes("clima") || norm.includes("arcondicionado") || norm.includes("termostato")) {
-          domain = "climate";
-        }
-        device = {
-          id: `${domain}_custom`,
-          name: rawName || "Controle Remoto",
-          domain,
-          provider: "homeassistant",
-          state: { on: false },
-          attributes: {}
-        };
-      }
-      let overlayWidth = 320;
-      let overlayHeight = 540;
-      if (device.domain === "media_player" || device.domain === "remote") {
-        overlayWidth = 320;
-        overlayHeight = 520;
-      } else if (device.domain === "light") {
-        overlayWidth = 320;
-        overlayHeight = 540;
-      } else if (device.domain === "climate") {
-        overlayWidth = 320;
-        overlayHeight = 460;
-      } else {
-        overlayWidth = 300;
-        overlayHeight = 440;
+        const names = allDevices.map((d) => d.name).join(", ");
+        const errorMsg = `Dispositivo "${args.device_name}" n\xE3o encontrado.${names ? " Dispon\xEDveis: " + names : ""}`;
+        return { ok: false, error: errorMsg, instruction: errorMsg };
       }
       const overlayPayload = {
         skillId: "momai-smarthome",
@@ -2934,7 +3106,7 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
         panelType: "momaismarthome-panel",
         strategy: "replace",
         overlayId: device.id,
-        overlaySize: { width: overlayWidth, height: overlayHeight },
+        overlaySize: getOverlaySizeForDomain2(device.domain),
         structuredResponse: {
           type: "momaismarthome-panel",
           data: {
@@ -3009,7 +3181,6 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
       await connector.ensureConnected(momai2).catch(() => {
       });
       const devices = typeof connector.syncDevices === "function" ? await connector.syncDevices(args.connectionId) : await connector.getDevices(args.connectionId);
-      await refreshDeviceCache();
       return { ok: true, devices };
     }
     case "getDeviceState": {
@@ -3018,22 +3189,18 @@ Responda apresentando essa lista ao usu\xE1rio de forma clara.`
     }
     case "turnOnDevice": {
       const result = await connector.turnOnDevice(args.deviceId, args.providerType, args.params || {});
-      await refreshDeviceCache();
       return { ok: result?.success !== false, ...result };
     }
     case "turnOffDevice": {
       const result = await connector.turnOffDevice(args.deviceId, args.providerType, args.params || {});
-      await refreshDeviceCache();
       return { ok: result?.success !== false, ...result };
     }
     case "toggleDevice": {
       const result = await connector.toggleDevice(args.deviceId, args.providerType);
-      await refreshDeviceCache();
       return { ok: result?.success !== false, ...result };
     }
     case "setClimate": {
       const result = await connector.setClimate(args.deviceId, args.temperature, args.hvacMode, args.providerType);
-      await refreshDeviceCache();
       return { ok: result?.success !== false, ...result };
     }
     case "listConnections": {

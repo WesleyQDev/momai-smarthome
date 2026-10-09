@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      better-sqlite3:
-        specifier: ^13.0.2
-        version: 13.0.2
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -177,10 +174,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  better-sqlite3@13.0.2:
-    resolution: {integrity: sha512-jW6oufeDhXZaiX9Lw5A+oerVClx4iFrI6uDj1zu7SqUAjak9vbJvA0NEcKLNxHiQHb6kYCoFzzXYV0YOauhV3g==}
-    engines: {node: '>=22'}
-
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
     engines: {node: '>=12'}
@@ -189,10 +182,6 @@ packages:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
     engines: {node: '>=18'}
     hasBin: true
-
-  node-addon-api@8.9.0:
-    resolution: {integrity: sha512-ekZMeaaIzSQTSpr7X2X3iJM7lTzgnx8ahAG9pJfT/7+14mlEM8ZYQ9cgCDvSSRbReFK0oHli3WrZdCiRsgAT9Q==}
-    engines: {node: ^18 || ^20 || >= 21}
 
 snapshots:
 
@@ -274,10 +263,6 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
-  better-sqlite3@13.0.2:
-    dependencies:
-      node-addon-api: 8.9.0
-
   dotenv@16.6.1: {}
 
   esbuild@0.25.12:
@@ -308,5 +293,3 @@ snapshots:
       '@esbuild/win32-arm64': 0.25.12
       '@esbuild/win32-ia32': 0.25.12
       '@esbuild/win32-x64': 0.25.12
-
-  node-addon-api@8.9.0: {}

@@ -24,22 +24,28 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install production dependencies
-        run: pnpm install --prod --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
 
       - name: Build UI bundles
         run: node build.mjs
+
+      - name: Prune dev dependencies
+        run: pnpm prune --prod
 
       - name: Verify runtime deps resolve
         run: |
           for dep in $(node -p "Object.keys(require('./package.json').dependencies||{}).join(' ')");
           do test -d "node_modules/$dep" || { echo "Missing runtime dep: $dep"; exit 1; }; done
 
-      - name: Create release ZIP with node_modules
+      - name: Create release ZIP
         run: |
           ZIP="MomAISmartHome-${GITHUB_REF_NAME}.zip"
-          zip -r "$ZIP" manifest.json SKILL.md runtime.ts package.json README.md LICENSE icon.svg icon.png app.png \
-            dist src node_modules -x "node_modules/.cache/*"
+          zip -r "$ZIP" manifest.json SKILL.md package.json README.md README.en-US.md README.es.md README.fr.md README.de.md README.it.md \
+            LICENSE icon.png app.png dist node_modules -x "node_modules/.cache/*"
           echo "asset=$ZIP" >> "$GITHUB_ENV"
 
       - name: Publish release

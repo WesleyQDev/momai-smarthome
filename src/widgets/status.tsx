@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { translateSh, useSmartHomeI18n } from '../i18n/index'
 import type { WidgetProps } from './types'
 import { isOnState, useStatusWidget } from './hooks/useStatusWidget'
+import { stateLabel } from './stateLabel'
 import {
   isStatusConfigCustomized,
   resolveStatusLimit,
@@ -46,7 +47,7 @@ export default function SmarthomeStatusWidget({
             >
               <span className="text-xs text-text truncate">{device.name}</span>
               <span className={isOnState(device.state) ? 'text-[10px] font-bold text-accent' : 'text-[10px] text-text-muted'}>
-                {device.state}
+                {stateLabel(device.state, t)}
               </span>
             </div>
           ))}

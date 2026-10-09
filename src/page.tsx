@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useExtensionVisibility } from 'momai:sdk'
 import iconPng from '../icon.png'
 import ContextMenu from './components/ContextMenu'
 import { DeviceControlCardContent } from './components/DeviceControlContent'
 import { SmartHomeStyles } from './styles'
-import { SmartHomeI18nProvider, useSmartHomeI18n, translateSh } from './i18n'
+import { SmartHomeI18nProvider, useSmartHomeI18n } from './i18n'
+import { extFetch, getApiBaseUrl } from './shared/hostApi'
+import {
+  CONTROLLABLE_DOMAINS,
+  DOMAIN_KEYS,
+  getOverlaySizeForDomain,
+  type Device
+} from './shared/device'
 import {
   SvgHome,
   SvgSmartHomeLogo,
@@ -62,58 +70,6 @@ import {
   getWeatherSvgIcon
 } from './components/SvgIcons'
 
-interface EntityState {
-  on?: boolean
-  brightness?: number | null
-  temperature?: number | null
-  targetTemperature?: number | null
-  hvacMode?: string
-  hvacModes?: string[]
-  position?: number | null
-  isOpen?: boolean
-  value?: string
-  unit?: string
-  locked?: boolean
-  volume?: number | null
-  mediaTitle?: string | null
-  colorTemp?: number | null
-  rawState?: string
-  elevation?: number | null
-  azimuth?: number | null
-  rising?: boolean
-  humidity?: number | null
-  pressure?: number | null
-  windSpeed?: number | null
-  deviceClass?: string
-}
-
-interface EntityAttributes {
-  supported?: string[]
-  next_rising?: string
-  next_setting?: string
-  next_dawn?: string
-  next_dusk?: string
-  deviceClass?: string
-  unitOfMeasurement?: string
-  haIcon?: string
-  source_list?: string[]
-  relatedEntities?: Device[]
-  [key: string]: unknown
-}
-
-interface Device {
-  id: string
-  name: string
-  type: string
-  domain: string
-  icon: string
-  room: string
-  provider: string
-  online: boolean
-  state: EntityState
-  attributes: EntityAttributes
-}
-
 interface Connection {
   id: string
   provider_type: string
@@ -121,47 +77,6 @@ interface Connection {
   user_email: string
   updated_at: string
 }
-
-const DOMAIN_KEYS: Record<string, string> = {
-  light: 'domains.light',
-  switch: 'domains.switch',
-  fan: 'domains.fan',
-  cover: 'domains.cover',
-  lock: 'domains.lock',
-  climate: 'domains.climate',
-  sensor: 'domains.sensor',
-  binary_sensor: 'domains.binarySensor',
-  media_player: 'domains.mediaPlayer',
-  camera: 'domains.camera',
-  vacuum: 'domains.vacuum',
-  scene: 'domains.scene',
-  automation: 'domains.automation',
-  alarm_control_panel: 'domains.alarm',
-  remote: 'domains.remote',
-  sun: 'domains.sun',
-  weather: 'domains.weather'
-}
-
-function getDomainLabel(domain: string, t: (key: string) => string): string {
-  const key = DOMAIN_KEYS[domain]
-  return key ? t(key) : domain
-}
-
-const CONTROLLABLE_DOMAINS = [
-  'light',
-  'switch',
-  'fan',
-  'cover',
-  'lock',
-  'climate',
-  'media_player',
-  'vacuum',
-  'alarm_control_panel',
-  'camera',
-  'automation',
-  'scene',
-  'remote'
-]
 
 interface BackendApi {
   connectToHomeAssistant(url: string, token: string, name?: string): Promise<any>
@@ -179,51 +94,6 @@ interface BackendApi {
 }
 
 const EXT_ID = 'momai-smarthome'
-
-function getApiBase(): string {
-  return (typeof window !== 'undefined' && (window as any).api?.getApiBaseUrl?.()) || 'http://127.0.0.1:8050'
-}
-
-function getSessionToken(): string {
-  return (typeof window !== 'undefined' && (window as any).api?.getSessionToken?.()) || ''
-}
-
-const EXT_FETCH_TIMEOUT_MS = 10000
-
-// fetch com timeout/AbortController: se o node-core/worker não responder, a
-// promessa resolve com um objeto de erro em vez de pendurar para sempre —
-// sem isso, um worker morto deixava a página em "Carregando" infinito.
-function extFetch(path: string, body?: any): Promise<any> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), EXT_FETCH_TIMEOUT_MS)
-  const url = `${getApiBase()}${path}`
-  return fetch(url, {
-    method: body ? 'POST' : 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Session-Token': getSessionToken()
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: controller.signal
-  })
-    .then((r) => {
-      try {
-        return r.json()
-      } catch {
-        return {}
-      }
-    })
-    .catch((err) => {
-      const aborted = err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.code === 20)
-      return {
-        ok: false,
-        error: aborted
-          ? translateSh('panel.timeout')
-          : (err?.message || translateSh('panel.networkError'))
-      }
-    })
-    .finally(() => clearTimeout(timer))
-}
 
 async function sendCommand(toolName: string, args: any = {}): Promise<any> {
   const res = await extFetch(`/extensions/${EXT_ID}/command`, { toolName, args })
@@ -314,16 +184,6 @@ function formatEntityValue(value?: string | number | null, unit?: string, device
   }
 
   return { primary: str }
-}
-
-// Tamanho da janela overlay por domínio — espelha o cálculo do runtime.ts no
-// caso `open_device_control`, para o overlay aberto pelo clique no card ter o
-// mesmo tamanho do overlay aberto pelo chat.
-function getOverlaySizeForDomain(domain: string): { width: number; height: number } {
-  if (domain === 'media_player' || domain === 'remote') return { width: 320, height: 520 }
-  if (domain === 'light') return { width: 320, height: 540 }
-  if (domain === 'climate') return { width: 320, height: 460 }
-  return { width: 300, height: 440 }
 }
 
 // Abre o MESMO overlay flutuante usado quando o controle é solicitado no chat
@@ -1287,7 +1147,8 @@ function ShSearchableInput({
   )
 }
 
-export function SmartHomePageInner(_props?: Record<string, unknown>) {
+export function SmartHomePageInner(props?: { isActive?: boolean } & Record<string, unknown>) {
+  const isPageActive = useExtensionVisibility(props?.isActive, 'momai-smarthome')
   const { t } = useSmartHomeI18n()
   const [connections, setConnections] = useState<Connection[]>(() => {
     try {
@@ -1341,6 +1202,7 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
   const [connectError, setConnectError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const contentRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     loadStatus()
@@ -1355,11 +1217,27 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
     return () => clearTimeout(t)
   }, [loading])
 
-  // Auto-sync: 5s quando conectado, ~20s quando offline (só para detectar a
-  // volta do servidor). Polling agressivo com HA offline gerava uma cascata de
-  // timeouts/cooldowns a cada 5s; o SSE já cobre atualizações em tempo real.
+  // While offline the device grid is stale: close open popups and block
+  // pointer/keyboard interaction so nobody acts on a dead interface.
   useEffect(() => {
-    if (!hasSavedConnection) return
+    if (isConnected) return
+    setSelectedDevice(null)
+    setDeviceMenu(null)
+  }, [isConnected])
+
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    const target = el as HTMLDivElement & { inert?: boolean }
+    target.inert = !isConnected
+  }, [isConnected, hasSavedConnection])
+
+  // Auto-sync: 60s quando conectado, 30s quando offline (só para detectar a
+  // volta do servidor). O SSE já cobre as atualizações em tempo real; o poll
+  // completo existe apenas para reconciliar a lista de dispositivos.
+  // Pausa quando a aba estiver em segundo plano para poupar rede e CPU.
+  useEffect(() => {
+    if (!hasSavedConnection || !isPageActive) return
 
     let timer: ReturnType<typeof setTimeout> | null = null
     let cancelled = false
@@ -1373,7 +1251,8 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
 
         setIsConnected(connected)
         if (!connected) {
-          setDevices([])
+          // Keep the cached devices on screen; the reconnecting layer marks
+          // them as stale instead of replacing the whole page.
           if (status?.lastError || haProvider?.error) {
             setConnectError(status?.lastError || haProvider?.error || null)
           }
@@ -1385,10 +1264,10 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
             setDevices(deduplicated)
           }
         }
-        timer = setTimeout(tick, connected ? 5000 : 20000)
+        timer = setTimeout(tick, connected ? 60000 : 30000)
       } catch (err) {
         console.warn('[SmartHome] Erro na sincronização periódica:', err)
-        timer = setTimeout(tick, 20000)
+        timer = setTimeout(tick, 30000)
       }
     }
 
@@ -1397,16 +1276,16 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [hasSavedConnection])
+  }, [hasSavedConnection, isPageActive])
 
   // Listen for real-time state_changed & connection_changed events via SSE stream
   useEffect(() => {
-    if (!hasSavedConnection) return
+    if (!hasSavedConnection || !isPageActive) return
 
     let eventSource: EventSource | null = null
 
     try {
-      const sseUrl = `${getApiBase()}/extensions/events`
+      const sseUrl = `${getApiBaseUrl()}/extensions/events`
       eventSource = new EventSource(sseUrl)
 
       eventSource.onmessage = (event) => {
@@ -1417,7 +1296,6 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
               const connected = Boolean(payload.data?.connected)
               setIsConnected(connected)
               if (!connected) {
-                setDevices([])
                 if (payload.data?.error) setConnectError(payload.data.error)
               } else {
                 setConnectError(null)
@@ -1487,7 +1365,6 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
         const deduplicated = deduplicateDevicesByName(devs)
         setDevices(deduplicated)
       } else {
-        setDevices([])
         setConnectError(status?.lastError || haProvider?.error || t('errors.serverUnavailable'))
       }
     } catch (err: any) {
@@ -1623,28 +1500,31 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
     }
   }
 
+  // Updates the local UI state only (no command). Used by the floating control
+  // card, which sends the service itself — otherwise every toggle would be
+  // sent twice.
+  const applyLocalDeviceState = (device: Device) => {
+    const nextOn = Boolean(device.state.on)
+    setDevices((prev) =>
+      prev.map((d) => (d.id === device.id ? { ...d, state: { ...d.state, on: nextOn } } : d))
+    )
+    setSelectedDevice((prev) => (prev && prev.id === device.id ? { ...prev, state: { ...prev.state, on: nextOn } } : prev))
+  }
+
   const toggleDevice = async (device: Device) => {
     const providerType = device.provider?.toLowerCase().replace(/\s+/g, '') || 'homeassistant'
     const related = (device.attributes.relatedEntities as Device[]) || [device]
+    const nextOn = !device.state.on
 
     for (const target of related) {
-      if (device.state.on) {
-        await api.turnOffDevice(target.id, providerType)
-      } else {
+      if (nextOn) {
         await api.turnOnDevice(target.id, providerType)
+      } else {
+        await api.turnOffDevice(target.id, providerType)
       }
     }
 
-    setDevices((prev) =>
-      prev.map((d) =>
-        d.name.toLowerCase().trim() === device.name.toLowerCase().trim()
-          ? { ...d, state: { ...d.state, on: !device.state.on } }
-          : d
-      )
-    )
-    if (selectedDevice?.name.toLowerCase().trim() === device.name.toLowerCase().trim()) {
-      setSelectedDevice((prev) => (prev ? { ...prev, state: { ...prev.state, on: !prev.state.on } } : null))
-    }
+    applyLocalDeviceState({ ...device, state: { ...device.state, on: nextOn } })
   }
 
   const setBrightness = async (device: Device, brightness: number) => {
@@ -1737,15 +1617,6 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
             </form>
           </div>
         </div>
-      )}
-
-      {selectedDevice && (
-        <DeviceControlModal
-          device={selectedDevice}
-          allDevices={devices}
-          onClose={() => setSelectedDevice(null)}
-          onToggle={toggleDevice}
-        />
       )}
 
       {loading && !hasSavedConnection ? (
@@ -1897,9 +1768,12 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
                 <span>{isSyncing ? t('connect.syncing') : t('connect.resync')}</span>
               </button>
 
-              <div className={`sh-badge ${!isConnected ? 'sh-badge-offline' : ''}`}>
+              <div
+                className={`sh-badge ${!isConnected ? 'sh-badge-offline' : ''}`}
+                title={!isConnected && connectError ? connectError : undefined}
+              >
                 <span className="sh-dot" />
-                <span>{isConnected ? 'Home Assistant' : t('status.disconnected')}</span>
+                <span>{isConnected ? 'Home Assistant' : t('status.reconnecting')}</span>
               </div>
 
               <button className="sh-btn sh-btn-danger" onClick={handleDisconnectAll}>
@@ -1909,67 +1783,15 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
             </div>
           </div>
 
-          {!isConnected ? (
-            /* RECONNECTING CARD WHEN HOME ASSISTANT IS OFFLINE */
-            <div className="sh-reconnect-container">
-              <div className="sh-reconnect-card">
-                <div className="sh-reconnect-icon-box">
-                  <SvgAlert size={28} color="currentColor" />
-                </div>
-                <h2 className="sh-reconnect-title">{t('status.unavailable')}</h2>
-                <p className="sh-reconnect-sub">
-                  {t('status.unavailableSub')}
-                </p>
-
-                {haUrl && (
-                  <div className="sh-reconnect-url-tag">
-                    <SvgWifi size={13} color="currentColor" />
-                    <span>{haUrl}</span>
-                  </div>
-                )}
-
-                {connectError && (
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    borderRadius: '12px',
-                    padding: '10px 14px',
-                    color: '#ef4444',
-                    fontSize: '12px',
-                    marginBottom: '24px',
-                    textAlign: 'center',
-                    lineHeight: '1.4'
-                  }}>
-                    {connectError}
-                  </div>
-                )}
-
-                <div className="sh-reconnect-actions">
-                  <button
-                    className="sh-btn-primary"
-                    onClick={handleResync}
-                    disabled={isSyncing}
-                    style={{ padding: '10px 18px', fontSize: '13px' }}
-                  >
-                    <SvgRefresh size={15} className={isSyncing ? 'sh-spin' : ''} />
-                    <span>{isSyncing ? t('connect.tryReconnecting') : t('connect.tryReconnect')}</span>
-                  </button>
-
-                  <button
-                    className="sh-btn sh-btn-danger"
-                    onClick={handleDisconnectAll}
-                    style={{ padding: '10px 16px', fontSize: '13px' }}
-                  >
-                    <SvgLogout size={15} />
-                    <span>{t('connect.disconnect')}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : loading ? (
-            <div className="sh-auth"><p style={{ color: 'inherit', opacity: 0.7 }}>{t('auth.loading')}</p></div>
-          ) : (
-            <>
+          <div
+            ref={contentRef}
+            className={`sh-content-inner${!isConnected ? ' is-offline' : ''}`}
+            aria-busy={!isConnected || undefined}
+          >
+              {loading && devices.length === 0 ? (
+                <div className="sh-auth"><p style={{ color: 'inherit', opacity: 0.7 }}>{t('auth.loading')}</p></div>
+              ) : (
+                <>
               {/* Filter Bar right at top */}
               {devices.length > 0 && (
                 <div className="sh-chips">
@@ -2127,8 +1949,9 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
                 {sunDevice && <SunWidget device={sunDevice} />}
                 {weatherDevice && <WeatherWidget device={weatherDevice} />}
               </div>
-            </>
-          )}
+                </>
+              )}
+          </div>
         </>
       )}
 
@@ -2137,7 +1960,7 @@ export function SmartHomePageInner(_props?: Record<string, unknown>) {
           device={selectedDevice}
           allDevices={devices}
           onClose={() => setSelectedDevice(null)}
-          onToggle={toggleDevice}
+          onToggle={applyLocalDeviceState}
         />
       )}
       {deviceMenu && (

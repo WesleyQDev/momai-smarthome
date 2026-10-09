@@ -10,7 +10,24 @@ interface StatusState {
 
 export function isOnState(state: string): boolean {
   const s = (state || '').toLowerCase().trim()
-  return ['on', 'open', 'playing', 'unlocked', 'ativo', 'ligado', 'home', 'above_horizon', 'cool', 'heat', 'auto'].includes(s)
+  // Canonical state codes returned by the worker (plus the legacy pt-BR
+  // labels some older caches may still hold).
+  return [
+    'on',
+    'open',
+    'playing',
+    'unlocked',
+    'home',
+    'above_horizon',
+    'cool',
+    'heat',
+    'auto',
+    'dry',
+    'fan_only',
+    'heat_cool',
+    'ativo',
+    'ligado'
+  ].includes(s)
 }
 
 export function useStatusWidget(isEditing: boolean): StatusState {

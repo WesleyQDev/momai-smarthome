@@ -36,6 +36,7 @@ var pt_BR_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant Indispon\xEDvel",
   "status.unavailableSub": "N\xE3o foi poss\xEDvel estabelecer conex\xE3o com o servidor. Verifique se o Home Assistant est\xE1 ligado e acess\xEDvel na rede.",
+  "status.reconnecting": "Reconectando\u2026",
   "status.autoSaved": "Salvo automaticamente",
   "status.autoSavedHint": "As a\xE7\xF5es s\xE3o salvas automaticamente.",
   "status.saving": "Salvando\u2026",
@@ -138,6 +139,14 @@ var pt_BR_default = {
   "tool.getHistory": "Hist\xF3rico",
   "state.on": "Ligado",
   "state.off": "Desligado",
+  "state.cool": "Frio",
+  "state.heat": "Quente",
+  "state.fanOnly": "Ventila\xE7\xE3o",
+  "state.auto": "Autom\xE1tico",
+  "state.dry": "Seco",
+  "state.heatCool": "Autom\xE1tico (aquecer/resfriar)",
+  "state.idle": "Inativo",
+  "state.unknown": "Desconhecido",
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Estado",
   "placeholder.deviceRoom": "C\xF4modo",
@@ -245,6 +254,7 @@ var en_US_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant Unavailable",
   "status.unavailableSub": "Could not establish a connection to the server. Check if Home Assistant is on and accessible on the network.",
+  "status.reconnecting": "Reconnecting\u2026",
   "status.autoSaved": "Auto-saved",
   "status.autoSavedHint": "Actions are saved automatically.",
   "status.saving": "Saving\u2026",
@@ -347,6 +357,14 @@ var en_US_default = {
   "tool.getHistory": "History",
   "state.on": "On",
   "state.off": "Off",
+  "state.cool": "Cool",
+  "state.heat": "Heat",
+  "state.fanOnly": "Fan only",
+  "state.auto": "Auto",
+  "state.dry": "Dry",
+  "state.heatCool": "Auto (heat/cool)",
+  "state.idle": "Idle",
+  "state.unknown": "Unknown",
   "placeholder.deviceName": "Device",
   "placeholder.deviceState": "State",
   "placeholder.deviceRoom": "Room",
@@ -454,6 +472,7 @@ var es_default = {
   "status.disconnected": "Sin conexi\xF3n",
   "status.unavailable": "Home Assistant No Disponible",
   "status.unavailableSub": "No se pudo establecer conexi\xF3n con el servidor. Verifique que Home Assistant est\xE9 encendido y accesible en la red.",
+  "status.reconnecting": "Reconectando\u2026",
   "status.autoSaved": "Guardado autom\xE1ticamente",
   "status.autoSavedHint": "Las acciones se guardan autom\xE1ticamente.",
   "status.saving": "Guardando\u2026",
@@ -556,6 +575,14 @@ var es_default = {
   "tool.getHistory": "Historial",
   "state.on": "Encendido",
   "state.off": "Apagado",
+  "state.cool": "Fr\xEDo",
+  "state.heat": "Calor",
+  "state.fanOnly": "Solo ventilador",
+  "state.auto": "Autom\xE1tico",
+  "state.dry": "Seco",
+  "state.heatCool": "Autom\xE1tico (calor/fr\xEDo)",
+  "state.idle": "Inactivo",
+  "state.unknown": "Desconocido",
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Estado",
   "placeholder.deviceRoom": "Habitaci\xF3n",
@@ -663,6 +690,7 @@ var de_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant nicht verf\xFCgbar",
   "status.unavailableSub": "Es konnte keine Verbindung zum Server hergestellt werden. Pr\xFCfe, ob Home Assistant eingeschaltet und im Netzwerk erreichbar ist.",
+  "status.reconnecting": "Verbindung wird wiederhergestellt\u2026",
   "status.autoSaved": "Automatisch gespeichert",
   "status.autoSavedHint": "Aktionen werden automatisch gespeichert.",
   "status.saving": "Speichert\u2026",
@@ -765,6 +793,14 @@ var de_default = {
   "tool.getHistory": "Verlauf",
   "state.on": "Ein",
   "state.off": "Aus",
+  "state.cool": "K\xFChlen",
+  "state.heat": "Heizen",
+  "state.fanOnly": "Nur L\xFCfter",
+  "state.auto": "Auto",
+  "state.dry": "Trocknen",
+  "state.heatCool": "Auto (Heizen/K\xFChlen)",
+  "state.idle": "Inaktiv",
+  "state.unknown": "Unbekannt",
   "placeholder.deviceName": "Ger\xE4t",
   "placeholder.deviceState": "Zustand",
   "placeholder.deviceRoom": "Raum",
@@ -872,6 +908,7 @@ var fr_default = {
   "status.disconnected": "Hors ligne",
   "status.unavailable": "Home Assistant indisponible",
   "status.unavailableSub": "Impossible d'\xE9tablir la connexion au serveur. V\xE9rifiez que Home Assistant est allum\xE9 et accessible sur le r\xE9seau.",
+  "status.reconnecting": "Reconnexion\u2026",
   "status.autoSaved": "Enregistr\xE9 automatiquement",
   "status.autoSavedHint": "Les actions sont enregistr\xE9es automatiquement.",
   "status.saving": "Enregistrement\u2026",
@@ -974,6 +1011,14 @@ var fr_default = {
   "tool.getHistory": "Historique",
   "state.on": "Allum\xE9",
   "state.off": "\xC9teint",
+  "state.cool": "Froid",
+  "state.heat": "Chauffage",
+  "state.fanOnly": "Ventilation seule",
+  "state.auto": "Auto",
+  "state.dry": "Sec",
+  "state.heatCool": "Auto (chaud/froid)",
+  "state.idle": "Inactif",
+  "state.unknown": "Inconnu",
   "placeholder.deviceName": "Appareil",
   "placeholder.deviceState": "\xC9tat",
   "placeholder.deviceRoom": "Pi\xE8ce",
@@ -1081,6 +1126,7 @@ var it_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant non disponibile",
   "status.unavailableSub": "Impossibile stabilire la connessione al server. Verifica che Home Assistant sia acceso e raggiungibile in rete.",
+  "status.reconnecting": "Riconnessione\u2026",
   "status.autoSaved": "Salvato automaticamente",
   "status.autoSavedHint": "Le azioni vengono salvate automaticamente.",
   "status.saving": "Salvataggio\u2026",
@@ -1183,6 +1229,14 @@ var it_default = {
   "tool.getHistory": "Cronologia",
   "state.on": "Acceso",
   "state.off": "Spento",
+  "state.cool": "Freddo",
+  "state.heat": "Caldo",
+  "state.fanOnly": "Solo ventola",
+  "state.auto": "Auto",
+  "state.dry": "Asciutto",
+  "state.heatCool": "Auto (caldo/freddo)",
+  "state.idle": "Inattivo",
+  "state.unknown": "Sconosciuto",
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Stato",
   "placeholder.deviceRoom": "Stanza",
@@ -1381,6 +1435,92 @@ function useSmartHomeI18n() {
   return { locale, t: standaloneT };
 }
 
+// src/shared/hostApi.ts
+var DEFAULT_API_BASE = "http://127.0.0.1:8050";
+var EXT_FETCH_TIMEOUT_MS = 1e4;
+function getApiBaseUrl2() {
+  try {
+    const host = window?.momaiAPI || window?.api;
+    const base = host?.getApiBaseUrl?.();
+    if (base) return String(base).replace(/\/+$/, "");
+  } catch {
+  }
+  return DEFAULT_API_BASE;
+}
+function getSessionToken() {
+  try {
+    const host = window?.momaiAPI || window?.api;
+    return String(host?.getSessionToken?.() || "");
+  } catch {
+    return "";
+  }
+}
+function extFetch(path, body, timeoutMs = EXT_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(`${getApiBaseUrl2()}${path}`, {
+    method: body ? "POST" : "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Session-Token": getSessionToken()
+    },
+    body: body ? JSON.stringify(body) : void 0,
+    signal: controller.signal
+  }).then((response) => {
+    try {
+      return response.json();
+    } catch {
+      return {};
+    }
+  }).catch((err) => {
+    const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR" || err.code === 20);
+    return {
+      ok: false,
+      error: aborted ? translateSh("panel.timeout") : err?.message || translateSh("panel.networkError")
+    };
+  }).finally(() => clearTimeout(timer));
+}
+
+// src/shared/device.ts
+var DOMAIN_KEYS = {
+  light: "domains.light",
+  switch: "domains.switch",
+  fan: "domains.fan",
+  cover: "domains.cover",
+  lock: "domains.lock",
+  climate: "domains.climate",
+  sensor: "domains.sensor",
+  binary_sensor: "domains.binarySensor",
+  media_player: "domains.mediaPlayer",
+  camera: "domains.camera",
+  vacuum: "domains.vacuum",
+  scene: "domains.scene",
+  automation: "domains.automation",
+  alarm_control_panel: "domains.alarm",
+  remote: "domains.remote",
+  sun: "domains.sun",
+  weather: "domains.weather"
+};
+function getDomainLabel(domain, t) {
+  const key = DOMAIN_KEYS[domain];
+  return key ? t(key) : domain;
+}
+var CONTROLLABLE_DOMAINS = [
+  "light",
+  "switch",
+  "fan",
+  "cover",
+  "lock",
+  "climate",
+  "media_player",
+  "vacuum",
+  "alarm_control_panel",
+  "camera",
+  "automation",
+  "scene",
+  "remote"
+];
+
 // src/components/SvgIcons.tsx
 import React2 from "react";
 var SvgHome = ({ size = 20, color = "currentColor", className = "", style }) => /* @__PURE__ */ React2.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className, style }, /* @__PURE__ */ React2.createElement("path", { d: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" }), /* @__PURE__ */ React2.createElement("polyline", { points: "9 22 9 12 15 12 15 22" }));
@@ -1503,45 +1643,50 @@ function volumeToPercent(volume) {
   if (volume === null || volume === void 0 || !Number.isFinite(volume)) return 0;
   return Math.max(0, Math.min(100, Math.round(volume * 100)));
 }
-var DOMAIN_KEYS = {
-  light: "domains.light",
-  switch: "domains.switch",
-  fan: "domains.fan",
-  cover: "domains.cover",
-  lock: "domains.lock",
-  climate: "domains.climate",
-  sensor: "domains.sensor",
-  binary_sensor: "domains.binarySensor",
-  media_player: "domains.mediaPlayer",
-  camera: "domains.camera",
-  vacuum: "domains.vacuum",
-  scene: "domains.scene",
-  automation: "domains.automation",
-  alarm_control_panel: "domains.alarm",
-  remote: "domains.remote",
-  sun: "domains.sun",
-  weather: "domains.weather"
-};
-function getDomainLabel(domain, t) {
-  const key = DOMAIN_KEYS[domain];
-  return key ? t(key) : domain;
+var COLOR_THROTTLE_MS = 200;
+var SLIDER_THROTTLE_MS = 120;
+function useThrottledSend(intervalMs, send) {
+  const timerRef = React3.useRef(null);
+  const pendingRef = React3.useRef(null);
+  const lastSentAtRef = React3.useRef(0);
+  const sendRef = React3.useRef(send);
+  React3.useEffect(() => {
+    sendRef.current = send;
+  });
+  const flush = React3.useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (pendingRef.current !== null) {
+      const value = pendingRef.current;
+      pendingRef.current = null;
+      lastSentAtRef.current = Date.now();
+      sendRef.current(value);
+    }
+  }, []);
+  const schedule = React3.useCallback(
+    (value) => {
+      pendingRef.current = value;
+      const elapsed = Date.now() - lastSentAtRef.current;
+      if (elapsed >= intervalMs) {
+        flush();
+      } else if (!timerRef.current) {
+        timerRef.current = setTimeout(flush, intervalMs - elapsed);
+      }
+    },
+    [intervalMs, flush]
+  );
+  React3.useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+  return { schedule, flush };
 }
-var CONTROLLABLE_DOMAINS_LIST = [
-  "light",
-  "switch",
-  "fan",
-  "cover",
-  "lock",
-  "climate",
-  "media_player",
-  "vacuum",
-  "alarm_control_panel",
-  "camera",
-  "automation",
-  "scene",
-  "remote"
-];
-var CONTROLLABLE_DOMAINS = CONTROLLABLE_DOMAINS_LIST;
 function hslToRgb(h, s, l) {
   let r, g, b;
   if (s === 0) {
@@ -1567,7 +1712,7 @@ function rgbToHex(r, g, b) {
   const toHex = (n) => n.toString(16).padStart(2, "0");
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
-function ColorWheelPicker({ selectedHex, onChange }) {
+function ColorWheelPicker({ selectedHex, onChange, onCommit }) {
   const wheelRef = useRef(null);
   const [handlePos, setHandlePos] = useState2({ x: 170, y: 170 });
   const handlePointer = (e) => {
@@ -1598,7 +1743,8 @@ function ColorWheelPicker({ selectedHex, onChange }) {
       onPointerDown: handlePointer,
       onPointerMove: (e) => {
         if (e.buttons === 1) handlePointer(e);
-      }
+      },
+      onPointerUp: onCommit
     },
     /* @__PURE__ */ React3.createElement("div", { className: "sh-color-wheel-handle", style: { left: `${handlePos.x}px`, top: `${handlePos.y}px` } })
   );
@@ -1619,6 +1765,8 @@ function DeviceControlCardContent({
   const tempPctRef = React3.useRef(85);
   const selectedRgbHexRef = React3.useRef("#f97316");
   const interactionResetTimerRef = React3.useRef(null);
+  const brightnessDraggingRef = React3.useRef(false);
+  const tempDraggingRef = React3.useRef(false);
   React3.useEffect(() => {
     if (!isUserInteractingRef.current) {
       setCurrentDevice(device);
@@ -1635,6 +1783,7 @@ function DeviceControlCardContent({
     return list;
   }, [allDevices, currentDevice, device]);
   const volumeDevice = currentDevice.domain === "media_player" ? currentDevice : effectiveAllDevices.find((candidate) => candidate.domain === "media_player" && (candidate.name.toLowerCase().trim() === currentDevice.name.toLowerCase().trim() || candidate.id === currentDevice.id)) || currentDevice;
+  const mediaTargetId = currentDevice.domain === "media_player" ? currentDevice.id : effectiveAllDevices.find((candidate) => candidate.domain === "media_player" && (candidate.name.toLowerCase().trim() === currentDevice.name.toLowerCase().trim() || candidate.id === currentDevice.id))?.id || effectiveAllDevices.find((candidate) => candidate.domain === "media_player")?.id || currentDevice.id;
   const [brightness, setBrightnessState] = useState2(currentDevice.state?.brightness ?? 94);
   const [tempPct, setTempPctState] = useState2(85);
   const [activeTab, setActiveTab] = useState2("brightness");
@@ -1768,97 +1917,68 @@ function DeviceControlCardContent({
     { key: "color.pastelPink", color: "#f472b6", rgb: [244, 114, 182] },
     { key: "color.coralRed", color: "#f87171", rgb: [248, 113, 113] }
   ];
-  function getApiBaseUrl() {
-    if (typeof window !== "undefined" && window.api?.getApiBaseUrl) {
-      return window.api.getApiBaseUrl();
-    }
-    return "http://127.0.0.1:8050";
-  }
-  function getSessionToken() {
-    if (typeof window !== "undefined" && window.api?.getSessionToken) {
-      return window.api.getSessionToken();
-    }
-    return "";
-  }
   async function defaultCallService(domain, service, data = {}, providerType = "homeassistant") {
-    const baseUrl = getApiBaseUrl();
-    const token = getSessionToken();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1e4);
-    try {
-      const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": token
-        },
-        body: JSON.stringify({
-          toolName: "callService",
-          args: { domain, service, data, providerType }
-        }),
-        signal: controller.signal
-      });
-      return await res.json();
-    } catch (err) {
-      console.error("[SmartHome] defaultCallService error:", err);
-    } finally {
-      clearTimeout(timer);
-    }
+    return extFetch("/extensions/momai-smarthome/command", {
+      toolName: "callService",
+      args: { domain, service, data, providerType }
+    });
   }
   const executeService = async (domain, service, data) => {
     if (callServiceApi) {
       try {
-        console.log(`[SmartHome] executeService via callServiceApi: ${domain}/${service}`);
         const res = await callServiceApi(domain, service, data, "homeassistant");
-        console.log("[SmartHome] executeService callServiceApi result:", JSON.stringify(res));
         if (res !== void 0) return res;
       } catch (err) {
-        console.error("[SmartHome] callServiceApi failed:", err);
+        console.warn("[SmartHome] callServiceApi failed:", err);
       }
     }
     const winApi = window.api;
     if (typeof winApi?.callService === "function") {
       try {
-        console.log(`[SmartHome] executeService via winApi.callService: ${domain}/${service}`);
-        const res = await winApi.callService(domain, service, data, "homeassistant");
-        console.log("[SmartHome] executeService winApi result:", JSON.stringify(res));
-        return res;
+        return await winApi.callService(domain, service, data, "homeassistant");
       } catch (err) {
-        console.error("[SmartHome] window.api.callService failed:", err);
+        console.warn("[SmartHome] window.api.callService failed:", err);
       }
     }
-    console.log(`[SmartHome] executeService via defaultCallService: ${domain}/${service}`);
     return defaultCallService(domain, service, data, "homeassistant");
   };
+  const brightnessThrottle = useThrottledSend(SLIDER_THROTTLE_MS, (pct) => {
+    executeService("light", "turn_on", { entity_id: device.id, brightness_pct: pct }).catch(() => {
+      isUserInteractingRef.current = false;
+    });
+  });
+  const tempThrottle = useThrottledSend(SLIDER_THROTTLE_MS, (kelvin) => {
+    executeService("light", "turn_on", { entity_id: device.id, color_temp_kelvin: kelvin }).catch(() => {
+      isUserInteractingRef.current = false;
+    });
+  });
+  const colorThrottle = useThrottledSend(COLOR_THROTTLE_MS, (rgb) => {
+    executeService("light", "turn_on", { entity_id: device.id, rgb_color: rgb }).catch(() => {
+      isUserInteractingRef.current = false;
+    });
+  });
   React3.useEffect(() => {
     if (device.domain !== "remote" && device.domain !== "media_player") return;
     let disposed = false;
     let syncing = false;
     let consecutiveErrors = 0;
+    let backoffUntil = 0;
     const syncVolumeFromHomeAssistant = async () => {
-      if (syncing || disposed || consecutiveErrors >= 2) return;
+      if (syncing || disposed || Date.now() < backoffUntil) return;
       syncing = true;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4e3);
       try {
-        const response = await fetch(`${getApiBaseUrl()}/extensions/momai-smarthome/command`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-Token": getSessionToken()
-          },
-          body: JSON.stringify({
-            toolName: "getDeviceState",
-            args: { deviceId: volumeDevice.id, providerType: "homeassistant" }
-          }),
-          signal: controller.signal
-        });
-        if (!response.ok) {
+        const result = await extFetch(
+          "/extensions/momai-smarthome/command",
+          { toolName: "getDeviceState", args: { deviceId: volumeDevice.id, providerType: "homeassistant" } },
+          4e3
+        );
+        if (result?.ok === false) {
           consecutiveErrors++;
+          if (consecutiveErrors >= 2) backoffUntil = Date.now() + 3e4;
           return;
         }
-        const result = await response.json();
         consecutiveErrors = 0;
+        backoffUntil = 0;
         const refreshedDevice = result?.device;
         if (disposed || refreshedDevice?.state?.volume == null) {
           return;
@@ -1866,10 +1986,10 @@ function DeviceControlCardContent({
         const nextVolumePercent = volumeToPercent(refreshedDevice.state.volume);
         volumePercentRef.current = nextVolumePercent;
         setVolumePercent(nextVolumePercent);
-      } catch (err) {
+      } catch {
         consecutiveErrors++;
+        if (consecutiveErrors >= 2) backoffUntil = Date.now() + 3e4;
       } finally {
-        clearTimeout(timer);
         syncing = false;
       }
     };
@@ -1896,37 +2016,44 @@ function DeviceControlCardContent({
     brightnessRef.current = pct;
     if (pct > 0 && !isOn) setIsOn(true);
     if (pct === 0 && isOn) setIsOn(false);
-    executeService("light", "turn_on", {
-      entity_id: device.id,
-      brightness_pct: pct
-    }).catch(() => {
-      isUserInteractingRef.current = false;
-    });
+    brightnessThrottle.schedule(pct);
   };
   const handleTempSliderChange = (pct) => {
     beginUserInteraction();
     setTempPctState(pct);
     tempPctRef.current = pct;
     if (!isOn) setIsOn(true);
-    const kelvinVal = Math.round(6500 - pct / 100 * (6500 - 2e3));
-    executeService("light", "turn_on", {
-      entity_id: device.id,
-      color_temp_kelvin: kelvinVal
-    }).catch(() => {
-      isUserInteractingRef.current = false;
-    });
+    tempThrottle.schedule(Math.round(6500 - pct / 100 * (6500 - 2e3)));
   };
   const handleColorChange = (rgb, hex) => {
     beginUserInteraction();
     setSelectedRgbHex(hex);
     selectedRgbHexRef.current = hex;
     if (!isOn) setIsOn(true);
-    executeService("light", "turn_on", {
-      entity_id: device.id,
-      rgb_color: rgb
-    }).catch(() => {
-      isUserInteractingRef.current = false;
-    });
+    colorThrottle.schedule(rgb);
+  };
+  const pctFromPointer = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.height) return 0;
+    const offsetY = event.clientY - rect.top;
+    return Math.max(0, Math.min(100, Math.round((rect.height - offsetY) / rect.height * 100)));
+  };
+  const startSliderDrag = (event, draggingRef) => {
+    event.preventDefault();
+    draggingRef.current = true;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+    }
+  };
+  const endSliderDrag = (event, draggingRef, flush) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+    }
+    flush();
   };
   const toggleDomain = (() => {
     if (device.domain === "remote") return "remote";
@@ -1956,15 +2083,15 @@ function DeviceControlCardContent({
     const domain = device.domain;
     const cmdUpper = command.toUpperCase();
     if (cmdUpper === "PLAY" || cmdUpper === "PAUSE" || cmdUpper === "PLAY_PAUSE") {
-      await executeService("media_player", "media_play_pause", { entity_id: targetId });
+      await executeService("media_player", "media_play_pause", { entity_id: mediaTargetId });
       return;
     }
     if (cmdUpper === "PREV" || cmdUpper === "PREVIOUS") {
-      await executeService("media_player", "media_previous_track", { entity_id: targetId });
+      await executeService("media_player", "media_previous_track", { entity_id: mediaTargetId });
       return;
     }
     if (cmdUpper === "NEXT") {
-      await executeService("media_player", "media_next_track", { entity_id: targetId });
+      await executeService("media_player", "media_next_track", { entity_id: mediaTargetId });
       return;
     }
     if (cmdUpper === "YOUTUBE" || cmdUpper === "NETFLIX") {
@@ -2007,88 +2134,6 @@ function DeviceControlCardContent({
       } catch (e) {
         console.log("[SmartHome] YouTube/Netflix: media_player.select_source threw:", e);
       }
-    }
-    const inputActivityMap = {
-      "TV": "passthrough://media_0",
-      "TV1": "passthrough://media_0",
-      "HDMI 1": "passthrough://media_1",
-      "HDMI1": "passthrough://media_1",
-      "HDMI 2": "passthrough://media_2",
-      "HDMI2": "passthrough://media_2",
-      "HDMI 3": "passthrough://media_3",
-      "HDMI3": "passthrough://media_3",
-      "AV": "passthrough://media_av"
-    };
-    const isTvCmd = cmdUpper === "TV" || cmdUpper === "TV1" || cmdUpper === "LIVE TV" || cmdUpper === "TV AO VIVO";
-    const isInputCmd = Boolean(inputActivityMap[cmdUpper]) || isTvCmd;
-    if (isInputCmd) {
-      const act = inputActivityMap[cmdUpper] || "passthrough://media_0";
-      try {
-        await executeService("media_player", "select_source", { entity_id: targetId, source: command });
-      } catch (e) {
-      }
-      if (isTvCmd) {
-        const sourceList = device.attributes?.source_list || currentDevice.attributes?.source_list || [];
-        const matchedSource = sourceList.find((s) => {
-          const l = String(s).toLowerCase().trim();
-          return l === "tv" || l === "live tv" || l === "tv ao vivo" || l === "dtv" || l === "tv/dtv" || l === "antenna" || l === "tuner" || l === "sintonizador";
-        });
-        if (matchedSource) {
-          try {
-            await executeService("media_player", "select_source", { entity_id: targetId, source: matchedSource });
-          } catch (e) {
-          }
-        }
-        try {
-          await executeService("media_player", "play_media", {
-            entity_id: targetId,
-            media_content_type: "app",
-            media_content_id: "com.tcl.tv"
-          });
-        } catch (e) {
-        }
-      }
-      const chromecastMedia = effectiveAllDevices.find((d) => d.domain === "media_player" && d.id !== targetId);
-      const targetMediaId = chromecastMedia ? chromecastMedia.id : targetId;
-      try {
-        await executeService("media_player", "play_media", {
-          entity_id: targetMediaId,
-          media_content_type: "app",
-          media_content_id: act
-        });
-      } catch (e) {
-      }
-      try {
-        await executeService("media_player", "play_media", {
-          entity_id: targetId,
-          media_content_type: "app",
-          media_content_id: act
-        });
-      } catch (e) {
-      }
-      const candidateRemote2 = effectiveAllDevices.find((d) => d.domain === "remote");
-      if (candidateRemote2) {
-        try {
-          await executeService("remote", "turn_on", {
-            entity_id: candidateRemote2.id,
-            activity: act
-          });
-        } catch (e) {
-        }
-      }
-      const remoteTargetId2 = candidateRemote2?.id || (domain === "media_player" ? targetId.replace("media_player.", "remote.") : null);
-      if (remoteTargetId2) {
-        for (const inputCmd of ["TV_INPUT", "INPUT", "TV", "LIVE_TV"]) {
-          try {
-            await executeService("remote", "send_command", {
-              entity_id: remoteTargetId2,
-              command: [inputCmd]
-            });
-          } catch (e) {
-          }
-        }
-      }
-      return;
     }
     const androidTvCommandMap = {
       UP: ["DPAD_UP", "UP"],
@@ -2147,7 +2192,14 @@ function DeviceControlCardContent({
   };
   const handleSelectSource = async (source) => {
     setShowInputSelector(false);
-    await handleSendRemoteCommand(source);
+    try {
+      await extFetch("/extensions/momai-smarthome/command", {
+        toolName: "control_tv_remote",
+        args: { device_name: device.id, command: source }
+      });
+    } catch (err) {
+      console.warn("[SmartHome] Falha ao trocar a entrada da TV:", err);
+    }
   };
   const handleVolumeChange = async (direction) => {
     const nextVolumePercent = Math.max(0, Math.min(100, volumePercentRef.current + (direction === "up" ? 1 : -1)));
@@ -2216,7 +2268,7 @@ function DeviceControlCardContent({
         "aria-label": isMuted ? t("remote.unmute") : t("remote.mute"),
         onClick: () => {
           setIsMuted(!isMuted);
-          executeService("media_player", "volume_mute", { entity_id: device.id, is_volume_muted: !isMuted });
+          executeService("media_player", "volume_mute", { entity_id: volumeDevice.id, is_volume_muted: !isMuted });
         }
       },
       isMuted ? /* @__PURE__ */ React3.createElement(SvgMuteStrikethrough, { size: 18 }) : /* @__PURE__ */ React3.createElement(SvgMute, { size: 18 })
@@ -2273,12 +2325,19 @@ function DeviceControlCardContent({
       {
         className: "sh-pill-slider-container",
         style: isOverlay ? { WebkitAppRegion: "no-drag" } : void 0,
-        onClick: (e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const clickY = e.clientY - rect.top;
-          const pct = Math.max(0, Math.min(100, Math.round((rect.height - clickY) / rect.height * 100)));
-          handleBrightnessChange(pct);
-        }
+        onPointerDown: (e) => {
+          startSliderDrag(e, brightnessDraggingRef);
+          handleBrightnessChange(pctFromPointer(e));
+        },
+        onPointerMove: (e) => {
+          if (!brightnessDraggingRef.current) return;
+          handleBrightnessChange(pctFromPointer(e));
+        },
+        onPointerUp: (e) => {
+          handleBrightnessChange(pctFromPointer(e));
+          endSliderDrag(e, brightnessDraggingRef, brightnessThrottle.flush);
+        },
+        onPointerCancel: (e) => endSliderDrag(e, brightnessDraggingRef, brightnessThrottle.flush)
       },
       /* @__PURE__ */ React3.createElement(
         "div",
@@ -2291,7 +2350,7 @@ function DeviceControlCardContent({
         },
         /* @__PURE__ */ React3.createElement("div", { className: "sh-pill-handle" })
       )
-    ), activeTab === "color" && /* @__PURE__ */ React3.createElement("div", { style: isOverlay ? { WebkitAppRegion: "no-drag" } : void 0 }, /* @__PURE__ */ React3.createElement(ColorWheelPicker, { selectedHex: selectedRgbHex, onChange: handleColorChange }), /* @__PURE__ */ React3.createElement("div", { className: "sh-color-grid" }, COLOR_PRESETS.map((preset) => /* @__PURE__ */ React3.createElement(
+    ), activeTab === "color" && /* @__PURE__ */ React3.createElement("div", { style: isOverlay ? { WebkitAppRegion: "no-drag" } : void 0 }, /* @__PURE__ */ React3.createElement(ColorWheelPicker, { selectedHex: selectedRgbHex, onChange: handleColorChange, onCommit: colorThrottle.flush }), /* @__PURE__ */ React3.createElement("div", { className: "sh-color-grid" }, COLOR_PRESETS.map((preset) => /* @__PURE__ */ React3.createElement(
       "button",
       {
         key: preset.key,
@@ -2305,12 +2364,19 @@ function DeviceControlCardContent({
       {
         className: "sh-pill-slider-container",
         style: isOverlay ? { WebkitAppRegion: "no-drag" } : void 0,
-        onClick: (e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const clickY = e.clientY - rect.top;
-          const pct = Math.max(0, Math.min(100, Math.round((rect.height - clickY) / rect.height * 100)));
-          handleTempSliderChange(pct);
-        }
+        onPointerDown: (e) => {
+          startSliderDrag(e, tempDraggingRef);
+          handleTempSliderChange(pctFromPointer(e));
+        },
+        onPointerMove: (e) => {
+          if (!tempDraggingRef.current) return;
+          handleTempSliderChange(pctFromPointer(e));
+        },
+        onPointerUp: (e) => {
+          handleTempSliderChange(pctFromPointer(e));
+          endSliderDrag(e, tempDraggingRef, tempThrottle.flush);
+        },
+        onPointerCancel: (e) => endSliderDrag(e, tempDraggingRef, tempThrottle.flush)
       },
       /* @__PURE__ */ React3.createElement(
         "div",
@@ -2396,6 +2462,12 @@ var SMART_HOME_CSS = `
     0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
     70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
     100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  }
+
+  @keyframes shPulseDotOffline {
+    0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
   }
 
   @keyframes shSpin {
@@ -2790,7 +2862,7 @@ var SMART_HOME_CSS = `
     background: rgb(var(--bg-card, 25 25 30));
     border: 1px solid rgb(var(--border, 55 55 65) / 0.4) !important;
     border-radius: 28px; padding: 22px 18px;
-    max-width: 100%; width: 100%; height: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    max-width: 100%; width: 100%; height: 100%;
     position: relative; box-sizing: border-box;
     display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
@@ -2817,10 +2889,11 @@ var SMART_HOME_CSS = `
     width: 112px; height: 210px; border-radius: 56px; background: rgb(var(--bg-input, 35 35 40));
     border: 1px solid rgb(var(--border, 55 55 65) / 0.3);
     margin: 0 auto 16px; position: relative; overflow: hidden; cursor: pointer;
+    touch-action: none; user-select: none;
     -webkit-app-region: no-drag !important; pointer-events: auto !important;
   }
   .sh-pill-slider-fill {
-    position: absolute; bottom: 0; left: 0; right: 0; border-radius: 0 0 56px 56px; transition: height 0.15s ease-out, background 0.2s; display: flex; justify-content: center; align-items: flex-start;
+    position: absolute; bottom: 0; left: 0; right: 0; border-radius: 0 0 56px 56px; transition: background 0.2s; display: flex; justify-content: center; align-items: flex-start;
     -webkit-app-region: no-drag !important; pointer-events: auto !important;
   }
   .sh-pill-handle { width: 32px; height: 4px; background: rgba(0,0,0,0.3); border-radius: 9999px; margin-top: 10px; -webkit-app-region: no-drag !important; }
@@ -2912,7 +2985,18 @@ var SMART_HOME_CSS = `
   .sh-remote-icon-btn.main { background: #2563eb; color: #fff; border: none; }
   .sh-remote-icon-btn.main:hover { background: #1d4ed8; }
 
-  /* Offline Badge & Reconnecting Card */
+  /* Offline: keep the current tab visible; the header badge shows the state
+     and the stale grid is dimmed and locked until the connection returns. */
+  .sh-content-inner {
+    transition: opacity 0.25s ease, filter 0.25s ease;
+  }
+  .sh-content-inner.is-offline {
+    opacity: 0.45;
+    filter: saturate(0.4);
+    pointer-events: none;
+    user-select: none;
+  }
+
   .sh-badge-offline {
     background: rgba(239, 68, 68, 0.12) !important;
     color: #ef4444 !important;
@@ -2921,76 +3005,7 @@ var SMART_HOME_CSS = `
   .sh-badge-offline .sh-dot {
     background: #ef4444 !important;
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.6) !important;
-    animation: none !important;
-  }
-
-  .sh-reconnect-container {
-    max-width: 580px;
-    margin: 32px auto 40px;
-    padding: 0 16px;
-    animation: shFadeIn 0.3s ease-out;
-  }
-
-  .sh-reconnect-card {
-    background: rgb(var(--bg-card, 25 25 30)) !important;
-    border: 1px solid rgb(var(--border, 55 55 65) / 0.4) !important;
-    border-radius: 24px;
-    padding: 36px 28px;
-    text-align: center;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sh-reconnect-icon-box {
-    width: 64px;
-    height: 64px;
-    border-radius: 20px;
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ef4444;
-    margin: 0 auto 20px;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
-  }
-
-  .sh-reconnect-title {
-    font-size: 19px;
-    font-weight: 700;
-    color: rgb(var(--text-primary, 235 235 240));
-    margin: 0 0 8px;
-    letter-spacing: -0.3px;
-  }
-
-  .sh-reconnect-sub {
-    font-size: 13.5px;
-    color: rgb(var(--text-muted, 160 165 175));
-    line-height: 1.5;
-    margin: 0 0 18px;
-  }
-
-  .sh-reconnect-url-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgb(var(--bg-input, 35 35 40));
-    border: 1px solid rgb(var(--border, 55 55 65) / 0.4);
-    padding: 6px 14px;
-    border-radius: 9999px;
-    font-size: 12px;
-    color: rgb(var(--text-muted, 160 165 175));
-    font-family: monospace;
-    margin-bottom: 24px;
-  }
-
-  .sh-reconnect-actions {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    animation: shPulseDotOffline 1.6s infinite ease-in-out !important;
   }
 `;
 function SmartHomeStyles() {
@@ -3047,34 +3062,10 @@ function SmartHomePanelInner(props) {
         if (typeof winApi?.callService === "function") {
           return winApi.callService(domain, service, serviceData, providerType || "homeassistant");
         }
-        const baseUrl = winApi?.getApiBaseUrl && winApi.getApiBaseUrl() || "http://127.0.0.1:8050";
-        const token = winApi?.getSessionToken && winApi.getSessionToken() || "";
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 1e4);
-        try {
-          const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-Token": token
-            },
-            body: JSON.stringify({
-              toolName: "callService",
-              args: { domain, service, data: serviceData, providerType: providerType || "homeassistant" }
-            }),
-            signal: controller.signal
-          });
-          return await res.json();
-        } catch (err) {
-          const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR" || err.code === 20);
-          console.error("[SmartHomePanel] Service execution error:", err);
-          return {
-            ok: false,
-            error: aborted ? t("panel.timeout") : err?.message || t("panel.networkError")
-          };
-        } finally {
-          clearTimeout(timer);
-        }
+        return extFetch("/extensions/momai-smarthome/command", {
+          toolName: "callService",
+          args: { domain, service, data: serviceData, providerType: providerType || "homeassistant" }
+        });
       },
       isOverlay: true
     }

@@ -1,9 +1,11 @@
 // SDK-backed persistence for the MomAI Smart Home worker.
 //
 // All durable state (connections, cached entities, credentials) lives in the
-// host-owned store, which is isolated per dev mode. The extension's own
-// better-sqlite3 file stays only as a one-time legacy source: on first use
-// its rows are imported and never read again.
+// host-owned store, which is isolated per dev mode. Extensions must persist
+// only through momai.storage/collections (see docs/extensions/storage.md):
+// this module never opens a database or writes state files of its own. The
+// only filesystem read left is the one-time import of the legacy
+// last_credentials.json written by versions before the host-owned store.
 
 const fs = require('fs')
 const path = require('path')
@@ -22,8 +24,8 @@ function defaultDataDir() {
   )
 }
 
-function defaultLegacyDbPath() {
-  return process.env.DB_PATH || path.join(defaultDataDir(), 'smarthome.sqlite')
+function legacyCredentialsPath() {
+  return path.join(defaultDataDir(), 'last_credentials.json')
 }
 
 // In-memory bridge with the same shape the worker uses (storage get/set plus
@@ -143,18 +145,10 @@ function resolveBridge(explicitMomai) {
   return memoryFallback
 }
 
-function defaultOpenDb(dbPath) {
-  const BetterSqlite3 = require('better-sqlite3')
-  const db = new BetterSqlite3(dbPath, { readonly: true })
-  return {
-    all: (sql, params = []) => db.prepare(sql).all(...params),
-    close: () => db.close()
-  }
-}
-
-// One-time import of the legacy better-sqlite3 file into the SDK store.
-// openDb is injected so tests never touch the native driver.
-async function importLegacyDatabase({ dbPath = defaultLegacyDbPath(), bridge, openDb = defaultOpenDb } = {}) {
+// One-time import of the legacy JSON credentials file into the SDK store.
+// The old better-sqlite3 database is deliberately not read: extensions must
+// persist only through the host-owned store.
+async function importLegacyState({ bridge } = {}) {
   const store = bridge.storage
   try {
     if (await store.get(LEGACY_IMPORT_KEY)) return { imported: false, reason: 'already' }
@@ -162,59 +156,26 @@ async function importLegacyDatabase({ dbPath = defaultLegacyDbPath(), bridge, op
     return { imported: false, reason: 'unavailable' }
   }
 
-  let connections = []
+  let importedCredentials = false
   try {
-    if (fs.existsSync(dbPath)) {
-      const handle = openDb(dbPath)
-      try {
-        connections = handle.all(
-          'SELECT id, provider_type, name, config_encrypted, user_email, auto_connect, updated_at FROM connections'
-        ) || []
-      } catch {
-        connections = []
-      } finally {
-        try {
-          handle.close()
-        } catch {}
+    const existing = await store.get(LAST_CREDENTIALS_KEY)
+    if (!existing) {
+      const credsPath = legacyCredentialsPath()
+      if (fs.existsSync(credsPath)) {
+        await store.set(LAST_CREDENTIALS_KEY, JSON.parse(fs.readFileSync(credsPath, 'utf8')))
+        importedCredentials = true
       }
     }
   } catch {
-    connections = []
+    importedCredentials = false
   }
 
   try {
-    const current = (await store.get(CONNECTIONS_KEY)) || {}
-    let added = 0
-    for (const row of connections) {
-      if (!row || !row.id || current[row.id]) continue
-      current[row.id] = {
-        id: row.id,
-        provider_type: row.provider_type || 'homeassistant',
-        name: row.name || 'Home Assistant',
-        user_email: row.user_email || 'local',
-        config: row.config_encrypted,
-        auto_connect: row.auto_connect === 0 ? 0 : 1,
-        updated_at: row.updated_at || new Date().toISOString()
-      }
-      added++
-    }
-    if (added > 0) await store.set(CONNECTIONS_KEY, current)
-
-    try {
-      const creds = await store.get(LAST_CREDENTIALS_KEY)
-      if (!creds) {
-        const legacyCreds = path.join(path.dirname(dbPath), 'last_credentials.json')
-        if (fs.existsSync(legacyCreds)) {
-          await store.set(LAST_CREDENTIALS_KEY, JSON.parse(fs.readFileSync(legacyCreds, 'utf8')))
-        }
-      }
-    } catch {}
-
     await store.set(LEGACY_IMPORT_KEY, true)
-    return { imported: added > 0, connections: added }
   } catch {
     return { imported: false, reason: 'unavailable' }
   }
+  return { imported: importedCredentials }
 }
 
 module.exports = {
@@ -226,6 +187,6 @@ module.exports = {
   getWorkerBridge,
   routeStorageResponse,
   resolveBridge,
-  importLegacyDatabase,
-  defaultLegacyDbPath
+  importLegacyState,
+  legacyCredentialsPath
 }

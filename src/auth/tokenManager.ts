@@ -5,11 +5,17 @@ const { ENCRYPTION_ALGORITHM, IV_LENGTH, ENCRYPTION_KEY_PATH } = require('../con
 const {
   CONNECTIONS_KEY,
   LAST_CREDENTIALS_KEY,
+  LEGACY_IMPORT_KEY,
   ENTITIES_COLLECTION,
   resolveBridge,
-  importLegacyDatabase,
-  defaultLegacyDbPath
+  importLegacyState,
+  legacyCredentialsPath
 } = require('../sdk-backend.ts');
+
+// Key under which the extension's encryption key lives in the host-owned
+// store (momai.storage). Never written to a file: the host store is the only
+// persistence surface allowed by the extension platform contract.
+const ENCRYPTION_KEY_STORAGE_KEY = 'smarthome_encryption_key';
 
 // The legacy key was a fixed constant shipped in code (public, not a secret).
 // It only READS credentials created by old versions; on read, getConnection
@@ -29,20 +35,17 @@ function resolveLegacyKey() {
   return null;
 }
 
-function legacyCredentialsPath() {
-  return path.join(path.dirname(defaultLegacyDbPath()), 'last_credentials.json');
-}
-
 class TokenManager {
   _attachedBridge = null
   encryptionSecret: string = ''
   _legacyDone = false
+  _keyPromise = null
 
   constructor(bridge = null) {
     // Backward compatible: anything without a storage area is ignored and the
     // bridge resolves lazily per operation (worker IPC or memory fallback).
     if (bridge && bridge.storage) this._attachedBridge = bridge;
-    this.encryptionSecret = process.env.ENCRYPTION_KEY || this._loadOrCreateKey();
+    this.encryptionSecret = process.env.ENCRYPTION_KEY || '';
   }
 
   attachBridge(bridge) {
@@ -52,55 +55,76 @@ class TokenManager {
 
   async _store() {
     const bridge = this._attachedBridge || resolveBridge();
+    await this._ensureKey();
     if (!this._legacyDone) {
       this._legacyDone = true;
       try {
-        await importLegacyDatabase({ bridge });
+        await importLegacyState({ bridge });
       } catch {}
     }
     return bridge;
   }
 
-  _loadOrCreateKey(customDir = null) {
-    // When the host provides a mode-scoped dir, use only its key: the shared
-    // legacy key must never be picked up across Symlink/Testar Loja.
-    const modeStorageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR;
-    const candidatePaths = modeStorageDir
-      ? [path.join(modeStorageDir, '.encryption-key')]
-      : [
-          customDir ? path.join(customDir, '.encryption-key') : null,
-          ENCRYPTION_KEY_PATH,
-          path.join(require('../config/constants.ts').DEFAULT_DB_PATH, '..', '.encryption-key'),
-          path.join(__dirname, '..', '..', 'data', '.encryption-key')
-        ].filter(Boolean);
+  async _ensureKey() {
+    if (this.encryptionSecret) return this.encryptionSecret;
+    if (!this._keyPromise) {
+      this._keyPromise = this._resolveKey().catch((err) => {
+        this._keyPromise = null;
+        throw err;
+      });
+    }
+    return this._keyPromise;
+  }
 
-    for (const keyPath of candidatePaths) {
+  // Resolution order: env override -> host store -> one-time migration from a
+  // legacy .encryption-key file -> newly generated key stored in the host
+  // store. The extension never writes the key to disk anymore.
+  async _resolveKey() {
+    const bridge = this._attachedBridge || resolveBridge();
+    try {
+      const stored = await bridge.storage.get(ENCRYPTION_KEY_STORAGE_KEY);
+      if (typeof stored === 'string' && stored.trim()) {
+        this.encryptionSecret = stored.trim();
+        return this.encryptionSecret;
+      }
+    } catch {}
+
+    for (const keyPath of this._legacyKeyPaths()) {
       try {
         if (fs.existsSync(keyPath)) {
           const existing = fs.readFileSync(keyPath, 'utf8').trim();
-          if (existing) return existing;
+          if (existing) {
+            this.encryptionSecret = existing;
+            try {
+              await bridge.storage.set(ENCRYPTION_KEY_STORAGE_KEY, existing);
+            } catch {}
+            return existing;
+          }
         }
       } catch {}
     }
 
-    const keyPath = candidatePaths[0];
     const key = crypto.randomBytes(32).toString('hex');
+    this.encryptionSecret = key;
     try {
-      fs.mkdirSync(path.dirname(keyPath), { recursive: true });
-      fs.writeFileSync(keyPath, key, { encoding: 'utf8', mode: 0o600 });
+      await bridge.storage.set(ENCRYPTION_KEY_STORAGE_KEY, key);
     } catch {}
     return key;
   }
 
-  reloadKey(customDir) {
-    if (process.env.ENCRYPTION_KEY) {
-      this.encryptionSecret = process.env.ENCRYPTION_KEY;
-    } else {
-      this.encryptionSecret = this._loadOrCreateKey(customDir);
-    }
+  _legacyKeyPaths() {
+    const modeStorageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR;
+    return [
+      ENCRYPTION_KEY_PATH,
+      modeStorageDir ? path.join(modeStorageDir, '.encryption-key') : null,
+      path.join(__dirname, '..', '..', 'data', '.encryption-key')
+    ]
+      .filter(Boolean)
+      .filter((keyPath, index, all) => all.indexOf(keyPath) === index);
   }
 
   _getKey() {
+    if (!this.encryptionSecret) throw new Error('Encryption key is not initialized');
     return crypto.createHash('sha256').update(String(this.encryptionSecret)).digest();
   }
 
@@ -171,9 +195,15 @@ class TokenManager {
       if (stored) return stored;
     } catch {}
     try {
-      const credsPath = legacyCredentialsPath();
-      if (fs.existsSync(credsPath)) {
-        return JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+      // The legacy file is only a pre-migration fallback: after the one-time
+      // import ran, an empty store means the credential was cleared on
+      // purpose and must not be resurrected from the old file.
+      const imported = await bridge.storage.get(LEGACY_IMPORT_KEY);
+      if (!imported) {
+        const credsPath = legacyCredentialsPath();
+        if (fs.existsSync(credsPath)) {
+          return JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+        }
       }
     } catch {}
     return null;
@@ -215,12 +245,7 @@ class TokenManager {
       try {
         return { config: this.decrypt(payload), migrated: false };
       } catch {
-        const candidatePaths = [
-          ENCRYPTION_KEY_PATH,
-          path.join(require('../config/constants.ts').DEFAULT_DB_PATH, '..', '.encryption-key'),
-          path.join(__dirname, '..', '..', 'data', '.encryption-key')
-        ];
-        for (const kPath of candidatePaths) {
+        for (const kPath of this._legacyKeyPaths()) {
           try {
             if (fs.existsSync(kPath)) {
               const fileKey = fs.readFileSync(kPath, 'utf8').trim();

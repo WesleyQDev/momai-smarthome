@@ -9,12 +9,9 @@ const dataDir =
   process.env.MOMAI_NODE_CORE_DATA_DIR ||
   process.env.MOMAI_DATA_DIR ||
   path.join(__dirname, 'data')
-// MOMAI_EXTENSION_STORAGE_DIR is mode-scoped (Symlink vs Testar Loja) so the
-// extension database and key never cross environments.
-const storageDir = process.env.MOMAI_EXTENSION_STORAGE_DIR || dataDir
-process.env.DB_PATH = process.env.DB_PATH || path.join(storageDir, 'smarthome.sqlite')
 
 const connector = require('./src/index.ts')
+const { getOverlaySizeForDomain } = require('./src/shared/device.ts')
 
 // Envia mensagens ao host com proteção contra crash: se o canal IPC estiver
 // fechado/morto, loga em vez de derrubar o worker (que deixaria o node-core
@@ -36,88 +33,62 @@ process.on('unhandledRejection', (reason) => {
   console.error('[runtime] Rejeição não tratada no worker (continuando):', reason)
 })
 
-let deviceCache = { names: [], byRoom: {} }
 let ready = false
 
 const ACTIONS_STORAGE_KEY = 'actions-state_changed'
 
-// Host-owned store over IPC (isolated per dev mode) with filesystem fallback
-// for unit tests, where the worker is required without an IPC channel. The
-// bridge singleton lives in sdk-backend so the connector uses the same one.
-const { getWorkerBridge, routeStorageResponse } = require('./src/sdk-backend.ts')
+// Host-owned store over IPC (isolated per dev mode). Unit tests require this
+// file without an IPC channel and get the in-memory bridge from sdk-backend,
+// so the worker never writes state files of its own.
+const { getWorkerBridge, routeStorageResponse, resolveBridge } = require('./src/sdk-backend.ts')
 // Only inside the forked worker: unit tests require this file without an IPC
 // channel, and there the connector resolves an ephemeral memory bridge.
 if (typeof process.send === 'function') connector.attachBridge(getWorkerBridge())
 function getIpcStorage() {
-  return getWorkerBridge()
-}
-
-function useHostStorage() {
-  return typeof process.send === 'function'
+  return resolveBridge()
 }
 
 function isValidAction(act) {
   return act && typeof act === 'object' && typeof act.target === 'string' && act.target.trim().length > 0
 }
 
-// Actions config for the state_changed event (MOM-115). Kept in the extension's
-// own storage dir so the host can execute them generically when a device changes.
-function actionsConfigFile() {
-  // Canonical path usa hífen (id do registry = momai-smarthome). Mantém leitura
-  // do legado sem hífen para migração.
-  return path.join(dataDir, 'extensions', 'momai-smarthome', 'actions-state_changed.json')
-}
-
-function legacyActionsConfigFile() {
-  return path.join(dataDir, 'extensions', 'momaismarthome', 'actions-state_changed.json')
+// Legacy actions files from versions that stored JSON on disk. Read once and
+// migrated into the host-owned store; never written again.
+function legacyActionsConfigFiles() {
+  return [
+    // Canonical path usa hífen (id do registry = momai-smarthome). Mantém
+    // leitura do legado sem hífen para migração.
+    path.join(dataDir, 'extensions', 'momai-smarthome', 'actions-state_changed.json'),
+    path.join(dataDir, 'extensions', 'momaismarthome', 'actions-state_changed.json')
+  ]
 }
 
 function readLegacyActionsFile() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(actionsConfigFile(), 'utf8'))
-    if (Array.isArray(parsed)) return parsed.filter(isValidAction)
-  } catch {
+  for (const file of legacyActionsConfigFiles()) {
     try {
-      const parsed = JSON.parse(fs.readFileSync(legacyActionsConfigFile(), 'utf8'))
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'))
       if (Array.isArray(parsed)) return parsed.filter(isValidAction)
-    } catch {
-      return []
-    }
+    } catch {}
   }
   return []
 }
 
 async function loadConfiguredActions() {
-  if (useHostStorage()) {
-    try {
-      const stored = await getIpcStorage().storage.get(ACTIONS_STORAGE_KEY)
-      if (Array.isArray(stored)) return stored.filter(isValidAction)
-      const legacy = readLegacyActionsFile()
-      if (legacy.length > 0) {
-        getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, legacy).catch(() => {})
-        return legacy
-      }
-      return []
-    } catch {
-      return readLegacyActionsFile()
-    }
+  try {
+    const stored = await getIpcStorage().storage.get(ACTIONS_STORAGE_KEY)
+    if (Array.isArray(stored)) return stored.filter(isValidAction)
+  } catch {}
+  const legacy = readLegacyActionsFile()
+  if (legacy.length > 0) {
+    getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, legacy).catch(() => {})
+    return legacy
   }
-  return readLegacyActionsFile()
+  return []
 }
 
 async function saveConfiguredActions(actions) {
   const valid = Array.isArray(actions) ? actions.filter(isValidAction) : []
-  if (useHostStorage()) {
-    try {
-      await getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, valid)
-      return
-    } catch {
-      /* fall through to filesystem */
-    }
-  }
-  const file = actionsConfigFile()
-  fs.mkdirSync(path.dirname(file), { recursive: true })
-  fs.writeFileSync(file, JSON.stringify(valid, null, 2))
+  await getIpcStorage().storage.set(ACTIONS_STORAGE_KEY, valid)
 }
 
 async function init() {
@@ -232,27 +203,20 @@ if (typeof connector.on === 'function') {
 async function refreshDeviceCache() {
   try {
     await connector.ensureConnected().catch(() => {})
-    const devices = (typeof connector.syncDevices === 'function') ? await connector.syncDevices() : await connector.getDevices()
-    const names = devices.map((d) => `${d.name} (${d.id})`)
-    const byRoom = {}
-    for (const d of devices) {
-      const room = d.room || 'outros'
-      if (!byRoom[room]) byRoom[room] = []
-      byRoom[room].push(d.name)
-    }
-    deviceCache = { names, byRoom }
-    return devices
+    return (typeof connector.syncDevices === 'function') ? await connector.syncDevices() : await connector.getDevices()
   } catch {
     return []
   }
 }
 
-// Background sync interval (every 30s) to discover new devices automatically
+// Background reconciliation (every 5 min) to discover new devices and refresh
+// the offline cache. State changes already arrive over the WebSocket/SSE, so
+// a shorter interval only added load to the Home Assistant server.
 const syncInterval = setInterval(async () => {
   if (ready && connector.isConnected) {
     await refreshDeviceCache().catch(() => {})
   }
-}, 30000)
+}, 300000)
 if (typeof syncInterval.unref === 'function') syncInterval.unref()
 
 const tools = module.exports.tools = [
@@ -490,112 +454,150 @@ function normalizeString(str) {
     .trim()
 }
 
-// Mapeia o estado de um device normalizado (state.on + state.rawState) para
-// um rótulo pt-BR. Sensores/clima/sol/tempo NÃO são liga/desliga: usam o
-// estado textual real em vez de "off" quando state.on é false (M5).
-const CLIMATE_MODE_LABELS = {
-  cool: 'frio',
-  heat: 'quente',
-  fan_only: 'ventilação',
-  auto: 'automático',
-  dry: 'seco',
-  heat_cool: 'automático (aquecer/resfriar)',
-  off: 'desligado'
-}
-
-function deviceStateLabel(device) {
+// Canonical (non-localized) state codes. The chat model and the UI translate
+// them for display; hardcoding pt-BR labels here leaked into every locale and
+// broke the widgets' on/off detection (they check English state codes).
+function deviceStateCode(device) {
   const domain = device?.domain
   const raw = String(device?.state?.rawState ?? '').toLowerCase().trim()
   const on = Boolean(device?.state?.on)
 
   if (domain === 'climate') {
-    return CLIMATE_MODE_LABELS[raw] || raw || (on ? 'ligado' : 'desligado')
+    return raw || (on ? 'on' : 'off')
   }
 
   if (domain === 'sensor' || domain === 'binary_sensor' || domain === 'sun' || domain === 'weather') {
-    if (raw === 'on' || raw === 'home' || raw === 'active' || raw === 'above_horizon') return 'ativo'
-    if (raw === 'off' || raw === 'away' || raw === 'closed' || raw === 'below_horizon') return 'inativo'
-    if (raw) return raw
-    return on ? 'ativo' : 'inativo'
+    return raw || (on ? 'on' : 'off')
   }
 
   // light / switch / fan / media_player / remote / etc.
   return on ? 'on' : 'off'
 }
 
-// Pure matching logic — works on an already-fetched device list.
+const STOP_WORDS = new Set(['da', 'do', 'das', 'dos', 'de', 'a', 'o', 'e', 'para', 'com', 'meu', 'minha', 'seu', 'sua'])
+const SYNONYMS = {
+  tv: ['televisao', 'television', 'tv', 'media_player', 'remote'],
+  televisao: ['tv', 'television', 'televisao', 'media_player'],
+  luz: ['lampada', 'iluminacao', 'light', 'led'],
+  lampada: ['luz', 'iluminacao', 'light', 'led'],
+  ar: ['clima', 'termostato', 'arcondicionado', 'climate'],
+  clima: ['ar', 'termostato', 'climate']
+}
+
+function queryTokens(normQuery) {
+  return normQuery
+    .split(/\s+/)
+    .map((w) => w.replace(/[^a-z0-9]/g, ''))
+    .filter((w) => w.length >= 2 && !STOP_WORDS.has(w))
+}
+
+function scoreDeviceMatch(tokens, device) {
+  const normName = normalizeString(device.name)
+  const normId = normalizeString(device.id)
+  const normRoom = normalizeString(device.room)
+  let score = 0
+  for (const token of tokens) {
+    const matchPatterns = SYNONYMS[token] || [token]
+    if (matchPatterns.some((p) => normName.includes(p))) score += 3
+    if (matchPatterns.some((p) => normId.includes(p))) score += 2
+    if (matchPatterns.some((p) => normRoom.includes(p))) score += 2
+  }
+  return score
+}
+
+// Ranked partial matches (score > 0), best first. Pure function.
+function rankDeviceMatches(query, devices) {
+  if (!query || typeof query !== 'string' || !Array.isArray(devices) || devices.length === 0) return []
+  const normQuery = normalizeString(query)
+  if (!normQuery) return []
+  const tokens = queryTokens(normQuery)
+  if (tokens.length === 0) return []
+  return devices
+    .map((device) => ({ device, score: scoreDeviceMatch(tokens, device) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+}
+
+// Pure best-effort matching (used when the caller only needs a single id,
+// e.g. closing an overlay). Ambiguity is not surfaced here.
 function matchDeviceFromList(query, devices) {
   if (!query || typeof query !== 'string' || !Array.isArray(devices) || devices.length === 0) return null
   const normQuery = normalizeString(query)
   if (!normQuery) return null
-
-  // 1. Exact match on name or ID
   const exact = devices.find(
     (d) => normalizeString(d.name) === normQuery || normalizeString(d.id) === normQuery
   )
   if (exact) return exact
-
-  // 2. Partial match on full query
   const partial = devices.find(
     (d) => normalizeString(d.name).includes(normQuery) || normalizeString(d.id).includes(normQuery)
   )
   if (partial) return partial
-
-  // 3. Stopwords & Synonym expansion
-  const STOP_WORDS = new Set(['da', 'do', 'das', 'dos', 'de', 'a', 'o', 'e', 'para', 'com', 'meu', 'minha', 'seu', 'sua'])
-  const tokens = normQuery
-    .split(/\s+/)
-    .map((w) => w.replace(/[^a-z0-9]/g, ''))
-    .filter((w) => w.length >= 2 && !STOP_WORDS.has(w))
-
-  if (tokens.length === 0) return null
-
-  const SYNONYMS = {
-    tv: ['televisao', 'television', 'tv', 'media_player', 'remote'],
-    televisao: ['tv', 'television', 'televisao', 'media_player'],
-    luz: ['lampada', 'iluminacao', 'light', 'led'],
-    lampada: ['luz', 'iluminacao', 'light', 'led'],
-    ar: ['clima', 'termostato', 'arcondicionado', 'climate'],
-    clima: ['ar', 'termostato', 'climate']
-  }
-
-  // 4. Score-based token matching
-  let bestDevice = null
-  let maxScore = 0
-
-  for (const device of devices) {
-    const normName = normalizeString(device.name)
-    const normId = normalizeString(device.id)
-    const normRoom = normalizeString(device.room)
-
-    let score = 0
-
-    for (const token of tokens) {
-      const matchPatterns = SYNONYMS[token] || [token]
-      const matchesName = matchPatterns.some((p) => normName.includes(p))
-      const matchesId = matchPatterns.some((p) => normId.includes(p))
-      const matchesRoom = matchPatterns.some((p) => normRoom.includes(p))
-
-      if (matchesName) score += 3
-      if (matchesId) score += 2
-      if (matchesRoom) score += 2
-    }
-
-    if (score > maxScore) {
-      maxScore = score
-      bestDevice = device
-    }
-  }
-
-  return maxScore > 0 ? bestDevice : null
+  const ranked = rankDeviceMatches(query, devices)
+  return ranked.length > 0 ? ranked[0].device : null
 }
 
-// Fetches devices (with connection attempt) then delegates to matchDeviceFromList.
+function summarizeDevice(device) {
+  return {
+    name: device.name,
+    id: device.id,
+    room: device.room || null,
+    domain: device.domain,
+    type: device.type || device.domain
+  }
+}
+
+/**
+ * Resolves a device query against an already-fetched list.
+ *
+ * Returns `{ device, candidates }`. `candidates` is non-empty when the query
+ * is ambiguous (several devices tie for the best score, or a lock would be
+ * operated from a partial name). Callers return the candidates to the model
+ * and let it ask the user which device to use; no confirmation text is
+ * hardcoded here.
+ */
+function resolveDeviceQuery(query, devices) {
+  if (!query || typeof query !== 'string' || !Array.isArray(devices) || devices.length === 0) {
+    return { device: null, candidates: [] }
+  }
+  const normQuery = normalizeString(query)
+  if (!normQuery) return { device: null, candidates: [] }
+  const exact = devices.find(
+    (d) => normalizeString(d.name) === normQuery || normalizeString(d.id) === normQuery
+  )
+  if (exact) return { device: exact, candidates: [] }
+  const ranked = rankDeviceMatches(query, devices)
+  if (ranked.length === 0) return { device: null, candidates: [] }
+  const topScore = ranked[0].score
+  const tied = ranked.filter((entry) => entry.score === topScore).map((entry) => entry.device)
+  if (tied.length > 1 || tied[0].domain === 'lock') {
+    return { device: null, candidates: tied.slice(0, 5) }
+  }
+  return { device: tied[0], candidates: [] }
+}
+
+// Fetches devices (with connection attempt) then resolves exact/ambiguous match.
+async function resolveDevice(query, momai) {
+  if (!query || typeof query !== 'string') return { device: null, candidates: [] }
+  await connector.ensureConnected(momai).catch(() => {})
+  const devices = await connector.getDevices().catch(() => [])
+  return resolveDeviceQuery(query, devices)
+}
+
+// Best-effort single device (close overlay); never blocks on ambiguity.
 async function matchDevice(query, momai) {
   if (!query || typeof query !== 'string') return null
   await connector.ensureConnected(momai).catch(() => {})
   const devices = await connector.getDevices().catch(() => [])
   return matchDeviceFromList(query, devices)
+}
+
+function ambiguousDeviceResult(query, candidates) {
+  return {
+    ok: false,
+    ambiguous: true,
+    candidates: candidates.map(summarizeDevice),
+    error: `Mais de um dispositivo corresponde a "${query}".`
+  }
 }
 
 async function executeTool(toolName, args, momai) {
@@ -624,7 +626,12 @@ async function executeTool(toolName, args, momai) {
           instruction: `Erro: Informe device_name e action. Dispositivos disponíveis: ${names || 'Nenhum conectado'}`
         }
       }
-      const device = await matchDevice(args.device_name, momai)
+      if (!['on', 'off', 'toggle'].includes(args.action)) {
+        return { ok: false, error: `Ação inválida: ${args.action}. Use on, off ou toggle.` }
+      }
+      const resolution = await resolveDevice(args.device_name, momai)
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates)
+      const device = resolution.device
       if (!device) {
         const all = await connector.getDevices()
         const errorMsg = `Dispositivo "${args.device_name}" não encontrado. Disponíveis: ${all.map((d) => d.name).join(', ')}`
@@ -643,7 +650,6 @@ async function executeTool(toolName, args, momai) {
       } else {
         result = await connector.turnOffDevice(device.id, provider)
       }
-      await refreshDeviceCache()
       if (result && result.success === false) {
         const errorMsg = `Falha ao ${args.action === 'on' ? 'ligar' : 'desligar'} "${device.name}": ${result.error || 'erro desconhecido'}`
         return { ok: false, error: errorMsg, instruction: errorMsg }
@@ -654,7 +660,12 @@ async function executeTool(toolName, args, momai) {
 
     case 'set_light_color': {
       if (!args.device_name) return { ok: false, error: 'Informe device_name', instruction: 'Informe device_name' }
-      const device = await matchDevice(args.device_name, momai)
+      if (args.color == null && args.brightness == null && args.color_temp == null) {
+        return { ok: false, error: 'Informe ao menos color, brightness ou color_temp.', instruction: 'Informe ao menos color, brightness ou color_temp.' }
+      }
+      const resolution = await resolveDevice(args.device_name, momai)
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates)
+      const device = resolution.device
       if (!device) {
         const all = await connector.getDevices()
         const errorMsg = `Dispositivo "${args.device_name}" não encontrado. Disponíveis: ${all.map((d) => d.name).join(', ')}`
@@ -666,7 +677,6 @@ async function executeTool(toolName, args, momai) {
         brightness: args.brightness,
         color_temp: args.color_temp
       })
-      await refreshDeviceCache()
       if (result && result.success === false) return { ok: false, error: result.error || 'Falha ao atualizar a luz', instruction: result.error || 'Falha ao atualizar a luz' }
       const successMsg = `Luz "${device.name}" ajustada com sucesso.`
       return { ok: true, device: device.name, result, instruction: successMsg }
@@ -674,7 +684,9 @@ async function executeTool(toolName, args, momai) {
 
     case 'control_tv_remote': {
       if (!args.device_name) return { ok: false, error: 'Informe device_name', instruction: 'Informe device_name' }
-      const device = await matchDevice(args.device_name, momai)
+      const resolution = await resolveDevice(args.device_name, momai)
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates)
+      const device = resolution.device
       if (!device) {
         const all = await connector.getDevices()
         const errorMsg = `Dispositivo "${args.device_name}" não encontrado. Disponíveis: ${all.map((d) => d.name).join(', ')}`
@@ -696,7 +708,12 @@ async function executeTool(toolName, args, momai) {
 
     case 'control_climate': {
       if (!args.device_name) return { ok: false, error: 'Informe device_name', instruction: 'Informe device_name' }
-      const device = await matchDevice(args.device_name, momai)
+      if ((args.temperature === undefined || args.temperature === null || args.temperature === '') && !args.hvac_mode) {
+        return { ok: false, error: 'Informe temperature ou hvac_mode.', instruction: 'Informe temperature ou hvac_mode.' }
+      }
+      const resolution = await resolveDevice(args.device_name, momai)
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates)
+      const device = resolution.device
       if (!device) {
         const all = await connector.getDevices()
         const errorMsg = `Dispositivo "${args.device_name}" não encontrado. Disponíveis: ${all.map((d) => d.name).join(', ')}`
@@ -718,8 +735,9 @@ async function executeTool(toolName, args, momai) {
 
     case 'list_devices': {
       await connector.ensureConnected(momai).catch(() => {})
-      const devices = await connector.getDevices(args.connectionId)
-      if ((!devices || devices.length === 0) && !connector.isConnected) {
+      // Never present the offline cache as a live list: the model must know
+      // the house is unreachable instead of reporting stale states.
+      if (!connector.isConnected) {
         const conns = await connector.listConnections().catch(() => [])
         if (conns.length === 0) {
           return {
@@ -734,13 +752,16 @@ async function executeTool(toolName, args, momai) {
           instruction: 'Erro: Não foi possível se conectar ao Home Assistant. Verifique a URL, token ou status da rede.'
         }
       }
-      const filtered = args.room ? devices.filter((d) => d.room?.toLowerCase() === args.room.toLowerCase()) : devices
+      const devices = await connector.getDevices(args.connectionId)
+      const filtered = args.room
+        ? devices.filter((d) => normalizeString(d.room) === normalizeString(args.room))
+        : devices
       const list = filtered.map((d) => ({
         name: d.name,
         id: d.id,
         type: d.domain,
         room: d.room || null,
-        state: deviceStateLabel(d),
+        state: deviceStateCode(d),
         value: d.domain === 'sensor' ? d.state.value : null,
         temperature: d.state.temperature || d.state.targetTemperature || null,
         brightness: d.state.brightness || null
@@ -754,7 +775,10 @@ async function executeTool(toolName, args, momai) {
     }
 
     case 'query_device': {
-      const device = await matchDevice(args.device_name, momai)
+      if (!args.device_name) return { ok: false, error: 'Informe device_name', instruction: 'Informe device_name' }
+      const resolution = await resolveDevice(args.device_name, momai)
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates)
+      const device = resolution.device
       if (!device) {
         const all = await connector.getDevices().catch(() => [])
         const names = all.map((d) => d.name).join(', ')
@@ -783,44 +807,16 @@ async function executeTool(toolName, args, momai) {
         return { ok: false, error: message, instruction: message }
       }
 
-      let device = matchDeviceFromList(args.device_name, allDevices)
-      if (!device && allDevices.length > 0) {
-        device = allDevices.find((d) => d.domain === 'media_player' || d.domain === 'remote' || d.domain === 'tv')
-      }
+      // Never invent a device or silently open another one: an unmatched name
+      // must be reported so the user (via the assistant) can pick the right
+      // device from the available list.
+      const resolution = resolveDeviceQuery(args.device_name, allDevices)
+      if (resolution.candidates.length > 0) return ambiguousDeviceResult(args.device_name, resolution.candidates)
+      const device = resolution.device
       if (!device) {
-        const rawName = String(args.device_name || 'Controle').trim()
-        const norm = normalizeString(rawName)
-        let domain = 'media_player'
-        if (norm.includes('luz') || norm.includes('lampada') || norm.includes('iluminacao') || norm.includes('led')) {
-          domain = 'light'
-        } else if (norm.includes('ar') || norm.includes('clima') || norm.includes('arcondicionado') || norm.includes('termostato')) {
-          domain = 'climate'
-        }
-        device = {
-          id: `${domain}_custom`,
-          name: rawName || 'Controle Remoto',
-          domain,
-          provider: 'homeassistant',
-          state: { on: false },
-          attributes: {}
-        }
-      }
-
-      let overlayWidth = 320
-      let overlayHeight = 540
-
-      if (device.domain === 'media_player' || device.domain === 'remote') {
-        overlayWidth = 320
-        overlayHeight = 520
-      } else if (device.domain === 'light') {
-        overlayWidth = 320
-        overlayHeight = 540
-      } else if (device.domain === 'climate') {
-        overlayWidth = 320
-        overlayHeight = 460
-      } else {
-        overlayWidth = 300
-        overlayHeight = 440
+        const names = allDevices.map((d) => d.name).join(', ')
+        const errorMsg = `Dispositivo "${args.device_name}" não encontrado.${names ? ' Disponíveis: ' + names : ''}`
+        return { ok: false, error: errorMsg, instruction: errorMsg }
       }
 
       const overlayPayload = {
@@ -829,7 +825,7 @@ async function executeTool(toolName, args, momai) {
         panelType: 'momaismarthome-panel',
         strategy: 'replace',
         overlayId: device.id,
-        overlaySize: { width: overlayWidth, height: overlayHeight },
+        overlaySize: getOverlaySizeForDomain(device.domain),
         structuredResponse: {
           type: 'momaismarthome-panel',
           data: {
@@ -923,7 +919,6 @@ async function executeTool(toolName, args, momai) {
     case 'syncDevices': {
       await connector.ensureConnected(momai).catch(() => {})
       const devices = (typeof connector.syncDevices === 'function') ? await connector.syncDevices(args.connectionId) : await connector.getDevices(args.connectionId)
-      await refreshDeviceCache()
       return { ok: true, devices }
     }
 
@@ -934,25 +929,21 @@ async function executeTool(toolName, args, momai) {
 
     case 'turnOnDevice': {
       const result = await connector.turnOnDevice(args.deviceId, args.providerType, args.params || {})
-      await refreshDeviceCache()
       return { ok: result?.success !== false, ...result }
     }
 
     case 'turnOffDevice': {
       const result = await connector.turnOffDevice(args.deviceId, args.providerType, args.params || {})
-      await refreshDeviceCache()
       return { ok: result?.success !== false, ...result }
     }
 
     case 'toggleDevice': {
       const result = await connector.toggleDevice(args.deviceId, args.providerType)
-      await refreshDeviceCache()
       return { ok: result?.success !== false, ...result }
     }
 
     case 'setClimate': {
       const result = await connector.setClimate(args.deviceId, args.temperature, args.hvacMode, args.providerType)
-      await refreshDeviceCache()
       return { ok: result?.success !== false, ...result }
     }
 

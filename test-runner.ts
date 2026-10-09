@@ -53,7 +53,7 @@ async function runTests() {
   assert('disconnectAll() retorna success', discResult && discResult.success === true)
 
   // Test 5: Connection storage round-trip (SDK backend, no native driver)
-  const { createMemoryBridge, importLegacyDatabase, CONNECTIONS_KEY, LAST_CREDENTIALS_KEY } = require('./src/sdk-backend.ts')
+  const { createMemoryBridge, importLegacyState, CONNECTIONS_KEY, LAST_CREDENTIALS_KEY } = require('./src/sdk-backend.ts')
   const TokenManager = require('./src/auth/tokenManager.ts')
   const tmBridge = createMemoryBridge()
   const tm = new TokenManager(tmBridge)
@@ -73,24 +73,22 @@ async function runTests() {
   const afterDel = await tm.getConnection('test_ha')
   assert('removeConnection funciona', afterDel === null)
 
-  // Legacy import: rows from the old sqlite file land in the SDK store once,
-  // including plaintext configs, without touching the native driver here.
+  // Legacy import: the old last_credentials.json lands in the host-owned
+  // store once. No database or state file is opened by the extension anymore.
   const legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'momai-smarthome-legacy-'))
-  const legacyDbPath = path.join(legacyDir, 'smarthome.sqlite')
-  fs.writeFileSync(legacyDbPath, 'placeholder')
+  const previousDataDir = process.env.MOMAI_DATA_DIR
+  process.env.MOMAI_DATA_DIR = legacyDir
+  fs.writeFileSync(
+    path.join(legacyDir, 'last_credentials.json'),
+    JSON.stringify({ url: 'http://legacy.local:8123', token: 'legacy_token', name: 'Legacy HA' })
+  )
   const legacyBridge = createMemoryBridge()
-  const legacyRows = [
-    { id: 'legacy_plain', provider_type: 'homeassistant', name: 'Legacy HA', config_encrypted: JSON.stringify({ url: 'http://legacy.local:8123', token: 'legacy_token' }), user_email: 'local', auto_connect: 1, updated_at: '2026-01-01T00:00:00.000Z' }
-  ]
-  const fakeOpen = () => ({ all: () => legacyRows, close: () => {} })
-  const legacyImport = await importLegacyDatabase({ dbPath: legacyDbPath, bridge: legacyBridge, openDb: fakeOpen })
-  const legacyTm = new TokenManager(legacyBridge)
-  const legacyConnection = await legacyTm.getConnection('legacy_plain')
-  const legacyStored = ((await legacyBridge.storage.get(CONNECTIONS_KEY)) || {}).legacy_plain
-  assert('importador legado migra conexão plaintext para o SDK', legacyImport.imported === true && legacyConnection && legacyConnection.config.token === 'legacy_token')
-  assert('plaintext importado é re-criptografado no SDK', legacyStored && legacyStored.config && legacyStored.config.encryptedData && legacyStored.config.iv && legacyStored.config.authTag)
-  const legacyReimport = await importLegacyDatabase({ dbPath: legacyDbPath, bridge: legacyBridge, openDb: fakeOpen })
+  const legacyImport = await importLegacyState({ bridge: legacyBridge })
+  const legacyStored = await legacyBridge.storage.get(LAST_CREDENTIALS_KEY)
+  assert('importador legado migra last_credentials.json para o SDK', legacyImport.imported === true && legacyStored && legacyStored.token === 'legacy_token')
+  const legacyReimport = await importLegacyState({ bridge: legacyBridge })
   assert('importador legado roda uma única vez', legacyReimport.imported === false)
+  process.env.MOMAI_DATA_DIR = previousDataDir
   fs.rmSync(legacyDir, { recursive: true, force: true })
 
   // Test 6: runtime.js tool export check
@@ -397,32 +395,41 @@ async function runTests() {
   assert('Encerrar WebSocket em estado CONNECTING não lança erro não tratado', closedWithoutError)
   await provider.disconnect()
 
-  // Test 11: credenciais legadas do banco antigo migram para o SDK.
-  // Plaintext legado é lido e re-criptografado no SDK.
+  // Test 11: credentials written by old versions (plaintext JSON or encrypted
+  // with the legacy key) still migrate inside the host-owned store.
   const plainBridge = createMemoryBridge()
-  const plainDir = fs.mkdtempSync(path.join(os.tmpdir(), 'momai-smarthome-plain-'))
-  const plainDbPath = path.join(plainDir, 'smarthome.sqlite')
-  fs.writeFileSync(plainDbPath, 'placeholder')
-  const plainRows = [
-    { id: 'legacy_plain', provider_type: 'homeassistant', name: 'Legacy HA', config_encrypted: JSON.stringify({ url: 'http://legacy.local:8123', token: 'legacy_token' }), user_email: 'local', auto_connect: 1, updated_at: '2026-01-01T00:00:00.000Z' }
-  ]
-  await importLegacyDatabase({ dbPath: plainDbPath, bridge: plainBridge, openDb: () => ({ all: () => plainRows, close: () => {} }) })
+  const plainConnections = {
+    legacy_plain: {
+      id: 'legacy_plain',
+      provider_type: 'homeassistant',
+      name: 'Legacy HA',
+      user_email: 'local',
+      config: JSON.stringify({ url: 'http://legacy.local:8123', token: 'legacy_token' }),
+      auto_connect: 1,
+      updated_at: '2026-01-01T00:00:00.000Z'
+    }
+  }
+  await plainBridge.storage.set(CONNECTIONS_KEY, plainConnections)
   const tmPlain = new TokenManager(plainBridge)
   const plainConnection = await tmPlain.getConnection('legacy_plain')
   const migratedLegacy = ((await plainBridge.storage.get(CONNECTIONS_KEY)) || {}).legacy_plain
   assert('TokenManager lê e migra conexão legada plaintext', plainConnection && plainConnection.config.token === 'legacy_token' && migratedLegacy && migratedLegacy.config.encryptedData && migratedLegacy.config.iv && migratedLegacy.config.authTag)
-  fs.rmSync(plainDir, { recursive: true, force: true })
 
   const legacyBridge2 = createMemoryBridge()
-  const legacyDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'momai-smarthome-legacy-'))
-  const legacyDbPath2 = path.join(legacyDir2, 'smarthome.sqlite')
-  fs.writeFileSync(legacyDbPath2, 'placeholder')
   const legacyTokenManager = new TokenManager(createMemoryBridge())
   legacyTokenManager.encryptionSecret = 'momai_home_connector_secret_32b'
-  const encRows = [
-    { id: 'legacy_encrypted', provider_type: 'homeassistant', name: 'Legacy Encrypted HA', config_encrypted: JSON.stringify(legacyTokenManager.encrypt({ url: 'http://legacy.local:8123', token: 'legacy_encrypted_token' })), user_email: 'local', auto_connect: 1, updated_at: '2026-01-01T00:00:00.000Z' }
-  ]
-  await importLegacyDatabase({ dbPath: legacyDbPath2, bridge: legacyBridge2, openDb: () => ({ all: () => encRows, close: () => {} }) })
+  const legacyConnections = {
+    legacy_encrypted: {
+      id: 'legacy_encrypted',
+      provider_type: 'homeassistant',
+      name: 'Legacy Encrypted HA',
+      user_email: 'local',
+      config: legacyTokenManager.encrypt({ url: 'http://legacy.local:8123', token: 'legacy_encrypted_token' }),
+      auto_connect: 1,
+      updated_at: '2026-01-01T00:00:00.000Z'
+    }
+  }
+  await legacyBridge2.storage.set(CONNECTIONS_KEY, legacyConnections)
   const tmLegacy = new TokenManager(legacyBridge2)
   // Sem chave legada disponível (nem env nem arquivo), a credencial legada não
   // deve ser legível — e não deve crashar.
@@ -443,7 +450,6 @@ async function runTests() {
   const tokenManagerSource = fs.readFileSync(path.join(__dirname, 'src', 'auth', 'tokenManager.ts'), 'utf8')
   assert('chave legada não fica hardcoded no fonte', !tokenManagerSource.includes('momai_home_connector_secret_32b'))
   delete process.env.MOMAI_SMARTHOME_LEGACY_KEY
-  fs.rmSync(legacyDir2, { recursive: true, force: true })
 
   // Test 12: listDevices tenta reconectar quando provido de URL e Token mas desconnectado
   const offlineProvider = new HomeAssistantProvider({ url: 'http://ha.local:8123', token: 'test_token' })
@@ -515,7 +521,7 @@ async function runTests() {
   const listClimate = listDevicesRes.devices.find((d) => d.id === 'climate.sala')
   const listLight = listDevicesRes.devices.find((d) => d.id === 'light.sala')
   assert('list_devices mostra sensor com estado real (não "off")', listSensor && listSensor.state === '22.5')
-  assert('list_devices mostra clima pelo modo (cool → frio)', listClimate && listClimate.state === 'frio')
+  assert('list_devices mostra clima pelo código canônico (cool)', listClimate && listClimate.state === 'cool')
   assert('list_devices mostra light ligada como on', listLight && listLight.state === 'on')
 
   // Test 17: mutex serializa ensureConnected/init (M2)
@@ -593,6 +599,64 @@ async function runTests() {
   await resilientProvider.connect().catch(() => {})
   assert('connect() com HA offline não emite connection_changed false quando já desconectado', !connectionDown)
   await resilientProvider.disconnect()
+
+  // Test 21: manifest and runtime tool catalogs stay identical
+  const manifestTools = require('./manifest.json').tools || []
+  const normalizeTool = (tool) => ({ name: tool.name, description: tool.description, parameters: tool.parameters })
+  assert(
+    'catálogo de ferramentas do manifesto é idêntico ao do runtime',
+    JSON.stringify(manifestTools.map(normalizeTool)) === JSON.stringify(runtime.tools.map(normalizeTool))
+  )
+
+  // Test 22: ambiguous device names return candidates instead of acting
+  MomAIHomeConnector.isConnected = true
+  MomAIHomeConnector.devices.providers.set('homeassistant', {
+    connected: true,
+    listDevices: async () => [
+      { id: 'light.sala', name: 'Luz da Sala', domain: 'light', provider: 'homeassistant', state: { on: false, rawState: 'off' } },
+      { id: 'light.sala_2', name: 'Luz da Sala 2', domain: 'light', provider: 'homeassistant', state: { on: false, rawState: 'off' } },
+      { id: 'lock.porta', name: 'Porta da Frente', domain: 'lock', provider: 'homeassistant', state: { on: false, rawState: 'locked' } }
+    ],
+    turnOn: async () => ({ success: true })
+  })
+  const ambiguousRes = await runtime.executeTool('control_device', { device_name: 'luz', action: 'on' }, mockMomai)
+  assert('nome ambíguo devolve candidatos sem executar', ambiguousRes && ambiguousRes.ok === false && ambiguousRes.ambiguous === true && ambiguousRes.candidates.length === 2)
+  const lockPartialRes = await runtime.executeTool('control_device', { device_name: 'porta', action: 'off' }, mockMomai)
+  assert('fechadura com nome parcial exige escolha (candidatos)', lockPartialRes && lockPartialRes.ok === false && lockPartialRes.ambiguous === true && lockPartialRes.candidates[0].id === 'lock.porta')
+  const exactRes = await runtime.executeTool('query_device', { device_name: 'Luz da Sala' }, mockMomai)
+  assert('nome exato continua resolvendo direto', exactRes && exactRes.ok === true && exactRes.device.id === 'light.sala')
+  const invalidActionRes = await runtime.executeTool('control_device', { device_name: 'Luz da Sala', action: 'explode' }, mockMomai)
+  assert('ação inválida de control_device é rejeitada', invalidActionRes && invalidActionRes.ok === false)
+  const noParamsLight = await runtime.executeTool('set_light_color', { device_name: 'Luz da Sala' }, mockMomai)
+  assert('set_light_color sem parâmetros é rejeitado', noParamsLight && noParamsLight.ok === false)
+  const noParamsClimate = await runtime.executeTool('control_climate', { device_name: 'Ar' }, mockMomai)
+  assert('control_climate sem temperatura/modo é rejeitado', noParamsClimate && noParamsClimate.ok === false)
+
+  // Test 23: open_device_control never invents a device
+  let inventedOverlay = false
+  const inventedRes = await runtime.executeTool('open_device_control', { device_name: 'Dispositivo Inexistente' }, {
+    ...mockMomai,
+    sendEvent: (type) => {
+      if (type === 'open_overlay') inventedOverlay = true
+    }
+  })
+  assert('open_device_control desconhecido falha e não abre overlay', inventedRes && inventedRes.ok === false && !inventedOverlay)
+
+  // Test 24: provider rejects free-form media actions and remote commands
+  const guardProvider = new HomeAssistantProvider({ url: 'http://ha.local:8123', token: 'test_token' })
+  guardProvider.connected = true
+  const traversalMedia = await guardProvider.controlMedia('media_player.tv', '../../config')
+  assert('controlMedia rejeita ação fora da lista (path traversal)', traversalMedia && traversalMedia.success === false)
+  const remoteInjection = await guardProvider.sendRemoteCommand('remote.tv', '../../config')
+  assert('sendRemoteCommand rejeita comando remoto fora do padrão', remoteInjection && remoteInjection.success === false)
+  await guardProvider.disconnect()
+
+  // Test 25: rooms resolved from the HA registries
+  const areaProvider = new HomeAssistantProvider({ url: 'http://ha.local:8123', token: 'test_token' })
+  areaProvider._areaByEntity.set('light.sala', 'Sala')
+  const areaDevice = areaProvider._normalizeEntity({ entity_id: 'light.sala', state: 'on', attributes: { friendly_name: 'Luz' } })
+  assert('cômodo resolvido pelo registro de áreas', areaDevice.room === 'Sala')
+  await areaProvider.disconnect()
 
   cleanupTestData()
   console.log(`\n=== Resultado: ${passed} passaram, ${failed} falharam ===`)

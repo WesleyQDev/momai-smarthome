@@ -1,21 +1,5 @@
 import sdk from 'momai:sdk'
-
-function getBaseUrl(): string {
-  try {
-    const fromHost =
-      (window as any)?.momaiAPI?.getApiBaseUrl?.() || (window as any)?.api?.getApiBaseUrl?.()
-    if (fromHost) return String(fromHost).replace(/\/+$/, '')
-  } catch {}
-  return 'http://127.0.0.1:8050'
-}
-
-function getToken(): string {
-  try {
-    return String((window as any)?.momaiAPI?.getSessionToken?.() || (window as any)?.api?.getSessionToken?.() || '')
-  } catch {
-    return ''
-  }
-}
+import { extFetch } from '../../shared/hostApi'
 
 export interface WidgetDevice {
   id: string
@@ -25,24 +9,26 @@ export interface WidgetDevice {
 }
 
 async function callCommand(toolName: string, args: Record<string, unknown> = {}): Promise<any> {
+  let data: any = null
   try {
     if (sdk?.api?.post) {
       const res = await sdk.api.post('/extensions/momai-smarthome/command', { toolName, args })
-      return (res as any)?.data ?? res
+      data = (res as any)?.data ?? res
     }
   } catch (err) {
     console.warn('[smarthome-widget] SDK command failed, falling back to fetch:', err)
   }
 
-  const res = await fetch(`${getBaseUrl()}/extensions/momai-smarthome/command`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {})
-    },
-    body: JSON.stringify({ toolName, args })
-  })
-  return res.json()
+  if (data === null || data === undefined) {
+    data = await extFetch('/extensions/momai-smarthome/command', { toolName, args })
+  }
+
+  // Tool failures must reach the caller so the widget can revert its
+  // optimistic state and show the error instead of pretending success.
+  if (data && data.ok === false) {
+    throw new Error(typeof data.error === 'string' && data.error ? data.error : 'Command failed')
+  }
+  return data
 }
 
 /**

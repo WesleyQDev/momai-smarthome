@@ -30,6 +30,7 @@ var pt_BR_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant Indispon\xEDvel",
   "status.unavailableSub": "N\xE3o foi poss\xEDvel estabelecer conex\xE3o com o servidor. Verifique se o Home Assistant est\xE1 ligado e acess\xEDvel na rede.",
+  "status.reconnecting": "Reconectando\u2026",
   "status.autoSaved": "Salvo automaticamente",
   "status.autoSavedHint": "As a\xE7\xF5es s\xE3o salvas automaticamente.",
   "status.saving": "Salvando\u2026",
@@ -132,6 +133,14 @@ var pt_BR_default = {
   "tool.getHistory": "Hist\xF3rico",
   "state.on": "Ligado",
   "state.off": "Desligado",
+  "state.cool": "Frio",
+  "state.heat": "Quente",
+  "state.fanOnly": "Ventila\xE7\xE3o",
+  "state.auto": "Autom\xE1tico",
+  "state.dry": "Seco",
+  "state.heatCool": "Autom\xE1tico (aquecer/resfriar)",
+  "state.idle": "Inativo",
+  "state.unknown": "Desconhecido",
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Estado",
   "placeholder.deviceRoom": "C\xF4modo",
@@ -239,6 +248,7 @@ var en_US_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant Unavailable",
   "status.unavailableSub": "Could not establish a connection to the server. Check if Home Assistant is on and accessible on the network.",
+  "status.reconnecting": "Reconnecting\u2026",
   "status.autoSaved": "Auto-saved",
   "status.autoSavedHint": "Actions are saved automatically.",
   "status.saving": "Saving\u2026",
@@ -341,6 +351,14 @@ var en_US_default = {
   "tool.getHistory": "History",
   "state.on": "On",
   "state.off": "Off",
+  "state.cool": "Cool",
+  "state.heat": "Heat",
+  "state.fanOnly": "Fan only",
+  "state.auto": "Auto",
+  "state.dry": "Dry",
+  "state.heatCool": "Auto (heat/cool)",
+  "state.idle": "Idle",
+  "state.unknown": "Unknown",
   "placeholder.deviceName": "Device",
   "placeholder.deviceState": "State",
   "placeholder.deviceRoom": "Room",
@@ -448,6 +466,7 @@ var es_default = {
   "status.disconnected": "Sin conexi\xF3n",
   "status.unavailable": "Home Assistant No Disponible",
   "status.unavailableSub": "No se pudo establecer conexi\xF3n con el servidor. Verifique que Home Assistant est\xE9 encendido y accesible en la red.",
+  "status.reconnecting": "Reconectando\u2026",
   "status.autoSaved": "Guardado autom\xE1ticamente",
   "status.autoSavedHint": "Las acciones se guardan autom\xE1ticamente.",
   "status.saving": "Guardando\u2026",
@@ -550,6 +569,14 @@ var es_default = {
   "tool.getHistory": "Historial",
   "state.on": "Encendido",
   "state.off": "Apagado",
+  "state.cool": "Fr\xEDo",
+  "state.heat": "Calor",
+  "state.fanOnly": "Solo ventilador",
+  "state.auto": "Autom\xE1tico",
+  "state.dry": "Seco",
+  "state.heatCool": "Autom\xE1tico (calor/fr\xEDo)",
+  "state.idle": "Inactivo",
+  "state.unknown": "Desconocido",
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Estado",
   "placeholder.deviceRoom": "Habitaci\xF3n",
@@ -657,6 +684,7 @@ var de_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant nicht verf\xFCgbar",
   "status.unavailableSub": "Es konnte keine Verbindung zum Server hergestellt werden. Pr\xFCfe, ob Home Assistant eingeschaltet und im Netzwerk erreichbar ist.",
+  "status.reconnecting": "Verbindung wird wiederhergestellt\u2026",
   "status.autoSaved": "Automatisch gespeichert",
   "status.autoSavedHint": "Aktionen werden automatisch gespeichert.",
   "status.saving": "Speichert\u2026",
@@ -759,6 +787,14 @@ var de_default = {
   "tool.getHistory": "Verlauf",
   "state.on": "Ein",
   "state.off": "Aus",
+  "state.cool": "K\xFChlen",
+  "state.heat": "Heizen",
+  "state.fanOnly": "Nur L\xFCfter",
+  "state.auto": "Auto",
+  "state.dry": "Trocknen",
+  "state.heatCool": "Auto (Heizen/K\xFChlen)",
+  "state.idle": "Inaktiv",
+  "state.unknown": "Unbekannt",
   "placeholder.deviceName": "Ger\xE4t",
   "placeholder.deviceState": "Zustand",
   "placeholder.deviceRoom": "Raum",
@@ -866,6 +902,7 @@ var fr_default = {
   "status.disconnected": "Hors ligne",
   "status.unavailable": "Home Assistant indisponible",
   "status.unavailableSub": "Impossible d'\xE9tablir la connexion au serveur. V\xE9rifiez que Home Assistant est allum\xE9 et accessible sur le r\xE9seau.",
+  "status.reconnecting": "Reconnexion\u2026",
   "status.autoSaved": "Enregistr\xE9 automatiquement",
   "status.autoSavedHint": "Les actions sont enregistr\xE9es automatiquement.",
   "status.saving": "Enregistrement\u2026",
@@ -968,6 +1005,14 @@ var fr_default = {
   "tool.getHistory": "Historique",
   "state.on": "Allum\xE9",
   "state.off": "\xC9teint",
+  "state.cool": "Froid",
+  "state.heat": "Chauffage",
+  "state.fanOnly": "Ventilation seule",
+  "state.auto": "Auto",
+  "state.dry": "Sec",
+  "state.heatCool": "Auto (chaud/froid)",
+  "state.idle": "Inactif",
+  "state.unknown": "Inconnu",
   "placeholder.deviceName": "Appareil",
   "placeholder.deviceState": "\xC9tat",
   "placeholder.deviceRoom": "Pi\xE8ce",
@@ -1075,6 +1120,7 @@ var it_default = {
   "status.disconnected": "Offline",
   "status.unavailable": "Home Assistant non disponibile",
   "status.unavailableSub": "Impossibile stabilire la connessione al server. Verifica che Home Assistant sia acceso e raggiungibile in rete.",
+  "status.reconnecting": "Riconnessione\u2026",
   "status.autoSaved": "Salvato automaticamente",
   "status.autoSavedHint": "Le azioni vengono salvate automaticamente.",
   "status.saving": "Salvataggio\u2026",
@@ -1177,6 +1223,14 @@ var it_default = {
   "tool.getHistory": "Cronologia",
   "state.on": "Acceso",
   "state.off": "Spento",
+  "state.cool": "Freddo",
+  "state.heat": "Caldo",
+  "state.fanOnly": "Solo ventola",
+  "state.auto": "Auto",
+  "state.dry": "Asciutto",
+  "state.heatCool": "Auto (caldo/freddo)",
+  "state.idle": "Inattivo",
+  "state.unknown": "Sconosciuto",
   "placeholder.deviceName": "Dispositivo",
   "placeholder.deviceState": "Stato",
   "placeholder.deviceRoom": "Stanza",
@@ -1353,39 +1407,71 @@ import sdk2 from "momai:sdk";
 
 // src/widgets/services/deviceApi.ts
 import sdk from "momai:sdk";
-function getBaseUrl() {
+
+// src/shared/hostApi.ts
+var DEFAULT_API_BASE = "http://127.0.0.1:8050";
+var EXT_FETCH_TIMEOUT_MS = 1e4;
+function getApiBaseUrl() {
   try {
-    const fromHost = window?.momaiAPI?.getApiBaseUrl?.() || window?.api?.getApiBaseUrl?.();
-    if (fromHost) return String(fromHost).replace(/\/+$/, "");
+    const host = window?.momaiAPI || window?.api;
+    const base = host?.getApiBaseUrl?.();
+    if (base) return String(base).replace(/\/+$/, "");
   } catch {
   }
-  return "http://127.0.0.1:8050";
+  return DEFAULT_API_BASE;
 }
-function getToken() {
+function getSessionToken() {
   try {
-    return String(window?.momaiAPI?.getSessionToken?.() || window?.api?.getSessionToken?.() || "");
+    const host = window?.momaiAPI || window?.api;
+    return String(host?.getSessionToken?.() || "");
   } catch {
     return "";
   }
 }
+function extFetch(path, body, timeoutMs = EXT_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(`${getApiBaseUrl()}${path}`, {
+    method: body ? "POST" : "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Session-Token": getSessionToken()
+    },
+    body: body ? JSON.stringify(body) : void 0,
+    signal: controller.signal
+  }).then((response) => {
+    try {
+      return response.json();
+    } catch {
+      return {};
+    }
+  }).catch((err) => {
+    const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR" || err.code === 20);
+    return {
+      ok: false,
+      error: aborted ? translateSh("panel.timeout") : err?.message || translateSh("panel.networkError")
+    };
+  }).finally(() => clearTimeout(timer));
+}
+
+// src/widgets/services/deviceApi.ts
 async function callCommand(toolName, args = {}) {
+  let data = null;
   try {
     if (sdk?.api?.post) {
-      const res2 = await sdk.api.post("/extensions/momai-smarthome/command", { toolName, args });
-      return res2?.data ?? res2;
+      const res = await sdk.api.post("/extensions/momai-smarthome/command", { toolName, args });
+      data = res?.data ?? res;
     }
   } catch (err) {
     console.warn("[smarthome-widget] SDK command failed, falling back to fetch:", err);
   }
-  const res = await fetch(`${getBaseUrl()}/extensions/momai-smarthome/command`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getToken() ? { Authorization: `Bearer ${getToken()}` } : {}
-    },
-    body: JSON.stringify({ toolName, args })
-  });
-  return res.json();
+  if (data === null || data === void 0) {
+    data = await extFetch("/extensions/momai-smarthome/command", { toolName, args });
+  }
+  if (data && data.ok === false) {
+    throw new Error(typeof data.error === "string" && data.error ? data.error : "Command failed");
+  }
+  return data;
 }
 async function fetchWidgetDevices() {
   const data = await callCommand("list_devices", {});
@@ -1404,7 +1490,22 @@ async function setWidgetDeviceState(deviceId, turnOn) {
 // src/widgets/hooks/useStatusWidget.ts
 function isOnState(state) {
   const s = (state || "").toLowerCase().trim();
-  return ["on", "open", "playing", "unlocked", "ativo", "ligado", "home", "above_horizon", "cool", "heat", "auto"].includes(s);
+  return [
+    "on",
+    "open",
+    "playing",
+    "unlocked",
+    "home",
+    "above_horizon",
+    "cool",
+    "heat",
+    "auto",
+    "dry",
+    "fan_only",
+    "heat_cool",
+    "ativo",
+    "ligado"
+  ].includes(s);
 }
 
 // src/widgets/hooks/useQuickTogglesWidget.ts

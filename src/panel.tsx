@@ -1,7 +1,8 @@
 import React from 'react'
-import { DeviceControlCardContent, Device } from './components/DeviceControlContent'
+import { DeviceControlCardContent } from './components/DeviceControlContent'
 import { SmartHomeStyles } from './styles'
 import { SmartHomeI18nProvider, useSmartHomeI18n } from './i18n'
+import { extFetch } from './shared/hostApi'
 
 function SmartHomePanelInner(props: any) {
   const data = props?.data || props
@@ -55,36 +56,10 @@ function SmartHomePanelInner(props: any) {
             if (typeof winApi?.callService === 'function') {
               return winApi.callService(domain, service, serviceData, providerType || 'homeassistant')
             }
-            const baseUrl = (winApi?.getApiBaseUrl && winApi.getApiBaseUrl()) || 'http://127.0.0.1:8050'
-            const token = (winApi?.getSessionToken && winApi.getSessionToken()) || ''
-            const controller = new AbortController()
-            const timer = setTimeout(() => controller.abort(), 10000)
-            try {
-              const res = await fetch(`${baseUrl}/extensions/momai-smarthome/command`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-Session-Token': token
-                },
-                body: JSON.stringify({
-                  toolName: 'callService',
-                  args: { domain, service, data: serviceData, providerType: providerType || 'homeassistant' }
-                }),
-                signal: controller.signal
-              })
-              return await res.json()
-            } catch (err: any) {
-              const aborted = err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.code === 20)
-              console.error('[SmartHomePanel] Service execution error:', err)
-              return {
-                ok: false,
-                error: aborted
-                  ? t('panel.timeout')
-                  : (err?.message || t('panel.networkError'))
-              }
-            } finally {
-              clearTimeout(timer)
-            }
+            return extFetch('/extensions/momai-smarthome/command', {
+              toolName: 'callService',
+              args: { domain, service, data: serviceData, providerType: providerType || 'homeassistant' }
+            })
           }}
           isOverlay={true}
         />

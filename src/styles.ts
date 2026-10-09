@@ -12,6 +12,12 @@ export const SMART_HOME_CSS = `
     100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
   }
 
+  @keyframes shPulseDotOffline {
+    0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  }
+
   @keyframes shSpin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -404,7 +410,7 @@ export const SMART_HOME_CSS = `
     background: rgb(var(--bg-card, 25 25 30));
     border: 1px solid rgb(var(--border, 55 55 65) / 0.4) !important;
     border-radius: 28px; padding: 22px 18px;
-    max-width: 100%; width: 100%; height: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    max-width: 100%; width: 100%; height: 100%;
     position: relative; box-sizing: border-box;
     display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
@@ -431,10 +437,11 @@ export const SMART_HOME_CSS = `
     width: 112px; height: 210px; border-radius: 56px; background: rgb(var(--bg-input, 35 35 40));
     border: 1px solid rgb(var(--border, 55 55 65) / 0.3);
     margin: 0 auto 16px; position: relative; overflow: hidden; cursor: pointer;
+    touch-action: none; user-select: none;
     -webkit-app-region: no-drag !important; pointer-events: auto !important;
   }
   .sh-pill-slider-fill {
-    position: absolute; bottom: 0; left: 0; right: 0; border-radius: 0 0 56px 56px; transition: height 0.15s ease-out, background 0.2s; display: flex; justify-content: center; align-items: flex-start;
+    position: absolute; bottom: 0; left: 0; right: 0; border-radius: 0 0 56px 56px; transition: background 0.2s; display: flex; justify-content: center; align-items: flex-start;
     -webkit-app-region: no-drag !important; pointer-events: auto !important;
   }
   .sh-pill-handle { width: 32px; height: 4px; background: rgba(0,0,0,0.3); border-radius: 9999px; margin-top: 10px; -webkit-app-region: no-drag !important; }
@@ -526,7 +533,18 @@ export const SMART_HOME_CSS = `
   .sh-remote-icon-btn.main { background: #2563eb; color: #fff; border: none; }
   .sh-remote-icon-btn.main:hover { background: #1d4ed8; }
 
-  /* Offline Badge & Reconnecting Card */
+  /* Offline: keep the current tab visible; the header badge shows the state
+     and the stale grid is dimmed and locked until the connection returns. */
+  .sh-content-inner {
+    transition: opacity 0.25s ease, filter 0.25s ease;
+  }
+  .sh-content-inner.is-offline {
+    opacity: 0.45;
+    filter: saturate(0.4);
+    pointer-events: none;
+    user-select: none;
+  }
+
   .sh-badge-offline {
     background: rgba(239, 68, 68, 0.12) !important;
     color: #ef4444 !important;
@@ -535,76 +553,7 @@ export const SMART_HOME_CSS = `
   .sh-badge-offline .sh-dot {
     background: #ef4444 !important;
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.6) !important;
-    animation: none !important;
-  }
-
-  .sh-reconnect-container {
-    max-width: 580px;
-    margin: 32px auto 40px;
-    padding: 0 16px;
-    animation: shFadeIn 0.3s ease-out;
-  }
-
-  .sh-reconnect-card {
-    background: rgb(var(--bg-card, 25 25 30)) !important;
-    border: 1px solid rgb(var(--border, 55 55 65) / 0.4) !important;
-    border-radius: 24px;
-    padding: 36px 28px;
-    text-align: center;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sh-reconnect-icon-box {
-    width: 64px;
-    height: 64px;
-    border-radius: 20px;
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ef4444;
-    margin: 0 auto 20px;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
-  }
-
-  .sh-reconnect-title {
-    font-size: 19px;
-    font-weight: 700;
-    color: rgb(var(--text-primary, 235 235 240));
-    margin: 0 0 8px;
-    letter-spacing: -0.3px;
-  }
-
-  .sh-reconnect-sub {
-    font-size: 13.5px;
-    color: rgb(var(--text-muted, 160 165 175));
-    line-height: 1.5;
-    margin: 0 0 18px;
-  }
-
-  .sh-reconnect-url-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgb(var(--bg-input, 35 35 40));
-    border: 1px solid rgb(var(--border, 55 55 65) / 0.4);
-    padding: 6px 14px;
-    border-radius: 9999px;
-    font-size: 12px;
-    color: rgb(var(--text-muted, 160 165 175));
-    font-family: monospace;
-    margin-bottom: 24px;
-  }
-
-  .sh-reconnect-actions {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    animation: shPulseDotOffline 1.6s infinite ease-in-out !important;
   }
 `
 
