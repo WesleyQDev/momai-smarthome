@@ -1505,26 +1505,35 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
   // sent twice.
   const applyLocalDeviceState = (device: Device) => {
     const nextOn = Boolean(device.state.on)
+    const related = (device.attributes?.relatedEntities as Device[]) || [device]
+    const ids = new Set([device.id, ...related.map((r) => r.id)])
     setDevices((prev) =>
-      prev.map((d) => (d.id === device.id ? { ...d, state: { ...d.state, on: nextOn } } : d))
+      prev.map((d) => (ids.has(d.id) ? { ...d, state: { ...d.state, on: nextOn } } : d))
     )
-    setSelectedDevice((prev) => (prev && prev.id === device.id ? { ...prev, state: { ...prev.state, on: nextOn } } : prev))
+    setSelectedDevice((prev) => (prev && ids.has(prev.id) ? { ...prev, state: { ...prev.state, on: nextOn } } : prev))
   }
 
   const toggleDevice = async (device: Device) => {
     const providerType = device.provider?.toLowerCase().replace(/\s+/g, '') || 'homeassistant'
-    const related = (device.attributes.relatedEntities as Device[]) || [device]
+    const related = (device.attributes?.relatedEntities as Device[]) || [device]
     const nextOn = !device.state.on
 
-    for (const target of related) {
-      if (nextOn) {
-        await api.turnOnDevice(target.id, providerType)
-      } else {
-        await api.turnOffDevice(target.id, providerType)
-      }
-    }
-
+    // Atualização otimista: feedback imediato ao clicar no toggle
     applyLocalDeviceState({ ...device, state: { ...device.state, on: nextOn } })
+
+    try {
+      for (const target of related) {
+        if (nextOn) {
+          await api.turnOnDevice(target.id, providerType)
+        } else {
+          await api.turnOffDevice(target.id, providerType)
+        }
+      }
+    } catch (err) {
+      console.error('[SmartHome] Erro ao alternar dispositivo:', err)
+      // Reverte estado visual em caso de falha
+      applyLocalDeviceState({ ...device, state: { ...device.state, on: !nextOn } })
+    }
   }
 
   const setBrightness = async (device: Device, brightness: number) => {
@@ -1872,14 +1881,23 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
                       >
                         <div className="sh-card-header">
                           <div className="sh-icon">{dynamicSvgIcon}</div>
-                          <label className="sh-toggle" onClick={(e) => e.stopPropagation()}>
-                            {CONTROLLABLE_DOMAINS.includes(device.domain) && (
-                              <>
-                                <input type="checkbox" checked={device.state.on} onChange={() => toggleDevice(device)} />
-                                <span className="sh-slider" />
-                              </>
-                            )}
-                          </label>
+                          {CONTROLLABLE_DOMAINS.includes(device.domain) && (
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={Boolean(device.state.on)}
+                              aria-label={`${device.name}: ${device.state.on ? t('device.on') : t('device.off')}`}
+                              className={`sh-toggle ${device.state.on ? 'sh-toggle--checked' : ''}`}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                void toggleDevice(device)
+                              }}
+                            >
+                              <span className="sh-slider" />
+                            </button>
+                          )}
                         </div>
                         <div className="sh-body">
                           <h3 className="sh-name">{device.name}</h3>

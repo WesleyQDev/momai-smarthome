@@ -1,6 +1,6 @@
 ---
-name: MomAI Smart Home
-description: Controle dispositivos inteligentes da sua casa: luzes, TV e controle remoto, volume, temperatura, sensores, fechaduras, cortinas, câmeras e muito mais via Home Assistant. Use quando o usuario falar de casa inteligente, smart home, luz, ligar, desligar, TV, volume, ar condicionado, temperatura, ou pedir para abrir o controle de um dispositivo.
+name: Smart Home
+description: Controla e monitora dispositivos inteligentes de automação residencial (lâmpadas, interruptores, termostatos, aparelhos de ar-condicionado, televisores, fechaduras e sensores de presença/temperatura) integrados ao ecossistema doméstico. Use quando o usuário pedir para ligar, desligar, ajustar brilho, cor, volume, temperatura ou checar o status de eletrodomésticos e equipamentos da casa.
 ---
 
 Integração completa com Home Assistant e suporte a múltiplos provedores de automação residencial. Controle cores de luzes, brilho, TV, controle remoto, volume, climatização, sensores e muito mais.

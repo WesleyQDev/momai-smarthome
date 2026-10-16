@@ -2775,24 +2775,70 @@ var SMART_HOME_CSS = `
   }
 
   /* Custom Toggle Switch */
-  .sh-toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
-  .sh-toggle input { opacity: 0; width: 0; height: 0; }
+  .sh-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px;
+    margin: -10px -12px;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sh-toggle:active .sh-slider {
+    transform: scale(0.96);
+  }
+  .sh-toggle:focus-visible {
+    outline: 2px solid rgb(var(--accent, 139 92 246));
+    outline-offset: 2px;
+  }
+  .sh-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    pointer-events: none;
+  }
   .sh-slider {
-    position: absolute; cursor: pointer; top:0; left:0; right:0; bottom:0;
+    position: relative;
+    display: block;
+    width: 44px;
+    height: 24px;
     background: rgb(var(--bg-input, 35 35 40));
     border: 1px solid rgb(var(--border, 55 55 65) / 0.4);
-    transition: .2s ease;
+    transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease;
     border-radius: 34px;
+    flex-shrink: 0;
+    pointer-events: none;
   }
   .sh-slider:before {
-    position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px;
-    background: rgb(var(--text-muted, 160 165 175)); transition: .2s ease; border-radius: 50%;
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    top: 2px;
+    background: rgb(var(--text-muted, 160 165 175));
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease;
+    border-radius: 50%;
   }
+  .sh-toggle--checked .sh-slider,
   input:checked + .sh-slider {
     background: rgb(var(--accent, 139 92 246));
     border-color: rgb(var(--accent, 139 92 246));
   }
-  input:checked + .sh-slider:before { transform: translateX(18px); background: #ffffff; }
+  .sh-toggle--checked .sh-slider:before,
+  input:checked + .sh-slider:before {
+    transform: translateX(20px);
+    background: #ffffff;
+  }
+  .sh-toggle:hover .sh-slider {
+    border-color: rgb(var(--accent, 139 92 246) / 0.6);
+  }
 
   .sh-body { margin-top: 14px; }
   .sh-name { font-size: 14.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); margin: 0 0 3px; letter-spacing: -0.2px; }

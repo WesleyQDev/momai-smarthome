@@ -2928,24 +2928,70 @@ var SMART_HOME_CSS = `
   }
 
   /* Custom Toggle Switch */
-  .sh-toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
-  .sh-toggle input { opacity: 0; width: 0; height: 0; }
+  .sh-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px;
+    margin: -10px -12px;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sh-toggle:active .sh-slider {
+    transform: scale(0.96);
+  }
+  .sh-toggle:focus-visible {
+    outline: 2px solid rgb(var(--accent, 139 92 246));
+    outline-offset: 2px;
+  }
+  .sh-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    pointer-events: none;
+  }
   .sh-slider {
-    position: absolute; cursor: pointer; top:0; left:0; right:0; bottom:0;
+    position: relative;
+    display: block;
+    width: 44px;
+    height: 24px;
     background: rgb(var(--bg-input, 35 35 40));
     border: 1px solid rgb(var(--border, 55 55 65) / 0.4);
-    transition: .2s ease;
+    transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s ease;
     border-radius: 34px;
+    flex-shrink: 0;
+    pointer-events: none;
   }
   .sh-slider:before {
-    position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px;
-    background: rgb(var(--text-muted, 160 165 175)); transition: .2s ease; border-radius: 50%;
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    top: 2px;
+    background: rgb(var(--text-muted, 160 165 175));
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease;
+    border-radius: 50%;
   }
+  .sh-toggle--checked .sh-slider,
   input:checked + .sh-slider {
     background: rgb(var(--accent, 139 92 246));
     border-color: rgb(var(--accent, 139 92 246));
   }
-  input:checked + .sh-slider:before { transform: translateX(18px); background: #ffffff; }
+  .sh-toggle--checked .sh-slider:before,
+  input:checked + .sh-slider:before {
+    transform: translateX(20px);
+    background: #ffffff;
+  }
+  .sh-toggle:hover .sh-slider {
+    border-color: rgb(var(--accent, 139 92 246) / 0.6);
+  }
 
   .sh-body { margin-top: 14px; }
   .sh-name { font-size: 14.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); margin: 0 0 3px; letter-spacing: -0.2px; }
@@ -3683,23 +3729,30 @@ function SmartHomePageInner(props) {
   };
   const applyLocalDeviceState = (device) => {
     const nextOn = Boolean(device.state.on);
+    const related = device.attributes?.relatedEntities || [device];
+    const ids = /* @__PURE__ */ new Set([device.id, ...related.map((r) => r.id)]);
     setDevices(
-      (prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, on: nextOn } } : d)
+      (prev) => prev.map((d) => ids.has(d.id) ? { ...d, state: { ...d.state, on: nextOn } } : d)
     );
-    setSelectedDevice((prev) => prev && prev.id === device.id ? { ...prev, state: { ...prev.state, on: nextOn } } : prev);
+    setSelectedDevice((prev) => prev && ids.has(prev.id) ? { ...prev, state: { ...prev.state, on: nextOn } } : prev);
   };
   const toggleDevice = async (device) => {
     const providerType = device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant";
-    const related = device.attributes.relatedEntities || [device];
+    const related = device.attributes?.relatedEntities || [device];
     const nextOn = !device.state.on;
-    for (const target of related) {
-      if (nextOn) {
-        await api.turnOnDevice(target.id, providerType);
-      } else {
-        await api.turnOffDevice(target.id, providerType);
-      }
-    }
     applyLocalDeviceState({ ...device, state: { ...device.state, on: nextOn } });
+    try {
+      for (const target of related) {
+        if (nextOn) {
+          await api.turnOnDevice(target.id, providerType);
+        } else {
+          await api.turnOffDevice(target.id, providerType);
+        }
+      }
+    } catch (err) {
+      console.error("[SmartHome] Erro ao alternar dispositivo:", err);
+      applyLocalDeviceState({ ...device, state: { ...device.state, on: !nextOn } });
+    }
   };
   const setBrightness = async (device, brightness) => {
     const result = await api.turnOnDevice(device.id, device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant", { brightness });
@@ -3903,7 +3956,23 @@ function SmartHomePageInner(props) {
             setDeviceMenu({ x: e.clientX, y: e.clientY, device });
           }
         },
-        /* @__PURE__ */ React6.createElement("div", { className: "sh-card-header" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-icon" }, dynamicSvgIcon), /* @__PURE__ */ React6.createElement("label", { className: "sh-toggle", onClick: (e) => e.stopPropagation() }, CONTROLLABLE_DOMAINS.includes(device.domain) && /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("input", { type: "checkbox", checked: device.state.on, onChange: () => toggleDevice(device) }), /* @__PURE__ */ React6.createElement("span", { className: "sh-slider" })))),
+        /* @__PURE__ */ React6.createElement("div", { className: "sh-card-header" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-icon" }, dynamicSvgIcon), CONTROLLABLE_DOMAINS.includes(device.domain) && /* @__PURE__ */ React6.createElement(
+          "button",
+          {
+            type: "button",
+            role: "switch",
+            "aria-checked": Boolean(device.state.on),
+            "aria-label": `${device.name}: ${device.state.on ? t("device.on") : t("device.off")}`,
+            className: `sh-toggle ${device.state.on ? "sh-toggle--checked" : ""}`,
+            onMouseDown: (e) => e.stopPropagation(),
+            onClick: (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              void toggleDevice(device);
+            }
+          },
+          /* @__PURE__ */ React6.createElement("span", { className: "sh-slider" })
+        )),
         /* @__PURE__ */ React6.createElement("div", { className: "sh-body" }, /* @__PURE__ */ React6.createElement("h3", { className: "sh-name" }, device.name), /* @__PURE__ */ React6.createElement("p", { className: "sh-sub" }, roomOrDomainSub), device.domain === "light" && device.state.on && device.state.brightness != null && /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { style: { display: "flex", justify: "space-between", fontSize: "11px", color: "#38bdf8", fontWeight: 600, marginTop: "10px" } }, /* @__PURE__ */ React6.createElement("span", null, t("control.brightness")), /* @__PURE__ */ React6.createElement("span", null, device.state.brightness, "%")), /* @__PURE__ */ React6.createElement("div", { className: "sh-bar", onClick: (e) => {
           e.stopPropagation();
           setBrightness(device, device.state.brightness > 50 ? 25 : 75);

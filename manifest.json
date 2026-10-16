@@ -1,7 +1,7 @@
 {
   "id": "momai-smarthome",
   "name": "MomAI Smart Home",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "category": "utility",
   "tags": [
     "smart home",
@@ -515,9 +515,5 @@
       }
     ]
   },
-  "author": "WesleyQDev",
-  "toolPriority": {
-    "label": "SMART HOME",
-    "rule": "usar as ferramentas de casa inteligente quando o usuario pedir para ligar ou desligar luzes, ajustar o ar-condicionado, controlar a TV ou consultar dispositivos da casa."
-  }
+  "author": "WesleyQDev"
 }
