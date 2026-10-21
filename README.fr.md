@@ -1,32 +1,32 @@
 # MomAI Smart Home
 
-L'extension MomAI Smart Home transforme votre ordinateur en véritable centre de commande pour votre maison intelligente, permettant de contrôler lampes, climatiseurs, téléviseurs et prises grâce à des commandes naturelles par voix ou par texte.
+Contrôlez les lumières, la climatisation, la télévision et les prises de votre maison depuis MomAI, à la voix ou par texte. L'extension communique avec le Home Assistant que vous utilisez déjà.
 
-## Votre maison connectée et sous votre contrôle
+## Ce que vous pouvez faire
 
-Intégrée à Home Assistant, MomAI peut communiquer directement avec les appareils installés dans votre résidence, offrant à la fois des réponses rapides dans le chat et un panneau visuel complet avec des écrans de contrôle dédiés.
+- Allumer et éteindre les lampes, changer leur couleur et régler la luminosité.
+- Régler la température de la climatisation et voir le ressenti de chaque pièce.
+- Allumer et éteindre la télévision, changer le volume et contrôler la lecture.
+- Voir les appareils regroupés par pièce dans la barre latérale.
+- Ouvrir une commande à l'écran pour ajuster une lampe ou la télévision avec plus de précision.
+- Garder le contrôle sur votre réseau local.
 
-### Fonctionnalités principales
+## Exemples
 
-- **Contrôle de l'éclairage** : Allumez, éteignez, changez les couleurs des lampes et ajustez la luminosité de chaque pièce de la maison.
-- **Climatisation et confort** : Réglez la température du climatiseur et surveillez la température ressentie des pièces.
-- **Téléviseurs et audio** : Allumez ou éteignez le téléviseur du salon, modifiez le volume et contrôlez la lecture multimédia sans quitter votre ordinateur.
-- **Panneau visuel par pièces** : Voyez l'état de tous les appareils répartis par pièces (comme Salon, Chambre, Cuisine ou Bureau) dans la barre latérale.
-- **Fenêtres flottantes interactives** : Lorsque vous demandez d'ajuster une lampe ou le téléviseur, MomAI peut ouvrir une télécommande visuelle ou une roue de couleurs sur votre écran pour des réglages précis.
-- **Communication 100 % locale** : Le contrôle s'effectue au sein de votre réseau local, garantissant des réponses rapides et une confidentialité totale.
+- « Allume la lumière du salon. »
+- « Passe la lampe du bureau en bleu avec 50 % de luminosité. »
+- « Règle la climatisation de la chambre sur 22 degrés. »
+- « Éteins la télévision du salon. »
+- « Éteins toutes les lumières. »
 
-## Ce que vous pouvez demander à MomAI
+## Configuration
 
-- "MomAI, allume la lumière du salon."
-- "Passe la lampe du bureau au bleu avec 50 % de luminosité."
-- "Règle le climatiseur de la chambre sur 22 degrés."
-- "Éteins la télévision du salon."
-- "Éteins toutes les lumières de la maison."
+1. Dans Home Assistant, ouvrez votre profil et créez un jeton d'accès de longue durée.
+2. Copiez l'adresse que vous utilisez pour ouvrir Home Assistant dans le navigateur. Par exemple : http://homeassistant.local:8123.
+3. Dans MomAI, ouvrez Smart Home dans la barre latérale.
+4. Collez l'adresse et le jeton.
+5. Cliquez sur Connecter. MomAI trouve les appareils enregistrés dans votre maison.
 
-## Comment configurer
+## Autorisations
 
-1. Dans votre Home Assistant, accédez aux paramètres de votre profil utilisateur et générez un Token d'accès longue durée.
-2. Copiez l'adresse que vous utilisez pour accéder à Home Assistant dans votre navigateur (par exemple : http://homeassistant.local:8123).
-3. Ouvrez MomAI et cliquez sur l'icône Smart Home dans la barre latérale.
-4. Collez l'adresse du serveur et le code du token dans les champs de configuration.
-5. Cliquez sur Connecter. L'assistante identifiera automatiquement tous les appareils enregistrés dans votre maison.
+- **Réseau :** pour communiquer avec votre Home Assistant sur le réseau local.
