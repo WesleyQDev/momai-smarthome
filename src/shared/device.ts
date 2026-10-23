@@ -25,7 +25,10 @@ export interface EntityState {
   rising?: boolean
   humidity?: number | null
   pressure?: number | null
+  pressureUnit?: string
   windSpeed?: number | null
+  windSpeedUnit?: string
+  temperatureUnit?: string
   deviceClass?: string
   hexColor?: string | null
   rgbColor?: number[] | null

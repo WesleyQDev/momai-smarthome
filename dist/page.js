@@ -198,9 +198,12 @@ var pt_BR_default = {
   "filter.allDevices": "Todos os dispositivos",
   "filter.selectOther": "Selecione outro filtro acima para visualizar seus dispositivos.",
   "clock.devicesOn": "{active} de {total} dispositivos ligados",
+  "clock.title": "Agora",
   "sun.day": "Dia (Acima do Horizonte)",
   "sun.night": "Noite (Abaixo do Horizonte)",
-  "sun.rise": "Nascer",
+  "sun.above": "Acima do horizonte",
+  "sun.below": "Abaixo do horizonte",
+  "sun.rise": "Nascer do Sol",
   "sun.set": "P\xF4r do Sol",
   "actions.title": "A\xE7\xF5es",
   "actions.description": "A\xE7\xF5es executadas automaticamente quando um dispositivo mudar de estado. Defina o gatilho de cada a\xE7\xE3o (ex.: luz da sala ligou \u2192 enviar mensagem no WhatsApp).",
@@ -307,6 +310,21 @@ var pt_BR_default = {
   "weather.pressure": "Press\xE3o",
   "weather.wind": "Vento",
   "weather.unknown": "desconhecido",
+  "weather.state.clear-night": "Noite limpa",
+  "weather.state.cloudy": "Nublado",
+  "weather.state.exceptional": "Condi\xE7\xE3o extrema",
+  "weather.state.fog": "Neblina",
+  "weather.state.hail": "Granizo",
+  "weather.state.lightning": "Tempestade",
+  "weather.state.lightning-rainy": "Tempestade com chuva",
+  "weather.state.partlycloudy": "Parcialmente nublado",
+  "weather.state.pouring": "Chuva forte",
+  "weather.state.rainy": "Chuva",
+  "weather.state.snowy": "Neve",
+  "weather.state.snowy-rainy": "Neve com chuva",
+  "weather.state.sunny": "Ensolarado",
+  "weather.state.windy": "Ventoso",
+  "weather.state.windy-variant": "Vento forte",
   "light.on": "Luz ligada",
   "light.off": "Luz desligada",
   "device.status": "Status do Dispositivo",
@@ -416,8 +434,11 @@ var en_US_default = {
   "filter.allDevices": "All devices",
   "filter.selectOther": "Select another filter above to view your devices.",
   "clock.devicesOn": "{active} of {total} devices on",
+  "clock.title": "Now",
   "sun.day": "Day (Above Horizon)",
   "sun.night": "Night (Below Horizon)",
+  "sun.above": "Above the horizon",
+  "sun.below": "Below the horizon",
   "sun.rise": "Sunrise",
   "sun.set": "Sunset",
   "actions.title": "Actions",
@@ -525,6 +546,21 @@ var en_US_default = {
   "weather.pressure": "Pressure",
   "weather.wind": "Wind",
   "weather.unknown": "unknown",
+  "weather.state.clear-night": "Clear night",
+  "weather.state.cloudy": "Cloudy",
+  "weather.state.exceptional": "Exceptional",
+  "weather.state.fog": "Fog",
+  "weather.state.hail": "Hail",
+  "weather.state.lightning": "Lightning",
+  "weather.state.lightning-rainy": "Lightning and rain",
+  "weather.state.partlycloudy": "Partly cloudy",
+  "weather.state.pouring": "Heavy rain",
+  "weather.state.rainy": "Rain",
+  "weather.state.snowy": "Snow",
+  "weather.state.snowy-rainy": "Snow and rain",
+  "weather.state.sunny": "Sunny",
+  "weather.state.windy": "Windy",
+  "weather.state.windy-variant": "Strong wind",
   "light.on": "Light on",
   "light.off": "Light off",
   "device.status": "Device Status",
@@ -634,8 +670,11 @@ var es_default = {
   "filter.allDevices": "Todos los dispositivos",
   "filter.selectOther": "Seleccione otro filtro arriba para ver sus dispositivos.",
   "clock.devicesOn": "{active} de {total} dispositivos encendidos",
+  "clock.title": "Ahora",
   "sun.day": "D\xEDa (Sobre el Horizonte)",
   "sun.night": "Noche (Bajo el Horizonte)",
+  "sun.above": "Sobre el horizonte",
+  "sun.below": "Bajo el horizonte",
   "sun.rise": "Amanecer",
   "sun.set": "Atardecer",
   "actions.title": "Acciones",
@@ -743,6 +782,21 @@ var es_default = {
   "weather.pressure": "Presi\xF3n",
   "weather.wind": "Viento",
   "weather.unknown": "desconocido",
+  "weather.state.clear-night": "Noche despejada",
+  "weather.state.cloudy": "Nublado",
+  "weather.state.exceptional": "Condici\xF3n extrema",
+  "weather.state.fog": "Niebla",
+  "weather.state.hail": "Granizo",
+  "weather.state.lightning": "Tormenta",
+  "weather.state.lightning-rainy": "Tormenta con lluvia",
+  "weather.state.partlycloudy": "Parcialmente nublado",
+  "weather.state.pouring": "Lluvia intensa",
+  "weather.state.rainy": "Lluvia",
+  "weather.state.snowy": "Nieve",
+  "weather.state.snowy-rainy": "Nieve con lluvia",
+  "weather.state.sunny": "Soleado",
+  "weather.state.windy": "Ventoso",
+  "weather.state.windy-variant": "Viento fuerte",
   "light.on": "Luz encendida",
   "light.off": "Luz apagada",
   "device.status": "Estado del Dispositivo",
@@ -852,8 +906,11 @@ var de_default = {
   "filter.allDevices": "Alle Ger\xE4te",
   "filter.selectOther": "W\xE4hle oben einen anderen Filter, um deine Ger\xE4te anzuzeigen.",
   "clock.devicesOn": "{active} von {total} Ger\xE4ten eingeschaltet",
+  "clock.title": "Jetzt",
   "sun.day": "Tag (\xFCber dem Horizont)",
   "sun.night": "Nacht (unter dem Horizont)",
+  "sun.above": "\xDCber dem Horizont",
+  "sun.below": "Unter dem Horizont",
   "sun.rise": "Sonnenaufgang",
   "sun.set": "Sonnenuntergang",
   "actions.title": "Aktionen",
@@ -961,6 +1018,21 @@ var de_default = {
   "weather.pressure": "Luftdruck",
   "weather.wind": "Wind",
   "weather.unknown": "unbekannt",
+  "weather.state.clear-night": "Klare Nacht",
+  "weather.state.cloudy": "Bew\xF6lkt",
+  "weather.state.exceptional": "Au\xDFergew\xF6hnlich",
+  "weather.state.fog": "Nebel",
+  "weather.state.hail": "Hagel",
+  "weather.state.lightning": "Gewitter",
+  "weather.state.lightning-rainy": "Gewitter mit Regen",
+  "weather.state.partlycloudy": "Teilweise bew\xF6lkt",
+  "weather.state.pouring": "Starkregen",
+  "weather.state.rainy": "Regen",
+  "weather.state.snowy": "Schnee",
+  "weather.state.snowy-rainy": "Schnee und Regen",
+  "weather.state.sunny": "Sonnig",
+  "weather.state.windy": "Windig",
+  "weather.state.windy-variant": "Starker Wind",
   "light.on": "Licht ein",
   "light.off": "Licht aus",
   "device.status": "Ger\xE4testatus",
@@ -1070,8 +1142,11 @@ var fr_default = {
   "filter.allDevices": "Tous les appareils",
   "filter.selectOther": "S\xE9lectionnez un autre filtre ci-dessus pour voir vos appareils.",
   "clock.devicesOn": "{active} appareil(s) allum\xE9(s) sur {total}",
+  "clock.title": "Maintenant",
   "sun.day": "Jour (au-dessus de l'horizon)",
   "sun.night": "Nuit (sous l'horizon)",
+  "sun.above": "Au-dessus de l'horizon",
+  "sun.below": "Sous l'horizon",
   "sun.rise": "Lever du soleil",
   "sun.set": "Coucher du soleil",
   "actions.title": "Actions",
@@ -1179,6 +1254,21 @@ var fr_default = {
   "weather.pressure": "Pression",
   "weather.wind": "Vent",
   "weather.unknown": "inconnu",
+  "weather.state.clear-night": "Nuit d\xE9gag\xE9e",
+  "weather.state.cloudy": "Nuageux",
+  "weather.state.exceptional": "Conditions extr\xEAmes",
+  "weather.state.fog": "Brouillard",
+  "weather.state.hail": "Gr\xEAle",
+  "weather.state.lightning": "Orage",
+  "weather.state.lightning-rainy": "Orage avec pluie",
+  "weather.state.partlycloudy": "Partiellement nuageux",
+  "weather.state.pouring": "Pluie forte",
+  "weather.state.rainy": "Pluie",
+  "weather.state.snowy": "Neige",
+  "weather.state.snowy-rainy": "Neige et pluie",
+  "weather.state.sunny": "Ensoleill\xE9",
+  "weather.state.windy": "Venteux",
+  "weather.state.windy-variant": "Vent fort",
   "light.on": "Lumi\xE8re allum\xE9e",
   "light.off": "Lumi\xE8re \xE9teinte",
   "device.status": "\xC9tat de l'appareil",
@@ -1288,8 +1378,11 @@ var it_default = {
   "filter.allDevices": "Tutti i dispositivi",
   "filter.selectOther": "Seleziona un altro filtro qui sopra per visualizzare i dispositivi.",
   "clock.devicesOn": "{active} di {total} dispositivi accesi",
+  "clock.title": "Adesso",
   "sun.day": "Giorno (sopra l'orizzonte)",
   "sun.night": "Notte (sotto l'orizzonte)",
+  "sun.above": "Sopra l'orizzonte",
+  "sun.below": "Sotto l'orizzonte",
   "sun.rise": "Alba",
   "sun.set": "Tramonto",
   "actions.title": "Azioni",
@@ -1397,6 +1490,21 @@ var it_default = {
   "weather.pressure": "Pressione",
   "weather.wind": "Vento",
   "weather.unknown": "sconosciuto",
+  "weather.state.clear-night": "Notte serena",
+  "weather.state.cloudy": "Nuvoloso",
+  "weather.state.exceptional": "Condizioni estreme",
+  "weather.state.fog": "Nebbia",
+  "weather.state.hail": "Grandine",
+  "weather.state.lightning": "Temporale",
+  "weather.state.lightning-rainy": "Temporale con pioggia",
+  "weather.state.partlycloudy": "Parzialmente nuvoloso",
+  "weather.state.pouring": "Pioggia intensa",
+  "weather.state.rainy": "Pioggia",
+  "weather.state.snowy": "Neve",
+  "weather.state.snowy-rainy": "Neve e pioggia",
+  "weather.state.sunny": "Soleggiato",
+  "weather.state.windy": "Ventoso",
+  "weather.state.windy-variant": "Vento forte",
   "light.on": "Luce accesa",
   "light.off": "Luce spenta",
   "device.status": "Stato dispositivo",
@@ -1780,12 +1888,21 @@ function getWeatherSvgIcon(state, size = 28, color = "currentColor") {
     case "rainy":
     case "pouring":
       return /* @__PURE__ */ React3.createElement(SvgCloudRain, { size, color });
+    case "lightning":
     case "lightening":
+    case "lightning-rainy":
       return /* @__PURE__ */ React3.createElement(SvgCloudLightning, { size, color });
     case "snowy":
+    case "snowy-rainy":
+    case "hail":
       return /* @__PURE__ */ React3.createElement(SvgCloudSnow, { size, color });
     case "fog":
       return /* @__PURE__ */ React3.createElement(SvgFog, { size, color });
+    case "windy":
+    case "windy-variant":
+      return /* @__PURE__ */ React3.createElement(SvgWind, { size, color });
+    case "exceptional":
+      return /* @__PURE__ */ React3.createElement(SvgAlert, { size, color });
     default:
       return /* @__PURE__ */ React3.createElement(SvgWeather, { size, color });
   }
@@ -3007,44 +3124,253 @@ var SMART_HOME_CSS = `
   }
   .sh-temp-btn:hover { background: rgb(var(--bg-card, 25 25 30)); }
 
-  /* Subdued Widgets Section at Bottom */
+  /* Dashboard widgets: clock, sun and weather share one compact anatomy */
   .sh-widgets-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin-top: 28px;
     margin-bottom: 20px;
+    align-items: stretch;
   }
 
-  .sh-clock-card, .sh-sun-widget, .sh-weather-widget {
-    background: rgb(var(--bg-card, 25 25 30));
+  .sh-metric-card {
+    --sh-widget-surface: rgb(var(--bg-card, 25 25 30));
+    --sh-widget-muted: rgb(var(--text-muted, 160 165 175));
+    --sh-widget-text: rgb(var(--text-primary, 235 235 240));
+    --sh-widget-line: rgb(var(--border, 55 55 65) / 0.4);
+    --sh-widget-inset: rgb(var(--bg-input, 35 35 40) / 0.55);
+    --sh-widget-icon-bg: rgb(var(--bg-input, 35 35 40));
+    --sh-widget-clock: #38bdf8;
+    --sh-widget-sun: #f59e0b;
+    --sh-widget-sunset: #f97316;
+    --sh-widget-weather: #38bdf8;
+    --sh-widget-online: #10b981;
+    background: var(--sh-widget-surface);
     border: 1px solid rgb(var(--border, 55 55 65) / 0.35) !important;
-    border-radius: 20px; padding: 20px 22px;
-    display: flex; flex-direction: column; justify-content: space-between;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border-radius: 20px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 200px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .sh-clock-time { font-size: 34px; font-weight: 800; color: rgb(var(--text-primary, 235 235 240)); letter-spacing: -0.5px; line-height: 1; margin-bottom: 6px; }
-  .sh-clock-date { font-size: 13px; font-weight: 500; color: rgb(var(--text-muted, 160 165 175)); display: flex; align-items: center; gap: 6px; }
 
-  .sh-sun-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .sh-sun-badge { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); }
-  .sh-sun-elevation { font-size: 11px; color: rgb(var(--text-muted, 160 165 175)); background: rgb(var(--bg-input, 35 35 40)); padding: 3px 8px; border-radius: 6px; font-weight: 600; }
-  .sh-sun-arc-container { display: flex; justify-content: center; margin: 2px 0; }
-  .sh-sun-arc-svg { width: 100%; max-width: 190px; height: 60px; }
-  .sh-sun-times { display: flex; justify-around: space-around; background: rgb(var(--bg-input, 35 35 40) / 0.5); padding: 8px 12px; border-radius: 10px; margin-top: 6px; }
-  .sh-sun-time-box { display: flex; flex-direction: column; align-items: center; }
-  .sh-sun-time-label { font-size: 10.5px; color: rgb(var(--text-muted, 160 165 175)); margin-bottom: 2px; display: flex; align-items: center; gap: 4px; }
-  .sh-sun-time-val { font-size: 13px; font-weight: 700; color: rgb(var(--text-primary, 235 235 240)); }
+  .sh-widget-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 38px;
+  }
+  .sh-widget-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+  .sh-widget-heading { min-width: 0; flex: 1; }
+  .sh-widget-heading h3 {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.1px;
+    color: var(--sh-widget-text);
+  }
+  .sh-widget-heading p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--sh-widget-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  .sh-weather-main { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .sh-weather-icon { width: 40px; height: 40px; border-radius: 12px; background: rgb(var(--bg-input, 35 35 40)); display: flex; align-items: center; justify-content: center; color: rgb(var(--accent, 139 92 246)); }
-  .sh-weather-name { font-size: 14.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); margin: 0 0 2px; }
-  .sh-weather-state { font-size: 10.5px; color: rgb(var(--accent, 139 92 246)); margin: 0; font-weight: 600; letter-spacing: 0.5px; }
-  .sh-weather-temp { margin-left: auto; font-size: 24px; font-weight: 800; color: rgb(var(--text-primary, 235 235 240)); }
-  .sh-weather-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: rgb(var(--bg-input, 35 35 40) / 0.5); padding: 8px 10px; border-radius: 10px; }
-  .sh-weather-detail { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: rgb(var(--text-muted, 160 165 175)); }
-  .sh-weather-detail-label { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
-  .sh-weather-detail strong { color: rgb(var(--text-primary, 235 235 240)); font-size: 12px; }
+  .sh-widget-icon {
+    width: 38px;
+    height: 38px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 12px;
+    background: var(--sh-widget-icon-bg);
+    color: var(--sh-widget-muted);
+  }
+  .sh-widget-icon--clock { color: var(--sh-widget-clock); }
+  .sh-widget-icon--sun { color: var(--sh-widget-sun); }
+  .sh-widget-icon--weather { color: var(--sh-widget-weather); }
+
+  .sh-widget-badge {
+    flex: none;
+    padding: 3px 8px;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 8px;
+    background: var(--sh-widget-inset);
+    color: var(--sh-widget-muted);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sh-clock-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-height: 64px;
+  }
+  .sh-clock-time {
+    font-size: 42px;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -1.2px;
+    color: var(--sh-widget-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .sh-clock-foot {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-top: 11px;
+    border-top: 1px solid var(--sh-widget-line);
+    color: var(--sh-widget-muted);
+    font-size: 11.5px;
+    line-height: 1.3;
+  }
+  .sh-status-dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--sh-widget-muted);
+    opacity: 0.6;
+  }
+  .sh-clock-foot.is-on .sh-status-dot {
+    background: var(--sh-widget-online);
+    opacity: 1;
+  }
+
+  .sh-sun-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+  }
+  .sh-sun-arc-svg { display: block; width: 100%; max-height: 76px; }
+  .sh-sun-track {
+    fill: none;
+    stroke: rgb(var(--text-muted, 160 165 175) / 0.28);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 4 6;
+  }
+  .sh-sun-progress {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease;
+  }
+  .sh-sun-horizon { stroke: rgb(var(--text-muted, 160 165 175) / 0.22); stroke-width: 1.5; }
+  .sh-sun-halo { fill: rgb(245 158 11 / 0.18); }
+  .sh-sun-dot { fill: var(--sh-widget-sun); }
+  .sh-sun-moon { fill: var(--sh-widget-clock); }
+  .sh-sun-moon-cut { fill: var(--sh-widget-surface); }
+
+  .sh-sun-times {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 8px 4px;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 12px;
+    background: var(--sh-widget-inset);
+  }
+  .sh-sun-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 0 6px;
+  }
+  .sh-sun-time + .sh-sun-time { border-left: 1px solid var(--sh-widget-line); }
+  .sh-sun-time-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    color: var(--sh-widget-muted);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sh-sun-time-icon { display: inline-flex; flex: none; color: var(--sh-widget-sun); }
+  .sh-sun-time-icon--set { color: var(--sh-widget-sunset); }
+  .sh-sun-time-val {
+    color: var(--sh-widget-text);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sh-weather-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sh-weather-state { text-transform: none; }
+  .sh-weather-temp {
+    color: var(--sh-widget-text);
+    font-size: 34px;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -0.8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sh-weather-temp span {
+    margin-left: 2px;
+    color: var(--sh-widget-muted);
+    font-size: 0.52em;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+  .sh-weather-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: auto;
+    padding: 8px 4px;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 12px;
+    background: var(--sh-widget-inset);
+  }
+  .sh-weather-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 0 5px;
+  }
+  .sh-weather-detail + .sh-weather-detail { border-left: 1px solid var(--sh-widget-line); }
+  .sh-weather-detail-icon { display: inline-flex; color: var(--sh-widget-weather); }
+  .sh-weather-detail strong {
+    color: var(--sh-widget-text);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .sh-weather-detail-label {
+    color: var(--sh-widget-muted);
+    font-size: 9.5px;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: break-word;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-sun-progress { transition: none; }
+  }
 
   .sh-empty {
     background: rgb(var(--bg-card, 25 25 30));
@@ -3355,67 +3681,122 @@ function DeviceControlModal({ device, allDevices, onClose, onToggle }) {
 }
 function LiveClockWidget({ activeDevicesCount, totalDevicesCount }) {
   const { t, locale } = useSmartHomeI18n();
-  const [timeStr, setTimeStr] = useState4("");
-  const [dateStr, setDateStr] = useState4("");
+  const [now, setNow] = useState4(() => /* @__PURE__ */ new Date());
   useEffect3(() => {
-    const updateTime = () => {
-      const now = /* @__PURE__ */ new Date();
-      setTimeStr(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
-      const formattedDate = now.toLocaleDateString(locale, {
-        weekday: "long",
-        day: "numeric",
-        month: "long"
-      });
-      setDateStr(formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1));
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 1e3);
+    const timer = setInterval(() => setNow(/* @__PURE__ */ new Date()), 1e3);
     return () => clearInterval(timer);
-  }, [locale]);
-  return /* @__PURE__ */ React6.createElement("div", { className: "sh-clock-card" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-clock-time" }, timeStr || "--:--"), /* @__PURE__ */ React6.createElement("div", { className: "sh-clock-date" }, /* @__PURE__ */ React6.createElement(SvgClock, { size: 14, color: "#38bdf8" }), /* @__PURE__ */ React6.createElement("span", null, dateStr)), /* @__PURE__ */ React6.createElement("div", { style: { marginTop: "10px", fontSize: "12px", color: "#cbd5e1", display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React6.createElement("span", { style: { width: "6px", height: "6px", borderRadius: "50%", background: activeDevicesCount > 0 ? "#10b981" : "#64748b" } }), /* @__PURE__ */ React6.createElement("span", null, t("clock.devicesOn", { active: activeDevicesCount, total: totalDevicesCount }))));
+  }, []);
+  const timeStr = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const formattedDate = now.toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+  const dateStr = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+  return /* @__PURE__ */ React6.createElement("div", { className: "sh-clock-card sh-metric-card" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-head" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-title" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-widget-icon sh-widget-icon--clock" }, /* @__PURE__ */ React6.createElement(SvgClock, { size: 18 })), /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-heading" }, /* @__PURE__ */ React6.createElement("h3", null, t("clock.title")), /* @__PURE__ */ React6.createElement("p", null, dateStr)))), /* @__PURE__ */ React6.createElement("div", { className: "sh-clock-main" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-clock-time" }, timeStr || "--:--")), /* @__PURE__ */ React6.createElement("div", { className: `sh-clock-foot ${activeDevicesCount > 0 ? "is-on" : ""}` }, /* @__PURE__ */ React6.createElement("span", { className: "sh-status-dot" }), /* @__PURE__ */ React6.createElement("span", null, t("clock.devicesOn", { active: activeDevicesCount, total: totalDevicesCount }))));
+}
+var SUN_ARC = { cx: 100, cy: 54, rx: 88, ry: 42, startX: 12, endX: 188 };
+function getSunProgress(device, isAboveHorizon) {
+  const azimuth = device.state.azimuth;
+  if (typeof azimuth === "number" && Number.isFinite(azimuth)) {
+    return Math.min(1, Math.max(0, (azimuth - 90) / 180));
+  }
+  const rising = device.attributes.next_rising ? new Date(device.attributes.next_rising) : null;
+  const setting = device.attributes.next_setting ? new Date(device.attributes.next_setting) : null;
+  if (isAboveHorizon && rising && setting) {
+    const todayRising = rising.getTime() - 24 * 60 * 60 * 1e3;
+    const span = setting.getTime() - todayRising;
+    if (span > 0) {
+      return Math.min(1, Math.max(0, (Date.now() - todayRising) / span));
+    }
+  }
+  return 0.5;
+}
+function getSunArcPoint(progress) {
+  const theta = Math.PI * (1 - progress);
+  return {
+    x: SUN_ARC.cx + SUN_ARC.rx * Math.cos(theta),
+    y: SUN_ARC.cy - SUN_ARC.ry * Math.sin(theta)
+  };
 }
 function SunWidget({ device }) {
-  const { t } = useSmartHomeI18n();
+  const { t, locale } = useSmartHomeI18n();
   const isAbove = device.state.rawState === "above_horizon";
-  const elevation = device.state.elevation ?? 0;
+  const elevation = typeof device.state.elevation === "number" && Number.isFinite(device.state.elevation) ? Math.round(device.state.elevation) : null;
+  const progress = getSunProgress(device, isAbove);
+  const sunPoint = getSunArcPoint(progress);
   const formatTime = (iso) => {
     if (!iso) return "--:--";
-    try {
-      return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return "--:--";
-    }
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "--:--";
+    return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   };
   const nextRising = formatTime(device.attributes.next_rising);
   const nextSetting = formatTime(device.attributes.next_setting);
-  return /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-widget" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-header" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-badge" }, isAbove ? /* @__PURE__ */ React6.createElement(SvgSun, { size: 18, color: "#fbbf24" }) : /* @__PURE__ */ React6.createElement(SvgMoon, { size: 18, color: "#38bdf8" }), /* @__PURE__ */ React6.createElement("span", null, isAbove ? t("sun.day") : t("sun.night"))), /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-elevation" }, elevation, "\xB0")), /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-arc-container" }, /* @__PURE__ */ React6.createElement("svg", { className: "sh-sun-arc-svg", viewBox: "0 0 200 90" }, /* @__PURE__ */ React6.createElement("path", { d: "M 10 80 A 90 90 0 0 1 190 80", fill: "none", stroke: "rgba(255,255,255,0.12)", strokeWidth: "3", strokeDasharray: "4 4" }), /* @__PURE__ */ React6.createElement(
-    "path",
+  const arcPath = `M ${SUN_ARC.startX} ${SUN_ARC.cy} A ${SUN_ARC.rx} ${SUN_ARC.ry} 0 0 1 ${SUN_ARC.endX} ${SUN_ARC.cy}`;
+  return /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-widget sh-metric-card" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-head" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-title" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-widget-icon sh-widget-icon--sun" }, isAbove ? /* @__PURE__ */ React6.createElement(SvgSun, { size: 18 }) : /* @__PURE__ */ React6.createElement(SvgMoon, { size: 18 })), /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-heading" }, /* @__PURE__ */ React6.createElement("h3", null, t("domains.sun")), /* @__PURE__ */ React6.createElement("p", null, isAbove ? t("sun.above") : t("sun.below")))), elevation != null && /* @__PURE__ */ React6.createElement("span", { className: "sh-widget-badge" }, elevation, "\xB0")), /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-body" }, /* @__PURE__ */ React6.createElement(
+    "svg",
     {
-      d: "M 10 80 A 90 90 0 0 1 190 80",
-      fill: "none",
-      stroke: isAbove ? "#fbbf24" : "#38bdf8",
-      strokeWidth: "3",
-      strokeDasharray: "280",
-      strokeDashoffset: isAbove ? Math.max(0, 140 - elevation * 2) : 220
-    }
-  ), /* @__PURE__ */ React6.createElement(
-    "circle",
-    {
-      cx: isAbove ? Math.min(170, Math.max(30, 100 + elevation * 0.8)) : 100,
-      cy: isAbove ? Math.max(20, 80 - elevation * 0.7) : 75,
-      r: "8",
-      fill: isAbove ? "#f59e0b" : "#0284c7"
-    }
-  ), /* @__PURE__ */ React6.createElement("line", { x1: "0", y1: "80", x2: "200", y2: "80", stroke: "rgba(255,255,255,0.15)", strokeWidth: "1.5" }))), /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-times" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-time-box" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-label" }, /* @__PURE__ */ React6.createElement(SvgSunrise, { size: 13, color: "#fbbf24" }), " ", t("sun.rise")), /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-val" }, nextRising)), /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-time-box" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-label" }, /* @__PURE__ */ React6.createElement(SvgSunset, { size: 13, color: "#f97316" }), " ", t("sun.set")), /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-val" }, nextSetting))));
+      className: "sh-sun-arc-svg",
+      viewBox: "0 0 200 70",
+      role: "img",
+      "aria-label": `${t("domains.sun")}: ${isAbove ? t("sun.above") : t("sun.below")}`
+    },
+    /* @__PURE__ */ React6.createElement("defs", null, /* @__PURE__ */ React6.createElement("linearGradient", { id: "sh-sun-progress-gradient", x1: "0", y1: "0", x2: "1", y2: "0" }, /* @__PURE__ */ React6.createElement("stop", { offset: "0%", stopColor: "#fbbf24" }), /* @__PURE__ */ React6.createElement("stop", { offset: "100%", stopColor: "#f97316" }))),
+    /* @__PURE__ */ React6.createElement("path", { className: "sh-sun-track", d: arcPath }),
+    isAbove && /* @__PURE__ */ React6.createElement(
+      "path",
+      {
+        className: "sh-sun-progress",
+        d: arcPath,
+        pathLength: 100,
+        strokeDasharray: "100",
+        strokeDashoffset: 100 - progress * 100,
+        stroke: "url(#sh-sun-progress-gradient)"
+      }
+    ),
+    /* @__PURE__ */ React6.createElement(
+      "line",
+      {
+        className: "sh-sun-horizon",
+        x1: SUN_ARC.startX - 8,
+        y1: SUN_ARC.cy,
+        x2: SUN_ARC.endX + 8,
+        y2: SUN_ARC.cy
+      }
+    ),
+    isAbove ? /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("circle", { className: "sh-sun-halo", cx: sunPoint.x, cy: sunPoint.y, r: "11" }), /* @__PURE__ */ React6.createElement("circle", { className: "sh-sun-dot", cx: sunPoint.x, cy: sunPoint.y, r: "5.5" })) : /* @__PURE__ */ React6.createElement("g", { className: "sh-sun-moon" }, /* @__PURE__ */ React6.createElement("circle", { cx: "100", cy: "63", r: "5.5" }), /* @__PURE__ */ React6.createElement("circle", { className: "sh-sun-moon-cut", cx: "102.8", cy: "61", r: "5.5" }))
+  )), /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-times" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-time" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-label" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-icon" }, /* @__PURE__ */ React6.createElement(SvgSunrise, { size: 12 })), t("sun.rise")), /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-val" }, nextRising)), /* @__PURE__ */ React6.createElement("div", { className: "sh-sun-time" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-label" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-icon sh-sun-time-icon--set" }, /* @__PURE__ */ React6.createElement(SvgSunset, { size: 12 })), t("sun.set")), /* @__PURE__ */ React6.createElement("span", { className: "sh-sun-time-val" }, nextSetting))));
 }
 function WeatherWidget({ device }) {
   const { t } = useSmartHomeI18n();
-  const state = device.state.rawState || t("weather.unknown");
+  const state = (device.state.rawState || "").toLowerCase();
+  const stateKey = `weather.state.${state}`;
+  const translatedState = t(stateKey);
+  const stateLabel = !state || state === "unknown" || state === "unavailable" ? t("weather.unknown") : translatedState !== stateKey ? translatedState : state.replace(/-/g, " ");
   const temp = device.state.temperature;
-  const humidity = device.state.humidity;
-  const pressure = device.state.pressure;
-  const wind = device.state.windSpeed;
-  return /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-widget" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-main" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-icon" }, getWeatherSvgIcon(state, 24, "#38bdf8")), /* @__PURE__ */ React6.createElement("div", null, /* @__PURE__ */ React6.createElement("h3", { className: "sh-weather-name" }, device.name), /* @__PURE__ */ React6.createElement("p", { className: "sh-weather-state" }, state.replace("-", " ").toUpperCase())), temp != null && /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-temp" }, temp, "\xB0C")), /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-details" }, humidity != null && /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-detail" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-weather-detail-label" }, /* @__PURE__ */ React6.createElement(SvgDrop, { size: 11, color: "#38bdf8" }), " ", t("weather.humidity")), /* @__PURE__ */ React6.createElement("strong", null, humidity, "%")), pressure != null && /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-detail" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-weather-detail-label" }, /* @__PURE__ */ React6.createElement(SvgGauge, { size: 11, color: "#38bdf8" }), " ", t("weather.pressure")), /* @__PURE__ */ React6.createElement("strong", null, pressure, " hPa")), wind != null && /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-detail" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-weather-detail-label" }, /* @__PURE__ */ React6.createElement(SvgWind, { size: 11, color: "#38bdf8" }), " ", t("weather.wind")), /* @__PURE__ */ React6.createElement("strong", null, wind, " km/h"))));
+  const tempUnit = device.state.temperatureUnit || "\xB0C";
+  const details = [
+    {
+      key: "humidity",
+      icon: /* @__PURE__ */ React6.createElement(SvgDrop, { size: 13 }),
+      label: t("weather.humidity"),
+      value: device.state.humidity != null ? `${device.state.humidity}%` : "\u2014"
+    },
+    {
+      key: "pressure",
+      icon: /* @__PURE__ */ React6.createElement(SvgGauge, { size: 13 }),
+      label: t("weather.pressure"),
+      value: device.state.pressure != null ? `${device.state.pressure} ${device.state.pressureUnit || "hPa"}` : "\u2014"
+    },
+    {
+      key: "wind",
+      icon: /* @__PURE__ */ React6.createElement(SvgWind, { size: 13 }),
+      label: t("weather.wind"),
+      value: device.state.windSpeed != null ? `${device.state.windSpeed} ${device.state.windSpeedUnit || "km/h"}` : "\u2014"
+    }
+  ];
+  return /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-widget sh-metric-card" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-head" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-title" }, /* @__PURE__ */ React6.createElement("span", { className: "sh-widget-icon sh-widget-icon--weather" }, getWeatherSvgIcon(state, 20)), /* @__PURE__ */ React6.createElement("div", { className: "sh-widget-heading" }, /* @__PURE__ */ React6.createElement("h3", { className: "sh-weather-name", title: device.name }, device.name), /* @__PURE__ */ React6.createElement("p", { className: "sh-weather-state" }, stateLabel)))), temp != null && /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-temp" }, temp, /* @__PURE__ */ React6.createElement("span", null, tempUnit)), /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-details" }, details.map((detail) => /* @__PURE__ */ React6.createElement("div", { className: "sh-weather-detail", key: detail.key }, /* @__PURE__ */ React6.createElement("span", { className: "sh-weather-detail-icon" }, detail.icon), /* @__PURE__ */ React6.createElement("strong", null, detail.value), /* @__PURE__ */ React6.createElement("span", { className: "sh-weather-detail-label" }, detail.label)))));
 }
 var CACHE_DEVICES_KEY = "momaismarthome:devices";
 var CACHE_CONNS_KEY = "momaismarthome:connections";

@@ -85,9 +85,12 @@ var pt_BR_default = {
   "filter.allDevices": "Todos os dispositivos",
   "filter.selectOther": "Selecione outro filtro acima para visualizar seus dispositivos.",
   "clock.devicesOn": "{active} de {total} dispositivos ligados",
+  "clock.title": "Agora",
   "sun.day": "Dia (Acima do Horizonte)",
   "sun.night": "Noite (Abaixo do Horizonte)",
-  "sun.rise": "Nascer",
+  "sun.above": "Acima do horizonte",
+  "sun.below": "Abaixo do horizonte",
+  "sun.rise": "Nascer do Sol",
   "sun.set": "P\xF4r do Sol",
   "actions.title": "A\xE7\xF5es",
   "actions.description": "A\xE7\xF5es executadas automaticamente quando um dispositivo mudar de estado. Defina o gatilho de cada a\xE7\xE3o (ex.: luz da sala ligou \u2192 enviar mensagem no WhatsApp).",
@@ -194,6 +197,21 @@ var pt_BR_default = {
   "weather.pressure": "Press\xE3o",
   "weather.wind": "Vento",
   "weather.unknown": "desconhecido",
+  "weather.state.clear-night": "Noite limpa",
+  "weather.state.cloudy": "Nublado",
+  "weather.state.exceptional": "Condi\xE7\xE3o extrema",
+  "weather.state.fog": "Neblina",
+  "weather.state.hail": "Granizo",
+  "weather.state.lightning": "Tempestade",
+  "weather.state.lightning-rainy": "Tempestade com chuva",
+  "weather.state.partlycloudy": "Parcialmente nublado",
+  "weather.state.pouring": "Chuva forte",
+  "weather.state.rainy": "Chuva",
+  "weather.state.snowy": "Neve",
+  "weather.state.snowy-rainy": "Neve com chuva",
+  "weather.state.sunny": "Ensolarado",
+  "weather.state.windy": "Ventoso",
+  "weather.state.windy-variant": "Vento forte",
   "light.on": "Luz ligada",
   "light.off": "Luz desligada",
   "device.status": "Status do Dispositivo",
@@ -303,8 +321,11 @@ var en_US_default = {
   "filter.allDevices": "All devices",
   "filter.selectOther": "Select another filter above to view your devices.",
   "clock.devicesOn": "{active} of {total} devices on",
+  "clock.title": "Now",
   "sun.day": "Day (Above Horizon)",
   "sun.night": "Night (Below Horizon)",
+  "sun.above": "Above the horizon",
+  "sun.below": "Below the horizon",
   "sun.rise": "Sunrise",
   "sun.set": "Sunset",
   "actions.title": "Actions",
@@ -412,6 +433,21 @@ var en_US_default = {
   "weather.pressure": "Pressure",
   "weather.wind": "Wind",
   "weather.unknown": "unknown",
+  "weather.state.clear-night": "Clear night",
+  "weather.state.cloudy": "Cloudy",
+  "weather.state.exceptional": "Exceptional",
+  "weather.state.fog": "Fog",
+  "weather.state.hail": "Hail",
+  "weather.state.lightning": "Lightning",
+  "weather.state.lightning-rainy": "Lightning and rain",
+  "weather.state.partlycloudy": "Partly cloudy",
+  "weather.state.pouring": "Heavy rain",
+  "weather.state.rainy": "Rain",
+  "weather.state.snowy": "Snow",
+  "weather.state.snowy-rainy": "Snow and rain",
+  "weather.state.sunny": "Sunny",
+  "weather.state.windy": "Windy",
+  "weather.state.windy-variant": "Strong wind",
   "light.on": "Light on",
   "light.off": "Light off",
   "device.status": "Device Status",
@@ -521,8 +557,11 @@ var es_default = {
   "filter.allDevices": "Todos los dispositivos",
   "filter.selectOther": "Seleccione otro filtro arriba para ver sus dispositivos.",
   "clock.devicesOn": "{active} de {total} dispositivos encendidos",
+  "clock.title": "Ahora",
   "sun.day": "D\xEDa (Sobre el Horizonte)",
   "sun.night": "Noche (Bajo el Horizonte)",
+  "sun.above": "Sobre el horizonte",
+  "sun.below": "Bajo el horizonte",
   "sun.rise": "Amanecer",
   "sun.set": "Atardecer",
   "actions.title": "Acciones",
@@ -630,6 +669,21 @@ var es_default = {
   "weather.pressure": "Presi\xF3n",
   "weather.wind": "Viento",
   "weather.unknown": "desconocido",
+  "weather.state.clear-night": "Noche despejada",
+  "weather.state.cloudy": "Nublado",
+  "weather.state.exceptional": "Condici\xF3n extrema",
+  "weather.state.fog": "Niebla",
+  "weather.state.hail": "Granizo",
+  "weather.state.lightning": "Tormenta",
+  "weather.state.lightning-rainy": "Tormenta con lluvia",
+  "weather.state.partlycloudy": "Parcialmente nublado",
+  "weather.state.pouring": "Lluvia intensa",
+  "weather.state.rainy": "Lluvia",
+  "weather.state.snowy": "Nieve",
+  "weather.state.snowy-rainy": "Nieve con lluvia",
+  "weather.state.sunny": "Soleado",
+  "weather.state.windy": "Ventoso",
+  "weather.state.windy-variant": "Viento fuerte",
   "light.on": "Luz encendida",
   "light.off": "Luz apagada",
   "device.status": "Estado del Dispositivo",
@@ -739,8 +793,11 @@ var de_default = {
   "filter.allDevices": "Alle Ger\xE4te",
   "filter.selectOther": "W\xE4hle oben einen anderen Filter, um deine Ger\xE4te anzuzeigen.",
   "clock.devicesOn": "{active} von {total} Ger\xE4ten eingeschaltet",
+  "clock.title": "Jetzt",
   "sun.day": "Tag (\xFCber dem Horizont)",
   "sun.night": "Nacht (unter dem Horizont)",
+  "sun.above": "\xDCber dem Horizont",
+  "sun.below": "Unter dem Horizont",
   "sun.rise": "Sonnenaufgang",
   "sun.set": "Sonnenuntergang",
   "actions.title": "Aktionen",
@@ -848,6 +905,21 @@ var de_default = {
   "weather.pressure": "Luftdruck",
   "weather.wind": "Wind",
   "weather.unknown": "unbekannt",
+  "weather.state.clear-night": "Klare Nacht",
+  "weather.state.cloudy": "Bew\xF6lkt",
+  "weather.state.exceptional": "Au\xDFergew\xF6hnlich",
+  "weather.state.fog": "Nebel",
+  "weather.state.hail": "Hagel",
+  "weather.state.lightning": "Gewitter",
+  "weather.state.lightning-rainy": "Gewitter mit Regen",
+  "weather.state.partlycloudy": "Teilweise bew\xF6lkt",
+  "weather.state.pouring": "Starkregen",
+  "weather.state.rainy": "Regen",
+  "weather.state.snowy": "Schnee",
+  "weather.state.snowy-rainy": "Schnee und Regen",
+  "weather.state.sunny": "Sonnig",
+  "weather.state.windy": "Windig",
+  "weather.state.windy-variant": "Starker Wind",
   "light.on": "Licht ein",
   "light.off": "Licht aus",
   "device.status": "Ger\xE4testatus",
@@ -957,8 +1029,11 @@ var fr_default = {
   "filter.allDevices": "Tous les appareils",
   "filter.selectOther": "S\xE9lectionnez un autre filtre ci-dessus pour voir vos appareils.",
   "clock.devicesOn": "{active} appareil(s) allum\xE9(s) sur {total}",
+  "clock.title": "Maintenant",
   "sun.day": "Jour (au-dessus de l'horizon)",
   "sun.night": "Nuit (sous l'horizon)",
+  "sun.above": "Au-dessus de l'horizon",
+  "sun.below": "Sous l'horizon",
   "sun.rise": "Lever du soleil",
   "sun.set": "Coucher du soleil",
   "actions.title": "Actions",
@@ -1066,6 +1141,21 @@ var fr_default = {
   "weather.pressure": "Pression",
   "weather.wind": "Vent",
   "weather.unknown": "inconnu",
+  "weather.state.clear-night": "Nuit d\xE9gag\xE9e",
+  "weather.state.cloudy": "Nuageux",
+  "weather.state.exceptional": "Conditions extr\xEAmes",
+  "weather.state.fog": "Brouillard",
+  "weather.state.hail": "Gr\xEAle",
+  "weather.state.lightning": "Orage",
+  "weather.state.lightning-rainy": "Orage avec pluie",
+  "weather.state.partlycloudy": "Partiellement nuageux",
+  "weather.state.pouring": "Pluie forte",
+  "weather.state.rainy": "Pluie",
+  "weather.state.snowy": "Neige",
+  "weather.state.snowy-rainy": "Neige et pluie",
+  "weather.state.sunny": "Ensoleill\xE9",
+  "weather.state.windy": "Venteux",
+  "weather.state.windy-variant": "Vent fort",
   "light.on": "Lumi\xE8re allum\xE9e",
   "light.off": "Lumi\xE8re \xE9teinte",
   "device.status": "\xC9tat de l'appareil",
@@ -1175,8 +1265,11 @@ var it_default = {
   "filter.allDevices": "Tutti i dispositivi",
   "filter.selectOther": "Seleziona un altro filtro qui sopra per visualizzare i dispositivi.",
   "clock.devicesOn": "{active} di {total} dispositivi accesi",
+  "clock.title": "Adesso",
   "sun.day": "Giorno (sopra l'orizzonte)",
   "sun.night": "Notte (sotto l'orizzonte)",
+  "sun.above": "Sopra l'orizzonte",
+  "sun.below": "Sotto l'orizzonte",
   "sun.rise": "Alba",
   "sun.set": "Tramonto",
   "actions.title": "Azioni",
@@ -1284,6 +1377,21 @@ var it_default = {
   "weather.pressure": "Pressione",
   "weather.wind": "Vento",
   "weather.unknown": "sconosciuto",
+  "weather.state.clear-night": "Notte serena",
+  "weather.state.cloudy": "Nuvoloso",
+  "weather.state.exceptional": "Condizioni estreme",
+  "weather.state.fog": "Nebbia",
+  "weather.state.hail": "Grandine",
+  "weather.state.lightning": "Temporale",
+  "weather.state.lightning-rainy": "Temporale con pioggia",
+  "weather.state.partlycloudy": "Parzialmente nuvoloso",
+  "weather.state.pouring": "Pioggia intensa",
+  "weather.state.rainy": "Pioggia",
+  "weather.state.snowy": "Neve",
+  "weather.state.snowy-rainy": "Neve e pioggia",
+  "weather.state.sunny": "Soleggiato",
+  "weather.state.windy": "Ventoso",
+  "weather.state.windy-variant": "Vento forte",
   "light.on": "Luce accesa",
   "light.off": "Luce spenta",
   "device.status": "Stato dispositivo",
@@ -2854,44 +2962,253 @@ var SMART_HOME_CSS = `
   }
   .sh-temp-btn:hover { background: rgb(var(--bg-card, 25 25 30)); }
 
-  /* Subdued Widgets Section at Bottom */
+  /* Dashboard widgets: clock, sun and weather share one compact anatomy */
   .sh-widgets-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin-top: 28px;
     margin-bottom: 20px;
+    align-items: stretch;
   }
 
-  .sh-clock-card, .sh-sun-widget, .sh-weather-widget {
-    background: rgb(var(--bg-card, 25 25 30));
+  .sh-metric-card {
+    --sh-widget-surface: rgb(var(--bg-card, 25 25 30));
+    --sh-widget-muted: rgb(var(--text-muted, 160 165 175));
+    --sh-widget-text: rgb(var(--text-primary, 235 235 240));
+    --sh-widget-line: rgb(var(--border, 55 55 65) / 0.4);
+    --sh-widget-inset: rgb(var(--bg-input, 35 35 40) / 0.55);
+    --sh-widget-icon-bg: rgb(var(--bg-input, 35 35 40));
+    --sh-widget-clock: #38bdf8;
+    --sh-widget-sun: #f59e0b;
+    --sh-widget-sunset: #f97316;
+    --sh-widget-weather: #38bdf8;
+    --sh-widget-online: #10b981;
+    background: var(--sh-widget-surface);
     border: 1px solid rgb(var(--border, 55 55 65) / 0.35) !important;
-    border-radius: 20px; padding: 20px 22px;
-    display: flex; flex-direction: column; justify-content: space-between;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border-radius: 20px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 200px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .sh-clock-time { font-size: 34px; font-weight: 800; color: rgb(var(--text-primary, 235 235 240)); letter-spacing: -0.5px; line-height: 1; margin-bottom: 6px; }
-  .sh-clock-date { font-size: 13px; font-weight: 500; color: rgb(var(--text-muted, 160 165 175)); display: flex; align-items: center; gap: 6px; }
 
-  .sh-sun-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .sh-sun-badge { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); }
-  .sh-sun-elevation { font-size: 11px; color: rgb(var(--text-muted, 160 165 175)); background: rgb(var(--bg-input, 35 35 40)); padding: 3px 8px; border-radius: 6px; font-weight: 600; }
-  .sh-sun-arc-container { display: flex; justify-content: center; margin: 2px 0; }
-  .sh-sun-arc-svg { width: 100%; max-width: 190px; height: 60px; }
-  .sh-sun-times { display: flex; justify-around: space-around; background: rgb(var(--bg-input, 35 35 40) / 0.5); padding: 8px 12px; border-radius: 10px; margin-top: 6px; }
-  .sh-sun-time-box { display: flex; flex-direction: column; align-items: center; }
-  .sh-sun-time-label { font-size: 10.5px; color: rgb(var(--text-muted, 160 165 175)); margin-bottom: 2px; display: flex; align-items: center; gap: 4px; }
-  .sh-sun-time-val { font-size: 13px; font-weight: 700; color: rgb(var(--text-primary, 235 235 240)); }
+  .sh-widget-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 38px;
+  }
+  .sh-widget-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+  .sh-widget-heading { min-width: 0; flex: 1; }
+  .sh-widget-heading h3 {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.1px;
+    color: var(--sh-widget-text);
+  }
+  .sh-widget-heading p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--sh-widget-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  .sh-weather-main { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .sh-weather-icon { width: 40px; height: 40px; border-radius: 12px; background: rgb(var(--bg-input, 35 35 40)); display: flex; align-items: center; justify-content: center; color: rgb(var(--accent, 139 92 246)); }
-  .sh-weather-name { font-size: 14.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); margin: 0 0 2px; }
-  .sh-weather-state { font-size: 10.5px; color: rgb(var(--accent, 139 92 246)); margin: 0; font-weight: 600; letter-spacing: 0.5px; }
-  .sh-weather-temp { margin-left: auto; font-size: 24px; font-weight: 800; color: rgb(var(--text-primary, 235 235 240)); }
-  .sh-weather-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: rgb(var(--bg-input, 35 35 40) / 0.5); padding: 8px 10px; border-radius: 10px; }
-  .sh-weather-detail { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: rgb(var(--text-muted, 160 165 175)); }
-  .sh-weather-detail-label { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
-  .sh-weather-detail strong { color: rgb(var(--text-primary, 235 235 240)); font-size: 12px; }
+  .sh-widget-icon {
+    width: 38px;
+    height: 38px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 12px;
+    background: var(--sh-widget-icon-bg);
+    color: var(--sh-widget-muted);
+  }
+  .sh-widget-icon--clock { color: var(--sh-widget-clock); }
+  .sh-widget-icon--sun { color: var(--sh-widget-sun); }
+  .sh-widget-icon--weather { color: var(--sh-widget-weather); }
+
+  .sh-widget-badge {
+    flex: none;
+    padding: 3px 8px;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 8px;
+    background: var(--sh-widget-inset);
+    color: var(--sh-widget-muted);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sh-clock-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-height: 64px;
+  }
+  .sh-clock-time {
+    font-size: 42px;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -1.2px;
+    color: var(--sh-widget-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .sh-clock-foot {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-top: 11px;
+    border-top: 1px solid var(--sh-widget-line);
+    color: var(--sh-widget-muted);
+    font-size: 11.5px;
+    line-height: 1.3;
+  }
+  .sh-status-dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--sh-widget-muted);
+    opacity: 0.6;
+  }
+  .sh-clock-foot.is-on .sh-status-dot {
+    background: var(--sh-widget-online);
+    opacity: 1;
+  }
+
+  .sh-sun-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+  }
+  .sh-sun-arc-svg { display: block; width: 100%; max-height: 76px; }
+  .sh-sun-track {
+    fill: none;
+    stroke: rgb(var(--text-muted, 160 165 175) / 0.28);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 4 6;
+  }
+  .sh-sun-progress {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease;
+  }
+  .sh-sun-horizon { stroke: rgb(var(--text-muted, 160 165 175) / 0.22); stroke-width: 1.5; }
+  .sh-sun-halo { fill: rgb(245 158 11 / 0.18); }
+  .sh-sun-dot { fill: var(--sh-widget-sun); }
+  .sh-sun-moon { fill: var(--sh-widget-clock); }
+  .sh-sun-moon-cut { fill: var(--sh-widget-surface); }
+
+  .sh-sun-times {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 8px 4px;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 12px;
+    background: var(--sh-widget-inset);
+  }
+  .sh-sun-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 0 6px;
+  }
+  .sh-sun-time + .sh-sun-time { border-left: 1px solid var(--sh-widget-line); }
+  .sh-sun-time-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    color: var(--sh-widget-muted);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sh-sun-time-icon { display: inline-flex; flex: none; color: var(--sh-widget-sun); }
+  .sh-sun-time-icon--set { color: var(--sh-widget-sunset); }
+  .sh-sun-time-val {
+    color: var(--sh-widget-text);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sh-weather-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sh-weather-state { text-transform: none; }
+  .sh-weather-temp {
+    color: var(--sh-widget-text);
+    font-size: 34px;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -0.8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sh-weather-temp span {
+    margin-left: 2px;
+    color: var(--sh-widget-muted);
+    font-size: 0.52em;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+  .sh-weather-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: auto;
+    padding: 8px 4px;
+    border: 1px solid var(--sh-widget-line);
+    border-radius: 12px;
+    background: var(--sh-widget-inset);
+  }
+  .sh-weather-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 0 5px;
+  }
+  .sh-weather-detail + .sh-weather-detail { border-left: 1px solid var(--sh-widget-line); }
+  .sh-weather-detail-icon { display: inline-flex; color: var(--sh-widget-weather); }
+  .sh-weather-detail strong {
+    color: var(--sh-widget-text);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .sh-weather-detail-label {
+    color: var(--sh-widget-muted);
+    font-size: 9.5px;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: break-word;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sh-sun-progress { transition: none; }
+  }
 
   .sh-empty {
     background: rgb(var(--bg-card, 25 25 30));

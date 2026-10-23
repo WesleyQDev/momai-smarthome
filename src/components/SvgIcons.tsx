@@ -513,9 +513,16 @@ export function getWeatherSvgIcon(state: string, size = 28, color = 'currentColo
     case 'cloudy': return <SvgWeather size={size} color={color} />
     case 'rainy':
     case 'pouring': return <SvgCloudRain size={size} color={color} />
-    case 'lightening': return <SvgCloudLightning size={size} color={color} />
-    case 'snowy': return <SvgCloudSnow size={size} color={color} />
+    case 'lightning':
+    case 'lightening':
+    case 'lightning-rainy': return <SvgCloudLightning size={size} color={color} />
+    case 'snowy':
+    case 'snowy-rainy':
+    case 'hail': return <SvgCloudSnow size={size} color={color} />
     case 'fog': return <SvgFog size={size} color={color} />
+    case 'windy':
+    case 'windy-variant': return <SvgWind size={size} color={color} />
+    case 'exceptional': return <SvgAlert size={size} color={color} />
     default: return <SvgWeather size={size} color={color} />
   }
 }

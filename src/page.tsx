@@ -257,97 +257,170 @@ function DeviceControlModal({ device, allDevices, onClose, onToggle }: { device:
 
 function LiveClockWidget({ activeDevicesCount, totalDevicesCount }: { activeDevicesCount: number; totalDevicesCount: number }) {
   const { t, locale } = useSmartHomeI18n()
-  const [timeStr, setTimeStr] = useState<string>('')
-  const [dateStr, setDateStr] = useState<string>('')
+  const [now, setNow] = useState<Date>(() => new Date())
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date()
-      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-      const formattedDate = now.toLocaleDateString(locale, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
-      })
-      setDateStr(formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1))
-    }
-    updateTime()
-    const timer = setInterval(updateTime, 1000)
+    const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
-  }, [locale])
+  }, [])
+
+  const timeStr = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  const formattedDate = now.toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  })
+  const dateStr = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
 
   return (
-    <div className="sh-clock-card">
-      <div className="sh-clock-time">{timeStr || '--:--'}</div>
-      <div className="sh-clock-date">
-        <SvgClock size={14} color="#38bdf8" />
-        <span>{dateStr}</span>
+    <div className="sh-clock-card sh-metric-card">
+      <div className="sh-widget-head">
+        <div className="sh-widget-title">
+          <span className="sh-widget-icon sh-widget-icon--clock">
+            <SvgClock size={18} />
+          </span>
+          <div className="sh-widget-heading">
+            <h3>{t('clock.title')}</h3>
+            <p>{dateStr}</p>
+          </div>
+        </div>
       </div>
-      <div style={{ marginTop: '10px', fontSize: '12px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeDevicesCount > 0 ? '#10b981' : '#64748b' }} />
+
+      <div className="sh-clock-main">
+        <div className="sh-clock-time">{timeStr || '--:--'}</div>
+      </div>
+
+      <div className={`sh-clock-foot ${activeDevicesCount > 0 ? 'is-on' : ''}`}>
+        <span className="sh-status-dot" />
         <span>{t('clock.devicesOn', { active: activeDevicesCount, total: totalDevicesCount })}</span>
       </div>
     </div>
   )
 }
 
+const SUN_ARC = { cx: 100, cy: 54, rx: 88, ry: 42, startX: 12, endX: 188 }
+
+function getSunProgress(device: Device, isAboveHorizon: boolean): number {
+  const azimuth = device.state.azimuth
+  if (typeof azimuth === 'number' && Number.isFinite(azimuth)) {
+    // Home Assistant azimuth: 90° = east (sunrise) and 270° = west (sunset).
+    return Math.min(1, Math.max(0, (azimuth - 90) / 180))
+  }
+
+  const rising = device.attributes.next_rising ? new Date(device.attributes.next_rising) : null
+  const setting = device.attributes.next_setting ? new Date(device.attributes.next_setting) : null
+  if (isAboveHorizon && rising && setting) {
+    const todayRising = rising.getTime() - 24 * 60 * 60 * 1000
+    const span = setting.getTime() - todayRising
+    if (span > 0) {
+      return Math.min(1, Math.max(0, (Date.now() - todayRising) / span))
+    }
+  }
+
+  return 0.5
+}
+
+function getSunArcPoint(progress: number): { x: number; y: number } {
+  const theta = Math.PI * (1 - progress)
+  return {
+    x: SUN_ARC.cx + SUN_ARC.rx * Math.cos(theta),
+    y: SUN_ARC.cy - SUN_ARC.ry * Math.sin(theta)
+  }
+}
+
 function SunWidget({ device }: { device: Device }) {
-  const { t } = useSmartHomeI18n()
+  const { t, locale } = useSmartHomeI18n()
   const isAbove = device.state.rawState === 'above_horizon'
-  const elevation = device.state.elevation ?? 0
+  const elevation =
+    typeof device.state.elevation === 'number' && Number.isFinite(device.state.elevation)
+      ? Math.round(device.state.elevation)
+      : null
+  const progress = getSunProgress(device, isAbove)
+  const sunPoint = getSunArcPoint(progress)
+
   const formatTime = (iso?: string) => {
     if (!iso) return '--:--'
-    try {
-      return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    } catch {
-      return '--:--'
-    }
+    const date = new Date(iso)
+    if (Number.isNaN(date.getTime())) return '--:--'
+    return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
   }
 
   const nextRising = formatTime(device.attributes.next_rising)
   const nextSetting = formatTime(device.attributes.next_setting)
+  const arcPath = `M ${SUN_ARC.startX} ${SUN_ARC.cy} A ${SUN_ARC.rx} ${SUN_ARC.ry} 0 0 1 ${SUN_ARC.endX} ${SUN_ARC.cy}`
 
   return (
-    <div className="sh-sun-widget">
-      <div className="sh-sun-header">
-        <div className="sh-sun-badge">
-          {isAbove ? <SvgSun size={18} color="#fbbf24" /> : <SvgMoon size={18} color="#38bdf8" />}
-          <span>{isAbove ? t('sun.day') : t('sun.night')}</span>
+    <div className="sh-sun-widget sh-metric-card">
+      <div className="sh-widget-head">
+        <div className="sh-widget-title">
+          <span className="sh-widget-icon sh-widget-icon--sun">
+            {isAbove ? <SvgSun size={18} /> : <SvgMoon size={18} />}
+          </span>
+          <div className="sh-widget-heading">
+            <h3>{t('domains.sun')}</h3>
+            <p>{isAbove ? t('sun.above') : t('sun.below')}</p>
+          </div>
         </div>
-        <span className="sh-sun-elevation">{elevation}°</span>
+        {elevation != null && <span className="sh-widget-badge">{elevation}°</span>}
       </div>
 
-      <div className="sh-sun-arc-container">
-        <svg className="sh-sun-arc-svg" viewBox="0 0 200 90">
-          <path d="M 10 80 A 90 90 0 0 1 190 80" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" strokeDasharray="4 4" />
-          <path
-            d="M 10 80 A 90 90 0 0 1 190 80"
-            fill="none"
-            stroke={isAbove ? '#fbbf24' : '#38bdf8'}
-            strokeWidth="3"
-            strokeDasharray="280"
-            strokeDashoffset={isAbove ? Math.max(0, 140 - (elevation * 2)) : 220}
+      <div className="sh-sun-body">
+        <svg
+          className="sh-sun-arc-svg"
+          viewBox="0 0 200 70"
+          role="img"
+          aria-label={`${t('domains.sun')}: ${isAbove ? t('sun.above') : t('sun.below')}`}
+        >
+          <defs>
+            <linearGradient id="sh-sun-progress-gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#fbbf24" />
+              <stop offset="100%" stopColor="#f97316" />
+            </linearGradient>
+          </defs>
+          <path className="sh-sun-track" d={arcPath} />
+          {isAbove && (
+            <path
+              className="sh-sun-progress"
+              d={arcPath}
+              pathLength={100}
+              strokeDasharray="100"
+              strokeDashoffset={100 - progress * 100}
+              stroke="url(#sh-sun-progress-gradient)"
+            />
+          )}
+          <line
+            className="sh-sun-horizon"
+            x1={SUN_ARC.startX - 8}
+            y1={SUN_ARC.cy}
+            x2={SUN_ARC.endX + 8}
+            y2={SUN_ARC.cy}
           />
-          <circle
-            cx={isAbove ? Math.min(170, Math.max(30, 100 + (elevation * 0.8))) : 100}
-            cy={isAbove ? Math.max(20, 80 - (elevation * 0.7)) : 75}
-            r="8"
-            fill={isAbove ? '#f59e0b' : '#0284c7'}
-          />
-          <line x1="0" y1="80" x2="200" y2="80" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+          {isAbove ? (
+            <>
+              <circle className="sh-sun-halo" cx={sunPoint.x} cy={sunPoint.y} r="11" />
+              <circle className="sh-sun-dot" cx={sunPoint.x} cy={sunPoint.y} r="5.5" />
+            </>
+          ) : (
+            <g className="sh-sun-moon">
+              <circle cx="100" cy="63" r="5.5" />
+              <circle className="sh-sun-moon-cut" cx="102.8" cy="61" r="5.5" />
+            </g>
+          )}
         </svg>
       </div>
 
       <div className="sh-sun-times">
-        <div className="sh-sun-time-box">
+        <div className="sh-sun-time">
           <span className="sh-sun-time-label">
-            <SvgSunrise size={13} color="#fbbf24" /> {t('sun.rise')}
+            <span className="sh-sun-time-icon"><SvgSunrise size={12} /></span>
+            {t('sun.rise')}
           </span>
           <span className="sh-sun-time-val">{nextRising}</span>
         </div>
-        <div className="sh-sun-time-box">
+        <div className="sh-sun-time">
           <span className="sh-sun-time-label">
-            <SvgSunset size={13} color="#f97316" /> {t('sun.set')}
+            <span className="sh-sun-time-icon sh-sun-time-icon--set"><SvgSunset size={12} /></span>
+            {t('sun.set')}
           </span>
           <span className="sh-sun-time-val">{nextSetting}</span>
         </div>
@@ -358,48 +431,76 @@ function SunWidget({ device }: { device: Device }) {
 
 function WeatherWidget({ device }: { device: Device }) {
   const { t } = useSmartHomeI18n()
-  const state = device.state.rawState || t('weather.unknown')
+  const state = (device.state.rawState || '').toLowerCase()
+  const stateKey = `weather.state.${state}`
+  const translatedState = t(stateKey)
+  const stateLabel =
+    !state || state === 'unknown' || state === 'unavailable'
+      ? t('weather.unknown')
+      : translatedState !== stateKey
+        ? translatedState
+        : state.replace(/-/g, ' ')
   const temp = device.state.temperature
-  const humidity = device.state.humidity
-  const pressure = device.state.pressure
-  const wind = device.state.windSpeed
+  const tempUnit = device.state.temperatureUnit || '°C'
+
+  const details = [
+    {
+      key: 'humidity',
+      icon: <SvgDrop size={13} />,
+      label: t('weather.humidity'),
+      value: device.state.humidity != null ? `${device.state.humidity}%` : '—'
+    },
+    {
+      key: 'pressure',
+      icon: <SvgGauge size={13} />,
+      label: t('weather.pressure'),
+      value:
+        device.state.pressure != null
+          ? `${device.state.pressure} ${device.state.pressureUnit || 'hPa'}`
+          : '—'
+    },
+    {
+      key: 'wind',
+      icon: <SvgWind size={13} />,
+      label: t('weather.wind'),
+      value:
+        device.state.windSpeed != null
+          ? `${device.state.windSpeed} ${device.state.windSpeedUnit || 'km/h'}`
+          : '—'
+    }
+  ]
 
   return (
-    <div className="sh-weather-widget">
-      <div className="sh-weather-main">
-        <div className="sh-weather-icon">{getWeatherSvgIcon(state, 24, '#38bdf8')}</div>
-        <div>
-          <h3 className="sh-weather-name">{device.name}</h3>
-          <p className="sh-weather-state">{state.replace('-', ' ').toUpperCase()}</p>
+    <div className="sh-weather-widget sh-metric-card">
+      <div className="sh-widget-head">
+        <div className="sh-widget-title">
+          <span className="sh-widget-icon sh-widget-icon--weather">
+            {getWeatherSvgIcon(state, 20)}
+          </span>
+          <div className="sh-widget-heading">
+            <h3 className="sh-weather-name" title={device.name}>
+              {device.name}
+            </h3>
+            <p className="sh-weather-state">{stateLabel}</p>
+          </div>
         </div>
-        {temp != null && <div className="sh-weather-temp">{temp}°C</div>}
       </div>
 
+      {temp != null && (
+        <div className="sh-weather-temp">
+          {temp}
+          <span>{tempUnit}</span>
+        </div>
+      )}
+
       <div className="sh-weather-details">
-        {humidity != null && (
-          <div className="sh-weather-detail">
-            <span className="sh-weather-detail-label">
-              <SvgDrop size={11} color="#38bdf8" /> {t('weather.humidity')}
-            </span>
-            <strong>{humidity}%</strong>
+        {details.map((detail) => (
+          <div className="sh-weather-detail" key={detail.key}>
+            <span className="sh-weather-detail-icon">{detail.icon}</span>
+            <strong>{detail.value}</strong>
+            <span className="sh-weather-detail-label">{detail.label}</span>
           </div>
-        )}
-        {pressure != null && (
-          <div className="sh-weather-detail">
-            <span className="sh-weather-detail-label">
-              <SvgGauge size={11} color="#38bdf8" /> {t('weather.pressure')}
-            </span>
-            <strong>{pressure} hPa</strong>
-          </div>
-        )}
-        {wind != null && (
-          <div className="sh-weather-detail">
-            <span className="sh-weather-detail-label">
-              <SvgWind size={11} color="#38bdf8" /> {t('weather.wind')}
-            </span>
-            <strong>{wind} km/h</strong>
-          </div>
-        )}
+        ))}
       </div>
     </div>
   )
