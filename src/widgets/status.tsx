@@ -29,10 +29,10 @@ export default function SmarthomeStatusWidget({
     .slice(0, limit)
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-2">
-      <div className="flex items-center justify-between shrink-0">
-        <span className="text-xs font-bold text-text">{t('widget.status.title')}</span>
-        <span className="text-[11px] text-text-muted">
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-2 smarthome-widget-container">
+      <div className={`flex items-center justify-between shrink-0 widget-header-row ${isEditing ? 'pr-14' : ''}`}>
+        <span className="text-xs font-bold text-text truncate">{t('widget.status.title')}</span>
+        <span className="text-[11px] text-text-muted shrink-0">
           {onCount} / {devices.length}
         </span>
       </div>
@@ -43,7 +43,7 @@ export default function SmarthomeStatusWidget({
           {visible.map((device) => (
             <div
               key={device.id}
-              className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/40"
+              className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/40 smarthome-device-item"
             >
               <span className="text-xs text-text truncate">{device.name}</span>
               <span className={isOnState(device.state) ? 'text-[10px] font-bold text-accent' : 'text-[10px] text-text-muted'}>

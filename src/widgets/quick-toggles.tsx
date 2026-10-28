@@ -37,8 +37,10 @@ export default function SmarthomeQuickTogglesWidget({
   if (error) return <WidgetState title={t('widget.toggles.title')} message={error} />
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-1.5">
-      <span className="text-xs font-bold text-text shrink-0">{t('widget.toggles.title')}</span>
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-1.5 smarthome-widget-container">
+      <div className={`flex items-center justify-between shrink-0 widget-header-row ${isEditing ? 'pr-14' : ''}`}>
+        <span className="text-xs font-bold text-text truncate">{t('widget.toggles.title')}</span>
+      </div>
       <div className="flex flex-col gap-1.5 min-h-0 overflow-hidden">
         {rows.map((device) => {
           const on = isOnState(device.state)
@@ -48,7 +50,7 @@ export default function SmarthomeQuickTogglesWidget({
               type="button"
               disabled={device.pending || isEditing}
               onClick={() => void toggle(device)}
-              className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-card border border-border/40 hover:border-accent/40 text-left disabled:opacity-60 transition-colors"
+              className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-card border border-border/40 hover:border-accent/40 text-left disabled:opacity-60 transition-colors smarthome-device-item"
             >
               <span className="text-xs text-text truncate">{device.name}</span>
               <ToggleSwitch on={on} />

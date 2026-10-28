@@ -1728,7 +1728,7 @@ function SmarthomeQuickTogglesWidget({
   }
   if (loading) return /* @__PURE__ */ React.createElement(WidgetLoading, { message: t("widget.toggles.loading") });
   if (error) return /* @__PURE__ */ React.createElement(WidgetState, { title: t("widget.toggles.title"), message: error });
-  return /* @__PURE__ */ React.createElement("div", { className: "w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-text shrink-0" }, t("widget.toggles.title")), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5 min-h-0 overflow-hidden" }, rows.map((device) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-1.5 smarthome-widget-container" }, /* @__PURE__ */ React.createElement("div", { className: `flex items-center justify-between shrink-0 widget-header-row ${isEditing ? "pr-14" : ""}` }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-text truncate" }, t("widget.toggles.title"))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5 min-h-0 overflow-hidden" }, rows.map((device) => {
     const on = isOnState(device.state);
     return /* @__PURE__ */ React.createElement(
       "button",
@@ -1737,7 +1737,7 @@ function SmarthomeQuickTogglesWidget({
         type: "button",
         disabled: device.pending || isEditing,
         onClick: () => void toggle(device),
-        className: "flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-card border border-border/40 hover:border-accent/40 text-left disabled:opacity-60 transition-colors"
+        className: "flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-card border border-border/40 hover:border-accent/40 text-left disabled:opacity-60 transition-colors smarthome-device-item"
       },
       /* @__PURE__ */ React.createElement("span", { className: "text-xs text-text truncate" }, device.name),
       /* @__PURE__ */ React.createElement(ToggleSwitch, { on })

@@ -1723,11 +1723,11 @@ function SmarthomeStatusWidget({
   if (error) return /* @__PURE__ */ React.createElement(WidgetState, { title: t("widget.status.title"), message: error });
   const onCount = devices.filter((device) => isOnState(device.state)).length;
   const visible = devices.filter((device) => !onlyOn || isOnState(device.state)).slice(0, limit);
-  return /* @__PURE__ */ React.createElement("div", { className: "w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-text" }, t("widget.status.title")), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-text-muted" }, onCount, " / ", devices.length)), devices.length === 0 ? /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-text-muted" }, t("widget.status.empty")) : /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5 min-h-0 overflow-hidden" }, visible.map((device) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full h-full flex flex-col min-h-0 overflow-hidden p-3 gap-2 smarthome-widget-container" }, /* @__PURE__ */ React.createElement("div", { className: `flex items-center justify-between shrink-0 widget-header-row ${isEditing ? "pr-14" : ""}` }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-text truncate" }, t("widget.status.title")), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-text-muted shrink-0" }, onCount, " / ", devices.length)), devices.length === 0 ? /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-text-muted" }, t("widget.status.empty")) : /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5 min-h-0 overflow-hidden" }, visible.map((device) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: device.id,
-      className: "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/40"
+      className: "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border/40 smarthome-device-item"
     },
     /* @__PURE__ */ React.createElement("span", { className: "text-xs text-text truncate" }, device.name),
     /* @__PURE__ */ React.createElement("span", { className: isOnState(device.state) ? "text-[10px] font-bold text-accent" : "text-[10px] text-text-muted" }, stateLabel(device.state, t))
