@@ -1414,7 +1414,11 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
                     updated[index] = {
                       ...updated[index],
                       ...updatedDevice,
-                      state: { ...updated[index].state, ...updatedDevice.state },
+                      state: {
+                        ...updated[index].state,
+                        ...updatedDevice.state,
+                        brightness: updatedDevice.state?.brightness ?? updated[index].state?.brightness ?? null
+                      },
                       attributes: { ...updated[index].attributes, ...updatedDevice.attributes }
                     }
                     return updated
@@ -1428,7 +1432,11 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
                     return {
                       ...prevSelected,
                       ...updatedDevice,
-                      state: { ...prevSelected.state, ...updatedDevice.state },
+                      state: {
+                        ...prevSelected.state,
+                        ...updatedDevice.state,
+                        brightness: updatedDevice.state?.brightness ?? prevSelected.state?.brightness ?? null
+                      },
                       attributes: { ...prevSelected.attributes, ...updatedDevice.attributes }
                     }
                   }
@@ -1609,9 +1617,17 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
     const related = (device.attributes?.relatedEntities as Device[]) || [device]
     const ids = new Set([device.id, ...related.map((r) => r.id)])
     setDevices((prev) =>
-      prev.map((d) => (ids.has(d.id) ? { ...d, state: { ...d.state, on: nextOn } } : d))
+      prev.map((d) => {
+        if (!ids.has(d.id)) return d
+        const b = d.state.brightness ?? (d.domain === 'light' ? 100 : undefined)
+        return { ...d, state: { ...d.state, on: nextOn, ...(b !== undefined ? { brightness: b } : {}) } }
+      })
     )
-    setSelectedDevice((prev) => (prev && ids.has(prev.id) ? { ...prev, state: { ...prev.state, on: nextOn } } : prev))
+    setSelectedDevice((prev) => {
+      if (!prev || !ids.has(prev.id)) return prev
+      const b = prev.state.brightness ?? (prev.domain === 'light' ? 100 : undefined)
+      return { ...prev, state: { ...prev.state, on: nextOn, ...(b !== undefined ? { brightness: b } : {}) } }
+    })
   }
 
   const toggleDevice = async (device: Device) => {
@@ -1638,9 +1654,18 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
   }
 
   const setBrightness = async (device: Device, brightness: number) => {
-    const result = await api.turnOnDevice(device.id, device.provider?.toLowerCase().replace(/\s+/g, '') || 'homeassistant', { brightness })
-    if (result?.ok === false || result?.success === false) return
-    setDevices((prev) => prev.map((d) => (d.id === device.id ? { ...d, state: { ...d.state, brightness } } : d)))
+    // Atualização otimista imediata para feedback instantâneo
+    setDevices((prev) => prev.map((d) => (d.id === device.id ? { ...d, state: { ...d.state, on: true, brightness } } : d)))
+    setSelectedDevice((prev) => (prev && prev.id === device.id ? { ...prev, state: { ...prev.state, on: true, brightness } } : prev))
+
+    try {
+      const result = await api.turnOnDevice(device.id, device.provider?.toLowerCase().replace(/\s+/g, '') || 'homeassistant', { brightness })
+      if (result?.ok === false || result?.success === false) {
+        setDevices((prev) => prev.map((d) => (d.id === device.id ? { ...d, state: { ...d.state, brightness: device.state.brightness } } : d)))
+      }
+    } catch {
+      setDevices((prev) => prev.map((d) => (d.id === device.id ? { ...d, state: { ...d.state, brightness: device.state.brightness } } : d)))
+    }
   }
 
   const adjustTemp = async (device: Device, delta: number) => {
@@ -2003,16 +2028,31 @@ export function SmartHomePageInner(props?: { isActive?: boolean } & Record<strin
                         <div className="sh-body">
                           <h3 className="sh-name">{device.name}</h3>
                           <p className="sh-sub">{roomOrDomainSub}</p>
-                          {device.domain === 'light' && device.state.on && device.state.brightness != null && (
-                            <>
-                              <div style={{ display: 'flex', justify: 'space-between', fontSize: '11px', color: '#38bdf8', fontWeight: 600, marginTop: '10px' }}>
-                                <span>{t('control.brightness')}</span><span>{device.state.brightness}%</span>
-                              </div>
-                              <div className="sh-bar" onClick={(e) => { e.stopPropagation(); setBrightness(device, device.state.brightness! > 50 ? 25 : 75) }}>
-                                <div className="sh-fill" style={{ width: `${device.state.brightness}%` }} />
-                              </div>
-                            </>
-                          )}
+                          {device.domain === 'light' && (device.state.brightness != null || !Array.isArray(device.attributes?.supported_color_modes) || device.attributes.supported_color_modes.some((m: any) => m !== 'onoff')) && (() => {
+                            const brightnessPct = device.state.brightness ?? 100
+                            return (
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: device.state.on ? '#38bdf8' : 'rgb(var(--text-muted, 160 165 175))', fontWeight: 600, marginTop: '10px' }}>
+                                  <span>{t('control.brightness')}</span><span>{brightnessPct}%</span>
+                                </div>
+                                <div
+                                  className={`sh-bar ${!device.state.on ? 'sh-bar--off' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    void setBrightness(device, brightnessPct > 50 ? 25 : 75)
+                                  }}
+                                >
+                                  <div
+                                    className="sh-fill"
+                                    style={{
+                                      width: `${brightnessPct}%`,
+                                      ...(device.state.on ? {} : { background: 'rgb(var(--text-muted, 160 165 175))', opacity: 0.35 })
+                                    }}
+                                  />
+                                </div>
+                              </>
+                            )
+                          })()}
                           {device.domain === 'climate' && (
                             <div className="sh-temp">
                               <button className="sh-temp-btn" onClick={(e) => { e.stopPropagation(); adjustTemp(device, -1) }}>-</button>

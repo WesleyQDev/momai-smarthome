@@ -3006,6 +3006,7 @@ var SMART_HOME_CSS = `
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 16px; margin-bottom: 28px;
+    align-items: stretch;
   }
 
   .sh-card {
@@ -3013,15 +3014,12 @@ var SMART_HOME_CSS = `
     border: 1px solid rgb(var(--border, 55 55 65) / 0.35) !important;
     border-radius: 20px; padding: 18px 20px; position: relative;
     display: flex; flex-direction: column; justify-content: space-between;
-    min-height: 135px; cursor: pointer; box-sizing: border-box;
+    min-height: 168px; cursor: pointer; box-sizing: border-box;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease;
   }
   .sh-card:hover {
-    transform: translateY(-2px);
-    background: rgb(var(--bg-card, 25 25 30));
     border-color: rgb(var(--border, 55 55 65) / 0.7) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   }
 
   /* Active State */
@@ -3114,7 +3112,7 @@ var SMART_HOME_CSS = `
   .sh-name { font-size: 14.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); margin: 0 0 3px; letter-spacing: -0.2px; }
   .sh-sub { font-size: 12px; color: rgb(var(--text-muted, 160 165 175)); margin: 0; }
   .sh-bar { margin-top: 12px; height: 6px; border-radius: 9999px; background: rgb(var(--bg-input, 35 35 40)); overflow: hidden; cursor: pointer; }
-  .sh-fill { height: 100%; background: #2563eb; border-radius: 9999px; transition: width 0.15s; }
+  .sh-fill { height: 100%; background: #2563eb; border-radius: 9999px; transition: width 0.15s, opacity 0.2s ease, background 0.2s ease; }
   .sh-temp { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .sh-temp-btn {
     width: 28px; height: 28px; border-radius: 8px;
@@ -3941,7 +3939,11 @@ function SmartHomePageInner(props) {
                     updated[index] = {
                       ...updated[index],
                       ...updatedDevice,
-                      state: { ...updated[index].state, ...updatedDevice.state },
+                      state: {
+                        ...updated[index].state,
+                        ...updatedDevice.state,
+                        brightness: updatedDevice.state?.brightness ?? updated[index].state?.brightness ?? null
+                      },
                       attributes: { ...updated[index].attributes, ...updatedDevice.attributes }
                     };
                     return updated;
@@ -3954,7 +3956,11 @@ function SmartHomePageInner(props) {
                     return {
                       ...prevSelected,
                       ...updatedDevice,
-                      state: { ...prevSelected.state, ...updatedDevice.state },
+                      state: {
+                        ...prevSelected.state,
+                        ...updatedDevice.state,
+                        brightness: updatedDevice.state?.brightness ?? prevSelected.state?.brightness ?? null
+                      },
                       attributes: { ...prevSelected.attributes, ...updatedDevice.attributes }
                     };
                   }
@@ -4113,9 +4119,17 @@ function SmartHomePageInner(props) {
     const related = device.attributes?.relatedEntities || [device];
     const ids = /* @__PURE__ */ new Set([device.id, ...related.map((r) => r.id)]);
     setDevices(
-      (prev) => prev.map((d) => ids.has(d.id) ? { ...d, state: { ...d.state, on: nextOn } } : d)
+      (prev) => prev.map((d) => {
+        if (!ids.has(d.id)) return d;
+        const b = d.state.brightness ?? (d.domain === "light" ? 100 : void 0);
+        return { ...d, state: { ...d.state, on: nextOn, ...b !== void 0 ? { brightness: b } : {} } };
+      })
     );
-    setSelectedDevice((prev) => prev && ids.has(prev.id) ? { ...prev, state: { ...prev.state, on: nextOn } } : prev);
+    setSelectedDevice((prev) => {
+      if (!prev || !ids.has(prev.id)) return prev;
+      const b = prev.state.brightness ?? (prev.domain === "light" ? 100 : void 0);
+      return { ...prev, state: { ...prev.state, on: nextOn, ...b !== void 0 ? { brightness: b } : {} } };
+    });
   };
   const toggleDevice = async (device) => {
     const providerType = device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant";
@@ -4136,9 +4150,16 @@ function SmartHomePageInner(props) {
     }
   };
   const setBrightness = async (device, brightness) => {
-    const result = await api.turnOnDevice(device.id, device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant", { brightness });
-    if (result?.ok === false || result?.success === false) return;
-    setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, brightness } } : d));
+    setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, on: true, brightness } } : d));
+    setSelectedDevice((prev) => prev && prev.id === device.id ? { ...prev, state: { ...prev.state, on: true, brightness } } : prev);
+    try {
+      const result = await api.turnOnDevice(device.id, device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant", { brightness });
+      if (result?.ok === false || result?.success === false) {
+        setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, brightness: device.state.brightness } } : d));
+      }
+    } catch {
+      setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, brightness: device.state.brightness } } : d));
+    }
   };
   const adjustTemp = async (device, delta) => {
     const newTemp = Math.min(30, Math.max(16, (device.state.targetTemperature || 22) + delta));
@@ -4354,10 +4375,29 @@ function SmartHomePageInner(props) {
           },
           /* @__PURE__ */ React6.createElement("span", { className: "sh-slider" })
         )),
-        /* @__PURE__ */ React6.createElement("div", { className: "sh-body" }, /* @__PURE__ */ React6.createElement("h3", { className: "sh-name" }, device.name), /* @__PURE__ */ React6.createElement("p", { className: "sh-sub" }, roomOrDomainSub), device.domain === "light" && device.state.on && device.state.brightness != null && /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { style: { display: "flex", justify: "space-between", fontSize: "11px", color: "#38bdf8", fontWeight: 600, marginTop: "10px" } }, /* @__PURE__ */ React6.createElement("span", null, t("control.brightness")), /* @__PURE__ */ React6.createElement("span", null, device.state.brightness, "%")), /* @__PURE__ */ React6.createElement("div", { className: "sh-bar", onClick: (e) => {
-          e.stopPropagation();
-          setBrightness(device, device.state.brightness > 50 ? 25 : 75);
-        } }, /* @__PURE__ */ React6.createElement("div", { className: "sh-fill", style: { width: `${device.state.brightness}%` } }))), device.domain === "climate" && /* @__PURE__ */ React6.createElement("div", { className: "sh-temp" }, /* @__PURE__ */ React6.createElement("button", { className: "sh-temp-btn", onClick: (e) => {
+        /* @__PURE__ */ React6.createElement("div", { className: "sh-body" }, /* @__PURE__ */ React6.createElement("h3", { className: "sh-name" }, device.name), /* @__PURE__ */ React6.createElement("p", { className: "sh-sub" }, roomOrDomainSub), device.domain === "light" && (device.state.brightness != null || !Array.isArray(device.attributes?.supported_color_modes) || device.attributes.supported_color_modes.some((m) => m !== "onoff")) && (() => {
+          const brightnessPct = device.state.brightness ?? 100;
+          return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "11px", color: device.state.on ? "#38bdf8" : "rgb(var(--text-muted, 160 165 175))", fontWeight: 600, marginTop: "10px" } }, /* @__PURE__ */ React6.createElement("span", null, t("control.brightness")), /* @__PURE__ */ React6.createElement("span", null, brightnessPct, "%")), /* @__PURE__ */ React6.createElement(
+            "div",
+            {
+              className: `sh-bar ${!device.state.on ? "sh-bar--off" : ""}`,
+              onClick: (e) => {
+                e.stopPropagation();
+                void setBrightness(device, brightnessPct > 50 ? 25 : 75);
+              }
+            },
+            /* @__PURE__ */ React6.createElement(
+              "div",
+              {
+                className: "sh-fill",
+                style: {
+                  width: `${brightnessPct}%`,
+                  ...device.state.on ? {} : { background: "rgb(var(--text-muted, 160 165 175))", opacity: 0.35 }
+                }
+              }
+            )
+          ));
+        })(), device.domain === "climate" && /* @__PURE__ */ React6.createElement("div", { className: "sh-temp" }, /* @__PURE__ */ React6.createElement("button", { className: "sh-temp-btn", onClick: (e) => {
           e.stopPropagation();
           adjustTemp(device, -1);
         } }, "-"), /* @__PURE__ */ React6.createElement("span", { style: { fontSize: "17px", fontWeight: 700, color: "#38bdf8" } }, device.state.targetTemperature || device.state.temperature || "--", "\xB0C"), /* @__PURE__ */ React6.createElement("button", { className: "sh-temp-btn", onClick: (e) => {

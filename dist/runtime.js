@@ -1790,7 +1790,11 @@ var require_homeAssistant = __commonJS({
           }
         };
         if (domain === "light") {
-          normalized.state.brightness = attrs.brightness !== void 0 && attrs.brightness !== null ? Math.round(attrs.brightness / 255 * 100) : null;
+          const prevBrightness = this.cachedDevices?.get?.(state.entity_id)?.state?.brightness;
+          const supportedModes = attrs.supported_color_modes;
+          const supportsBrightness = Array.isArray(supportedModes) ? supportedModes.some((m) => m !== "onoff") : attrs.supported_features !== void 0 ? Boolean(Number(attrs.supported_features) & 1) : true;
+          const hasBrightness = attrs.brightness !== void 0 && attrs.brightness !== null;
+          normalized.state.brightness = hasBrightness ? Math.round(attrs.brightness / 255 * 100) : prevBrightness ?? (supportsBrightness ? 100 : null);
           normalized.state.colorTemp = attrs.color_temp || null;
           normalized.state.colorTempKelvin = attrs.color_temp_kelvin || (attrs.color_temp ? Math.round(1e6 / attrs.color_temp) : null);
           let rgb = null;

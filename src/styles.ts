@@ -284,6 +284,7 @@ export const SMART_HOME_CSS = `
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 16px; margin-bottom: 28px;
+    align-items: stretch;
   }
 
   .sh-card {
@@ -291,15 +292,12 @@ export const SMART_HOME_CSS = `
     border: 1px solid rgb(var(--border, 55 55 65) / 0.35) !important;
     border-radius: 20px; padding: 18px 20px; position: relative;
     display: flex; flex-direction: column; justify-content: space-between;
-    min-height: 135px; cursor: pointer; box-sizing: border-box;
+    min-height: 168px; cursor: pointer; box-sizing: border-box;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease;
   }
   .sh-card:hover {
-    transform: translateY(-2px);
-    background: rgb(var(--bg-card, 25 25 30));
     border-color: rgb(var(--border, 55 55 65) / 0.7) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   }
 
   /* Active State */
@@ -392,7 +390,7 @@ export const SMART_HOME_CSS = `
   .sh-name { font-size: 14.5px; font-weight: 600; color: rgb(var(--text-primary, 235 235 240)); margin: 0 0 3px; letter-spacing: -0.2px; }
   .sh-sub { font-size: 12px; color: rgb(var(--text-muted, 160 165 175)); margin: 0; }
   .sh-bar { margin-top: 12px; height: 6px; border-radius: 9999px; background: rgb(var(--bg-input, 35 35 40)); overflow: hidden; cursor: pointer; }
-  .sh-fill { height: 100%; background: #2563eb; border-radius: 9999px; transition: width 0.15s; }
+  .sh-fill { height: 100%; background: #2563eb; border-radius: 9999px; transition: width 0.15s, opacity 0.2s ease, background 0.2s ease; }
   .sh-temp { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .sh-temp-btn {
     width: 28px; height: 28px; border-radius: 8px;

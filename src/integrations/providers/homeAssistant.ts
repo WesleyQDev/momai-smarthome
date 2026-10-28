@@ -1178,9 +1178,16 @@ class HomeAssistantProvider extends BaseProvider {
     }
 
     if (domain === 'light') {
-      normalized.state.brightness = (attrs.brightness !== undefined && attrs.brightness !== null)
+      const prevBrightness = this.cachedDevices?.get?.(state.entity_id)?.state?.brightness
+      const supportedModes = attrs.supported_color_modes
+      const supportsBrightness = Array.isArray(supportedModes)
+        ? supportedModes.some((m: string) => m !== 'onoff')
+        : ((attrs.supported_features !== undefined ? Boolean(Number(attrs.supported_features) & 1) : true))
+
+      const hasBrightness = attrs.brightness !== undefined && attrs.brightness !== null
+      normalized.state.brightness = hasBrightness
         ? Math.round((attrs.brightness / 255) * 100)
-        : null
+        : (prevBrightness ?? (supportsBrightness ? 100 : null))
       normalized.state.colorTemp = attrs.color_temp || null
       normalized.state.colorTempKelvin = attrs.color_temp_kelvin || (attrs.color_temp ? Math.round(1000000 / attrs.color_temp) : null)
 
