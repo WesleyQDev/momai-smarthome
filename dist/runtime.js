@@ -309,7 +309,11 @@ var require_tokenManager = __commonJS({
         this.encryptionSecret = process.env.ENCRYPTION_KEY || "";
       }
       attachBridge(bridge) {
-        if (bridge && bridge.storage) this._attachedBridge = bridge;
+        if (bridge && bridge.storage && bridge !== this._attachedBridge) {
+          this._attachedBridge = bridge;
+          this.encryptionSecret = process.env.ENCRYPTION_KEY || "";
+          this._keyPromise = null;
+        }
         return this;
       }
       async _store() {
@@ -517,6 +521,20 @@ var require_tokenManager = __commonJS({
         const { config, migrated } = this._configFromRecord(row.config);
         let resolved = config;
         let needsWrite = migrated;
+        if (!resolved) {
+          try {
+            const storedKey = await (await this._store()).storage.get(ENCRYPTION_KEY_STORAGE_KEY);
+            if (typeof storedKey === "string" && storedKey.trim() && storedKey.trim() !== this.encryptionSecret) {
+              this.encryptionSecret = storedKey.trim();
+              const retry = this._configFromRecord(row.config);
+              if (retry.config) {
+                resolved = retry.config;
+                needsWrite = retry.migrated;
+              }
+            }
+          } catch {
+          }
+        }
         if (!resolved) {
           const lastCreds = await this.getLastCredentials();
           if (lastCreds && lastCreds.url && lastCreds.token) {
@@ -1431,9 +1449,7 @@ var require_homeAssistant = __commonJS({
           }
           if (device) {
             this.cachedDevices.set(deviceId, device);
-            if (!this.wsConnected) {
-              this.emit("state_changed", { device, entityId: deviceId });
-            }
+            this.emit("state_changed", { device, entityId: deviceId });
           }
           return { success: true, deviceId, action: "turnOn", payload: haPayload };
         } catch (err) {
@@ -1458,9 +1474,7 @@ var require_homeAssistant = __commonJS({
           }
           if (device) {
             this.cachedDevices.set(deviceId, device);
-            if (!this.wsConnected) {
-              this.emit("state_changed", { device, entityId: deviceId });
-            }
+            this.emit("state_changed", { device, entityId: deviceId });
           }
           return { success: true, deviceId, action: "turnOff" };
         } catch (err) {
@@ -1474,6 +1488,11 @@ var require_homeAssistant = __commonJS({
         if (toggleDomains.has(domain)) {
           try {
             await this._post(`/api/services/${domain}/toggle`, { entity_id: deviceId });
+            if (device && device.state) {
+              device.state.on = !device.state.on;
+              this.cachedDevices.set(deviceId, device);
+              this.emit("state_changed", { device, entityId: deviceId });
+            }
             return { success: true, deviceId, action: "toggle" };
           } catch (err) {
             return { success: false, error: err.message };
@@ -2092,7 +2111,8 @@ var require_src = __commonJS({
         return this;
       }
       _tokens(momai2) {
-        const bridge = this._attachedBridge || resolveBridge2(momai2);
+        const bridge = momai2 ? resolveBridge2(momai2) : this._attachedBridge || resolveBridge2();
+        this._attachedBridge = bridge;
         if (this.tokenManager) this.tokenManager.attachBridge(bridge);
         return this.tokenManager;
       }
@@ -2143,15 +2163,25 @@ var require_src = __commonJS({
         return run;
       }
       async ensureConnected(momai2) {
-        return this._withLock(async () => {
-          const status = this.devices.getStatus();
-          const haProvider = this.devices?.providers?.get?.("homeassistant") || status?.providers?.homeassistant;
-          if (this.isConnected && this.connections.length > 0 && status.connected && haProvider?.connected) {
+        if (momai2) this._tokens(momai2);
+        const status = this.devices.getStatus();
+        const haProvider = this.devices?.providers?.get?.("homeassistant") || status?.providers?.homeassistant;
+        if (this.isConnected && this.connections.length > 0 && status.connected && haProvider?.connected) {
+          return this.getStatus();
+        }
+        if (this._ensureConnectedPromise && this.connections.length > 0) {
+          return this._ensureConnectedPromise;
+        }
+        this._ensureConnectedPromise = this._withLock(async () => {
+          if (momai2) this._tokens(momai2);
+          const currentStatus = this.devices.getStatus();
+          const currentHaProvider = this.devices?.providers?.get?.("homeassistant") || currentStatus?.providers?.homeassistant;
+          if (this.isConnected && this.connections.length > 0 && currentStatus.connected && currentHaProvider?.connected) {
             return this.getStatus();
           }
-          if (haProvider && typeof haProvider.connect === "function" && haProvider.url && haProvider.token) {
+          if (currentHaProvider && typeof currentHaProvider.connect === "function" && currentHaProvider.url && currentHaProvider.token) {
             try {
-              const res = await haProvider.connect();
+              const res = await currentHaProvider.connect();
               if (res && res.success !== false) {
                 this.isConnected = true;
                 return this.getStatus();
@@ -2162,7 +2192,10 @@ var require_src = __commonJS({
           await this.init(momai2).catch(() => {
           });
           return this.getStatus();
+        }).finally(() => {
+          this._ensureConnectedPromise = null;
         });
+        return this._ensureConnectedPromise;
       }
       async connectToHomeAssistant(url, token, name, momai2) {
         if (!url || !token) throw new Error("URL e token do Home Assistant s\xE3o obrigat\xF3rios");

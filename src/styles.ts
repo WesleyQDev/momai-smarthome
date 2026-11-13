@@ -18,13 +18,8 @@ export const SMART_HOME_CSS = `
     100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
   }
 
-  @keyframes shSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
   .sh-spin {
-    animation: shSpin 0.8s linear infinite;
+    animation: none;
   }
 
   html, body {
@@ -334,6 +329,9 @@ export const SMART_HOME_CSS = `
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+  }
+  .sh-toggle--pending {
+    opacity: 0.7;
   }
   .sh-toggle:active .sh-slider {
     transform: scale(0.96);

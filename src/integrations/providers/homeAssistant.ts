@@ -782,9 +782,7 @@ class HomeAssistantProvider extends BaseProvider {
       }
       if (device) {
         this.cachedDevices.set(deviceId, device)
-        if (!this.wsConnected) {
-          this.emit('state_changed', { device, entityId: deviceId })
-        }
+        this.emit('state_changed', { device, entityId: deviceId })
       }
       return { success: true, deviceId, action: 'turnOn', payload: haPayload }
     } catch (err) {
@@ -810,9 +808,7 @@ class HomeAssistantProvider extends BaseProvider {
       }
       if (device) {
         this.cachedDevices.set(deviceId, device)
-        if (!this.wsConnected) {
-          this.emit('state_changed', { device, entityId: deviceId })
-        }
+        this.emit('state_changed', { device, entityId: deviceId })
       }
       return { success: true, deviceId, action: 'turnOff' }
     } catch (err) {
@@ -827,6 +823,11 @@ class HomeAssistantProvider extends BaseProvider {
     if (toggleDomains.has(domain)) {
       try {
         await this._post(`/api/services/${domain}/toggle`, { entity_id: deviceId })
+        if (device && device.state) {
+          device.state.on = !device.state.on
+          this.cachedDevices.set(deviceId, device)
+          this.emit('state_changed', { device, entityId: deviceId })
+        }
         return { success: true, deviceId, action: 'toggle' }
       } catch (err) {
         return { success: false, error: err.message }

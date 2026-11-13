@@ -1574,12 +1574,22 @@ function extFetch(path, body, timeoutMs = EXT_FETCH_TIMEOUT_MS) {
     },
     body: body ? JSON.stringify(body) : void 0,
     signal: controller.signal
-  }).then((response) => {
+  }).then(async (response) => {
+    let data = {};
     try {
-      return response.json();
+      data = await response.json();
     } catch {
-      return {};
+      data = {};
     }
+    if (!response.ok) {
+      return {
+        ok: false,
+        success: false,
+        ...data,
+        error: data?.error || data?.message || `HTTP ${response.status}`
+      };
+    }
+    return data;
   }).catch((err) => {
     const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR" || err.code === 20);
     return {
@@ -2168,7 +2178,10 @@ function DeviceControlCardContent({
     if (device.domain === "media_player") return "media_player";
     return device.domain === "light" || device.domain === "switch" || device.domain === "fan" ? device.domain : "light";
   })();
-  const handleToggle = () => {
+  const isTogglingRef = React3.useRef(false);
+  const handleToggle = async () => {
+    if (isTogglingRef.current) return;
+    isTogglingRef.current = true;
     const nextState = !isOn;
     beginUserInteraction();
     setIsOn(nextState);
@@ -2182,9 +2195,27 @@ function DeviceControlCardContent({
       const targetDomain = target.domain === "remote" || target.domain === "media_player" || target.domain === "light" || target.domain === "switch" || target.domain === "fan" ? target.domain : toggleDomain;
       return executeService(targetDomain, service, { entity_id: target.id });
     });
-    Promise.all(promises).catch(() => {
-      isUserInteractingRef.current = false;
-    });
+    try {
+      const results = await Promise.all(promises);
+      const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
+      if (failed) {
+        setIsOn(!nextState);
+        isOnRef.current = !nextState;
+        if (onToggle) {
+          onToggle({ ...device, state: { ...device.state, on: !nextState } });
+        }
+      }
+    } catch {
+      setIsOn(!nextState);
+      isOnRef.current = !nextState;
+      if (onToggle) {
+        onToggle({ ...device, state: { ...device.state, on: !nextState } });
+      }
+    } finally {
+      setTimeout(() => {
+        isTogglingRef.current = false;
+      }, 400);
+    }
   };
   const handleSendRemoteCommand = async (command) => {
     const targetId = device.id;
@@ -2578,13 +2609,8 @@ var SMART_HOME_CSS = `
     100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
   }
 
-  @keyframes shSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
   .sh-spin {
-    animation: shSpin 0.8s linear infinite;
+    animation: none;
   }
 
   html, body {
@@ -2894,6 +2920,9 @@ var SMART_HOME_CSS = `
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+  }
+  .sh-toggle--pending {
+    opacity: 0.7;
   }
   .sh-toggle:active .sh-slider {
     transform: scale(0.96);

@@ -49,7 +49,11 @@ class TokenManager {
   }
 
   attachBridge(bridge) {
-    if (bridge && bridge.storage) this._attachedBridge = bridge;
+    if (bridge && bridge.storage && bridge !== this._attachedBridge) {
+      this._attachedBridge = bridge;
+      this.encryptionSecret = process.env.ENCRYPTION_KEY || '';
+      this._keyPromise = null;
+    }
     return this;
   }
 
@@ -277,6 +281,19 @@ class TokenManager {
 
     let resolved = config;
     let needsWrite = migrated;
+    if (!resolved) {
+      try {
+        const storedKey = await (await this._store()).storage.get(ENCRYPTION_KEY_STORAGE_KEY);
+        if (typeof storedKey === 'string' && storedKey.trim() && storedKey.trim() !== this.encryptionSecret) {
+          this.encryptionSecret = storedKey.trim();
+          const retry = this._configFromRecord(row.config);
+          if (retry.config) {
+            resolved = retry.config;
+            needsWrite = retry.migrated;
+          }
+        }
+      } catch {}
+    }
     if (!resolved) {
       const lastCreds = await this.getLastCredentials();
       if (lastCreds && lastCreds.url && lastCreds.token) {

@@ -43,12 +43,22 @@ export function extFetch(path: string, body?: unknown, timeoutMs = EXT_FETCH_TIM
     body: body ? JSON.stringify(body) : undefined,
     signal: controller.signal
   })
-    .then((response) => {
+    .then(async (response) => {
+      let data: any = {}
       try {
-        return response.json()
+        data = await response.json()
       } catch {
-        return {}
+        data = {}
       }
+      if (!response.ok) {
+        return {
+          ok: false,
+          success: false,
+          ...data,
+          error: data?.error || data?.message || `HTTP ${response.status}`
+        }
+      }
+      return data
     })
     .catch((err) => {
       const aborted = err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.code === 20)

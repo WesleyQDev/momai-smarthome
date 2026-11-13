@@ -1687,12 +1687,22 @@ function extFetch(path, body, timeoutMs = EXT_FETCH_TIMEOUT_MS) {
     },
     body: body ? JSON.stringify(body) : void 0,
     signal: controller.signal
-  }).then((response) => {
+  }).then(async (response) => {
+    let data = {};
     try {
-      return response.json();
+      data = await response.json();
     } catch {
-      return {};
+      data = {};
     }
+    if (!response.ok) {
+      return {
+        ok: false,
+        success: false,
+        ...data,
+        error: data?.error || data?.message || `HTTP ${response.status}`
+      };
+    }
+    return data;
   }).catch((err) => {
     const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR" || err.code === 20);
     return {
@@ -2330,7 +2340,10 @@ function DeviceControlCardContent({
     if (device.domain === "media_player") return "media_player";
     return device.domain === "light" || device.domain === "switch" || device.domain === "fan" ? device.domain : "light";
   })();
-  const handleToggle = () => {
+  const isTogglingRef = React4.useRef(false);
+  const handleToggle = async () => {
+    if (isTogglingRef.current) return;
+    isTogglingRef.current = true;
     const nextState = !isOn;
     beginUserInteraction();
     setIsOn(nextState);
@@ -2344,9 +2357,27 @@ function DeviceControlCardContent({
       const targetDomain = target.domain === "remote" || target.domain === "media_player" || target.domain === "light" || target.domain === "switch" || target.domain === "fan" ? target.domain : toggleDomain;
       return executeService(targetDomain, service, { entity_id: target.id });
     });
-    Promise.all(promises).catch(() => {
-      isUserInteractingRef.current = false;
-    });
+    try {
+      const results = await Promise.all(promises);
+      const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
+      if (failed) {
+        setIsOn(!nextState);
+        isOnRef.current = !nextState;
+        if (onToggle) {
+          onToggle({ ...device, state: { ...device.state, on: !nextState } });
+        }
+      }
+    } catch {
+      setIsOn(!nextState);
+      isOnRef.current = !nextState;
+      if (onToggle) {
+        onToggle({ ...device, state: { ...device.state, on: !nextState } });
+      }
+    } finally {
+      setTimeout(() => {
+        isTogglingRef.current = false;
+      }, 400);
+    }
   };
   const handleSendRemoteCommand = async (command) => {
     const targetId = device.id;
@@ -2740,13 +2771,8 @@ var SMART_HOME_CSS = `
     100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
   }
 
-  @keyframes shSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
   .sh-spin {
-    animation: shSpin 0.8s linear infinite;
+    animation: none;
   }
 
   html, body {
@@ -3056,6 +3082,9 @@ var SMART_HOME_CSS = `
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+  }
+  .sh-toggle--pending {
+    opacity: 0.7;
   }
   .sh-toggle:active .sh-slider {
     transform: scale(0.96);
@@ -3852,6 +3881,9 @@ function SmartHomePageInner(props) {
   const [connectError, setConnectError] = useState4(null);
   const [connecting, setConnecting] = useState4(false);
   const [isSyncing, setIsSyncing] = useState4(false);
+  const [pendingDeviceIds, setPendingDeviceIds] = useState4(/* @__PURE__ */ new Set());
+  const pendingDeviceIdsRef = useRef3(/* @__PURE__ */ new Set());
+  const recentInteractionsRef = useRef3(/* @__PURE__ */ new Map());
   const contentRef = useRef3(null);
   useEffect3(() => {
     loadStatus();
@@ -3932,6 +3964,18 @@ function SmartHomePageInner(props) {
             } else if (payload.eventType === "state_changed") {
               const updatedDevice = payload.data?.device;
               if (updatedDevice && updatedDevice.id) {
+                const guard = recentInteractionsRef.current.get(updatedDevice.id);
+                if (guard) {
+                  if (Date.now() < guard.until) {
+                    if (updatedDevice.state?.on !== void 0 && updatedDevice.state.on !== guard.intendedOn) {
+                      return;
+                    } else {
+                      recentInteractionsRef.current.delete(updatedDevice.id);
+                    }
+                  } else {
+                    recentInteractionsRef.current.delete(updatedDevice.id);
+                  }
+                }
                 setDevices((prevDevices) => {
                   const index = prevDevices.findIndex((d) => d.id === updatedDevice.id);
                   if (index >= 0) {
@@ -4132,21 +4176,44 @@ function SmartHomePageInner(props) {
     });
   };
   const toggleDevice = async (device) => {
+    if (pendingDeviceIdsRef.current.has(device.id)) {
+      return;
+    }
     const providerType = device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant";
     const related = device.attributes?.relatedEntities || [device];
+    const allIds = [device.id, ...related.map((r) => r.id)];
     const nextOn = !device.state.on;
+    const nextPending = new Set(pendingDeviceIdsRef.current);
+    for (const id of allIds) nextPending.add(id);
+    pendingDeviceIdsRef.current = nextPending;
+    setPendingDeviceIds(new Set(nextPending));
+    const guardUntil = Date.now() + 1500;
+    for (const id of allIds) {
+      recentInteractionsRef.current.set(id, { intendedOn: nextOn, until: guardUntil });
+    }
     applyLocalDeviceState({ ...device, state: { ...device.state, on: nextOn } });
     try {
-      for (const target of related) {
-        if (nextOn) {
-          await api.turnOnDevice(target.id, providerType);
-        } else {
-          await api.turnOffDevice(target.id, providerType);
-        }
+      const promises = related.map(
+        (target) => nextOn ? api.turnOnDevice(target.id, providerType) : api.turnOffDevice(target.id, providerType)
+      );
+      const results = await Promise.all(promises);
+      const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
+      if (failed) {
+        console.warn("[SmartHome] Falha ao alternar dispositivo:", results);
+        applyLocalDeviceState({ ...device, state: { ...device.state, on: !nextOn } });
+        for (const id of allIds) recentInteractionsRef.current.delete(id);
       }
     } catch (err) {
       console.error("[SmartHome] Erro ao alternar dispositivo:", err);
       applyLocalDeviceState({ ...device, state: { ...device.state, on: !nextOn } });
+      for (const id of allIds) recentInteractionsRef.current.delete(id);
+    } finally {
+      setTimeout(() => {
+        const updated = new Set(pendingDeviceIdsRef.current);
+        for (const id of allIds) updated.delete(id);
+        pendingDeviceIdsRef.current = updated;
+        setPendingDeviceIds(new Set(updated));
+      }, 300);
     }
   };
   const setBrightness = async (device, brightness) => {
@@ -4178,7 +4245,7 @@ function SmartHomePageInner(props) {
   });
   const sunDevice = devices.find((d) => d.domain === "sun");
   const weatherDevice = devices.find((d) => d.domain === "weather");
-  const activeDevicesTotal = devices.filter((d) => d.state.on).length;
+  const activeDevicesTotal = devices.filter((d) => CONTROLLABLE_DOMAINS.includes(d.domain) && d.state.on).length;
   const controllableCount = devices.filter((d) => CONTROLLABLE_DOMAINS.includes(d.domain)).length;
   const sensorsCount = devices.filter((d) => !CONTROLLABLE_DOMAINS.includes(d.domain)).length;
   return /* @__PURE__ */ React6.createElement("div", { className: "sh-root" }, /* @__PURE__ */ React6.createElement(SmartHomeStyles, null), showConnectModal && /* @__PURE__ */ React6.createElement("div", { className: "sh-modal-overlay" }, /* @__PURE__ */ React6.createElement("div", { className: "sh-modal" }, /* @__PURE__ */ React6.createElement("h3", { style: { fontSize: "20px", fontWeight: 700, margin: "0 0 8px", color: "#f8fafc" } }, t("connect.title")), /* @__PURE__ */ React6.createElement("p", { style: { fontSize: "13px", color: "#94a3b8", margin: "0 0 20px", lineHeight: 1.5 } }, t("connect.description")), /* @__PURE__ */ React6.createElement("form", { onSubmit: handleConnect }, /* @__PURE__ */ React6.createElement("label", { className: "sh-label" }, t("connect.urlLabel")), /* @__PURE__ */ React6.createElement("input", { className: "sh-input", type: "url", required: true, placeholder: "http://homeassistant.local:8123", value: haUrl, onChange: (e) => setHaUrl(e.target.value) }), /* @__PURE__ */ React6.createElement("label", { className: "sh-label" }, t("connect.tokenLabel")), /* @__PURE__ */ React6.createElement("div", { style: { position: "relative", width: "100%" } }, /* @__PURE__ */ React6.createElement(
@@ -4283,12 +4350,9 @@ function SmartHomePageInner(props) {
       className: "sh-btn",
       onClick: handleResync,
       disabled: isSyncing,
-      title: t("connect.resync"),
-      style: {
-        cursor: isSyncing ? "wait" : "pointer"
-      }
+      title: t("connect.resync")
     },
-    /* @__PURE__ */ React6.createElement(SvgRefresh, { size: 15, className: isSyncing ? "sh-spin" : "" }),
+    /* @__PURE__ */ React6.createElement(SvgRefresh, { size: 15 }),
     /* @__PURE__ */ React6.createElement("span", null, isSyncing ? t("connect.syncing") : t("connect.resync"))
   ), /* @__PURE__ */ React6.createElement(
     "div",
@@ -4364,14 +4428,21 @@ function SmartHomePageInner(props) {
             type: "button",
             role: "switch",
             "aria-checked": Boolean(device.state.on),
+            "aria-busy": pendingDeviceIds.has(device.id),
+            "aria-disabled": pendingDeviceIds.has(device.id),
             "aria-label": `${device.name}: ${device.state.on ? t("device.on") : t("device.off")}`,
-            className: `sh-toggle ${device.state.on ? "sh-toggle--checked" : ""}`,
+            className: `sh-toggle ${device.state.on ? "sh-toggle--checked" : ""} ${pendingDeviceIds.has(device.id) ? "sh-toggle--pending" : ""}`,
             onMouseDown: (e) => e.stopPropagation(),
+            onPointerDown: (e) => e.stopPropagation(),
             onClick: (e) => {
               e.stopPropagation();
               e.preventDefault();
+              if (pendingDeviceIdsRef.current.has(device.id)) {
+                return;
+              }
               void toggleDevice(device);
-            }
+            },
+            style: pendingDeviceIds.has(device.id) ? { opacity: 0.7 } : void 0
           },
           /* @__PURE__ */ React6.createElement("span", { className: "sh-slider" })
         )),

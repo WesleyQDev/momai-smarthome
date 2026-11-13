@@ -1547,12 +1547,22 @@ function extFetch(path, body, timeoutMs = EXT_FETCH_TIMEOUT_MS) {
     },
     body: body ? JSON.stringify(body) : void 0,
     signal: controller.signal
-  }).then((response) => {
+  }).then(async (response) => {
+    let data = {};
     try {
-      return response.json();
+      data = await response.json();
     } catch {
-      return {};
+      data = {};
     }
+    if (!response.ok) {
+      return {
+        ok: false,
+        success: false,
+        ...data,
+        error: data?.error || data?.message || `HTTP ${response.status}`
+      };
+    }
+    return data;
   }).catch((err) => {
     const aborted = err && (err.name === "AbortError" || err.code === "ABORT_ERR" || err.code === 20);
     return {

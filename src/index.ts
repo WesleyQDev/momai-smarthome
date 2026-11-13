@@ -54,7 +54,8 @@ class MomAIHomeConnector extends EventEmitter {
   }
 
   _tokens(momai) {
-    const bridge = this._attachedBridge || resolveBridge(momai);
+    const bridge = momai ? resolveBridge(momai) : (this._attachedBridge || resolveBridge());
+    this._attachedBridge = bridge;
     if (this.tokenManager) this.tokenManager.attachBridge(bridge);
     return this.tokenManager;
   }
@@ -110,16 +111,32 @@ class MomAIHomeConnector extends EventEmitter {
   }
 
   async ensureConnected(momai) {
-    return this._withLock(async () => {
-      const status = this.devices.getStatus();
-      const haProvider = this.devices?.providers?.get?.('homeassistant') || status?.providers?.homeassistant;
-      if (this.isConnected && this.connections.length > 0 && status.connected && haProvider?.connected) {
+    if (momai) this._tokens(momai);
+
+    // 1. Fast-path: se já está conectado, retorna imediatamente (0ms) sem lock nem fila
+    const status = this.devices.getStatus();
+    const haProvider = this.devices?.providers?.get?.('homeassistant') || status?.providers?.homeassistant;
+    if (this.isConnected && this.connections.length > 0 && status.connected && haProvider?.connected) {
+      return this.getStatus();
+    }
+
+    // 2. Single-flight: se já existe uma tentativa de conexão em andamento (e já temos conexões conhecidas),
+    // reaproveita a mesma Promise para evitar fila sequencial de tentativas demoradas.
+    if (this._ensureConnectedPromise && this.connections.length > 0) {
+      return this._ensureConnectedPromise;
+    }
+
+    this._ensureConnectedPromise = this._withLock(async () => {
+      if (momai) this._tokens(momai);
+      const currentStatus = this.devices.getStatus();
+      const currentHaProvider = this.devices?.providers?.get?.('homeassistant') || currentStatus?.providers?.homeassistant;
+      if (this.isConnected && this.connections.length > 0 && currentStatus.connected && currentHaProvider?.connected) {
         return this.getStatus();
       }
 
-      if (haProvider && typeof haProvider.connect === 'function' && haProvider.url && haProvider.token) {
+      if (currentHaProvider && typeof currentHaProvider.connect === 'function' && currentHaProvider.url && currentHaProvider.token) {
         try {
-          const res = await haProvider.connect();
+          const res = await currentHaProvider.connect();
           if (res && res.success !== false) {
             this.isConnected = true;
             return this.getStatus();
@@ -130,7 +147,11 @@ class MomAIHomeConnector extends EventEmitter {
       await this.init(momai).catch(() => {});
 
       return this.getStatus();
+    }).finally(() => {
+      this._ensureConnectedPromise = null;
     });
+
+    return this._ensureConnectedPromise;
   }
 
   async connectToHomeAssistant(url, token, name, momai) {

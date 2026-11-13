@@ -612,7 +612,11 @@ export function DeviceControlCardContent({
     return device.domain === 'light' || device.domain === 'switch' || device.domain === 'fan' ? device.domain : 'light'
   })()
 
-  const handleToggle = () => {
+  const isTogglingRef = React.useRef(false)
+
+  const handleToggle = async () => {
+    if (isTogglingRef.current) return
+    isTogglingRef.current = true
     const nextState = !isOn
     beginUserInteraction()
     setIsOn(nextState)
@@ -628,9 +632,27 @@ export function DeviceControlCardContent({
         : toggleDomain
       return executeService(targetDomain, service, { entity_id: target.id })
     })
-    Promise.all(promises).catch(() => {
-      isUserInteractingRef.current = false
-    })
+    try {
+      const results = await Promise.all(promises)
+      const failed = results.some((r: any) => !r || r.ok === false || r.success === false || Boolean(r.error))
+      if (failed) {
+        setIsOn(!nextState)
+        isOnRef.current = !nextState
+        if (onToggle) {
+          onToggle({ ...device, state: { ...device.state, on: !nextState } })
+        }
+      }
+    } catch {
+      setIsOn(!nextState)
+      isOnRef.current = !nextState
+      if (onToggle) {
+        onToggle({ ...device, state: { ...device.state, on: !nextState } })
+      }
+    } finally {
+      setTimeout(() => {
+        isTogglingRef.current = false
+      }, 400)
+    }
   }
 
   const handleSendRemoteCommand = async (command: string) => {
