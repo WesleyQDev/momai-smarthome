@@ -1,5 +1,7 @@
 # MomAI Smart Home
 
+[English](README.md) · [Português](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · **Deutsch**
+
 Steuern Sie Lampen, Klimaanlage, Fernseher und Steckdosen in Ihrem Zuhause über MomAI, per Sprache oder Text. Die Erweiterung spricht mit dem Home Assistant, den Sie bereits nutzen.
 
 ## Was Sie damit machen können

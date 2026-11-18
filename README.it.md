@@ -1,5 +1,7 @@
 # MomAI Smart Home
 
+[English](README.md) · [Português](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · **Italiano** · [Deutsch](README.de.md)
+
 Controlla luci, climatizzatore, TV e prese di casa da MomAI, con la voce o con il testo. L'estensione parla con l'Home Assistant che usi già.
 
 ## Cosa puoi fare
