@@ -1,7 +1,5 @@
 # MomAI Smart Home
 
-**English** · [Português](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Deutsch](README.de.md)
-
 Control the lights, air conditioning, TV, and outlets in your home through MomAI, by voice or text. The extension talks to the Home Assistant setup you already use.
 
 ## What you can do
