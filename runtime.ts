@@ -116,13 +116,13 @@ init().catch((err) => console.warn('[runtime] Auto-init error:', err))
 const lastStateMap = new Map()
 const LAST_STATE_MAX = 5000
 
-// Registra o estado de uma entidade com dedup de 3s e eviction LRU simples
+// Registra o estado de uma entidade com dedup de 800ms e eviction LRU simples
 // (Map preserva ordem de inserção). Evita crescimento infinito em memória
 // quando há muitas entidades/estados únicos (B4).
-function recordLastState(entityId, deviceState) {
+function recordLastState(entityId, deviceState, isOptimistic = false) {
   const now = Date.now()
   const last = lastStateMap.get(entityId)
-  if (last && last.state === deviceState && now - last.timestamp < 3000) {
+  if (!isOptimistic && last && last.state === deviceState && now - last.timestamp < 800) {
     return false
   }
   lastStateMap.set(entityId, { state: deviceState, timestamp: now })
@@ -155,8 +155,8 @@ if (typeof connector.on === 'function') {
           : deviceState
 
         const entityId = data.entityId || data.device.id
-        if (!recordLastState(entityId, volumeKey)) {
-          // Descarte eventos duplicados para o mesmo estado no intervalo de 3 segundos
+        if (!recordLastState(entityId, volumeKey, Boolean(data.optimistic))) {
+          // Descarte eventos duplicados para o mesmo estado no intervalo de 800ms
           return
         }
 
@@ -611,7 +611,16 @@ async function executeTool(toolName, args, momai) {
 
   // get_actions/set_actions não dependem do HA — não fazem ensureConnected,
   // senão o modal de Automações fica pendurado quando o HA está offline.
-  if (toolName !== 'connectToHomeAssistant' && toolName !== 'get_actions' && toolName !== 'set_actions') {
+  // Direct action tools skip pre-flight /api/config when the provider already has url+token.
+  const DIRECT_ACTION_TOOLS = new Set(['turnOnDevice', 'turnOffDevice', 'toggleDevice', 'callService', 'call_ha_service'])
+  const existingHaProvider = connector.devices?.providers?.get?.('homeassistant')
+  const hasConfiguredProvider = Boolean(existingHaProvider && existingHaProvider.url && existingHaProvider.token)
+  const skipPreflight =
+    toolName === 'connectToHomeAssistant' ||
+    toolName === 'get_actions' ||
+    toolName === 'set_actions' ||
+    (DIRECT_ACTION_TOOLS.has(toolName) && hasConfiguredProvider)
+  if (!skipPreflight) {
     await connector.ensureConnected(momai).catch(() => {})
   }
 

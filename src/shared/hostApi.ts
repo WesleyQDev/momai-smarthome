@@ -7,7 +7,7 @@
 import { translateSh } from '../i18n/index'
 
 const DEFAULT_API_BASE = 'http://127.0.0.1:8050'
-export const EXT_FETCH_TIMEOUT_MS = 10000
+export const EXT_FETCH_TIMEOUT_MS = 15000
 
 export function getApiBaseUrl(): string {
   try {

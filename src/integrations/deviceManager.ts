@@ -50,7 +50,25 @@ class DeviceManager extends EventEmitter {
     }
 
     if (this.providers.has(type)) {
-      await this.providers.get(type).disconnect();
+      const existing = this.providers.get(type);
+      const normalizedIncomingUrl = config?.url ? String(config.url).trim().replace(/\/+$/, '') : '';
+      const normalizedExistingUrl = existing?.url ? String(existing.url).trim().replace(/\/+$/, '') : '';
+      if (
+        type === 'homeassistant' &&
+        existing &&
+        normalizedIncomingUrl &&
+        normalizedExistingUrl === normalizedIncomingUrl &&
+        existing.token === config?.token &&
+        typeof existing.connect === 'function'
+      ) {
+        try {
+          return await existing.connect();
+        } catch (err) {
+          this._lastConnectFail.set(type, Date.now());
+          return { success: false, error: err.message, code: err.code || 'ha_error' };
+        }
+      }
+      await existing.disconnect();
     }
 
     const provider = new ProviderClass(config);

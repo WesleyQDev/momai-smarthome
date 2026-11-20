@@ -1518,7 +1518,7 @@ import sdk from "momai:sdk";
 
 // src/shared/hostApi.ts
 var DEFAULT_API_BASE = "http://127.0.0.1:8050";
-var EXT_FETCH_TIMEOUT_MS = 1e4;
+var EXT_FETCH_TIMEOUT_MS = 15e3;
 function getApiBaseUrl() {
   try {
     const host = window?.momaiAPI || window?.api;

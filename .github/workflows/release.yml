@@ -44,7 +44,7 @@ jobs:
       - name: Create release ZIP
         run: |
           ZIP="MomAISmartHome-${GITHUB_REF_NAME}.zip"
-          zip -r "$ZIP" manifest.json SKILL.md package.json README.md README.en-US.md README.es.md README.fr.md README.de.md README.it.md \
+          zip -r "$ZIP" manifest.json SKILL.md package.json README.md README.pt-BR.md README.es.md README.fr.md README.de.md README.it.md \
             LICENSE icon.png app.png dist node_modules -x "node_modules/.cache/*"
           echo "asset=$ZIP" >> "$GITHUB_ENV"
 

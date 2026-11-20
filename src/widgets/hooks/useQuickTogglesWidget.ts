@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import sdk from 'momai:sdk'
 import { isOnState } from './useStatusWidget'
 import {
@@ -28,6 +28,10 @@ export function useQuickTogglesWidget(isEditing: boolean, entityIds: string[]): 
   const [error, setError] = useState('')
   const [rows, setRows] = useState<ToggleRow[]>([])
   const key = entityIds.join('|')
+  const latestIntendedRef = useRef<Map<string, boolean>>(new Map())
+  const desiredMapRef = useRef<Map<string, boolean>>(new Map())
+  const lastSentMapRef = useRef<Map<string, boolean>>(new Map())
+  const inFlightMapRef = useRef<Map<string, Promise<void>>>(new Map())
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -79,35 +83,70 @@ export function useQuickTogglesWidget(isEditing: boolean, entityIds: string[]): 
 
   const toggle = useCallback(
     async (device: ToggleRow): Promise<void> => {
-      const currentOn = isOnState(device.state)
+      const currentOn = latestIntendedRef.current.has(device.id)
+        ? latestIntendedRef.current.get(device.id)!
+        : isOnState(device.state)
       const targetOn = !currentOn
 
-      // Optimistic update: flip state immediately
+      latestIntendedRef.current.set(device.id, targetOn)
+      desiredMapRef.current.set(device.id, targetOn)
+
+      // Optimistic update: flip state immediately on every click
       setRows((prev) =>
         prev.map((row) =>
           row.id === device.id ? { ...row, state: targetOn ? 'on' : 'off', pending: true } : row
         )
       )
 
-      try {
-        // Explicitly set 'on' or 'off' so the action is never inverted by latency or stale state
-        await setWidgetDeviceState(device.id, targetOn)
-        setRows((prev) =>
-          prev.map((row) => (row.id === device.id ? { ...row, pending: false } : row))
-        )
-        setTimeout(() => {
-          void refresh()
-        }, 600)
-      } catch {
-        // Revert to previous state on error
-        setRows((prev) =>
-          prev.map((row) =>
-            row.id === device.id ? { ...row, state: currentOn ? 'on' : 'off', pending: false } : row
-          )
-        )
+      const existing = inFlightMapRef.current.get(device.id)
+      if (existing) {
+        return existing
       }
+
+      const runner = (async () => {
+        try {
+          while (desiredMapRef.current.has(device.id)) {
+            const desiredOn = desiredMapRef.current.get(device.id)!
+            desiredMapRef.current.delete(device.id)
+
+            if (lastSentMapRef.current.get(device.id) === desiredOn) {
+              continue
+            }
+
+            try {
+              // Explicitly set 'on' or 'off' so the action is never inverted by latency or stale state
+              await setWidgetDeviceState(device.id, desiredOn)
+              lastSentMapRef.current.set(device.id, desiredOn)
+            } catch {
+              if (!desiredMapRef.current.has(device.id)) {
+                const rollbackOn = lastSentMapRef.current.has(device.id)
+                  ? lastSentMapRef.current.get(device.id)!
+                  : !desiredOn
+                latestIntendedRef.current.set(device.id, rollbackOn)
+                setRows((prev) =>
+                  prev.map((row) =>
+                    row.id === device.id
+                      ? { ...row, state: rollbackOn ? 'on' : 'off', pending: false }
+                      : row
+                  )
+                )
+              }
+            }
+          }
+        } finally {
+          inFlightMapRef.current.delete(device.id)
+          lastSentMapRef.current.delete(device.id)
+          latestIntendedRef.current.delete(device.id)
+          setRows((prev) =>
+            prev.map((row) => (row.id === device.id ? { ...row, pending: false } : row))
+          )
+        }
+      })()
+
+      inFlightMapRef.current.set(device.id, runner)
+      return runner
     },
-    [refresh]
+    []
   )
 
   return { loading, error, rows, refresh, toggle }

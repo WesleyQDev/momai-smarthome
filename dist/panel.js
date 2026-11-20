@@ -1545,7 +1545,7 @@ function useSmartHomeI18n() {
 
 // src/shared/hostApi.ts
 var DEFAULT_API_BASE = "http://127.0.0.1:8050";
-var EXT_FETCH_TIMEOUT_MS = 1e4;
+var EXT_FETCH_TIMEOUT_MS = 15e3;
 function getApiBaseUrl2() {
   try {
     const host = window?.momaiAPI || window?.api;
@@ -1980,13 +1980,9 @@ function DeviceControlCardContent({
                 } else {
                   const sseBrightness = updatedDevice.state?.brightness;
                   const sseOn = updatedDevice.state?.on;
-                  let confirmed = false;
-                  if (sseBrightness != null && Math.abs(sseBrightness - brightnessRef.current) <= 1) {
-                    confirmed = true;
-                  }
-                  if (sseOn !== void 0 && sseOn === isOnRef.current) {
-                    confirmed = true;
-                  }
+                  const onMatches = sseOn === void 0 || sseOn === isOnRef.current;
+                  const brightnessMatches = sseBrightness == null || Math.abs(sseBrightness - brightnessRef.current) <= 1;
+                  const confirmed = !payload.data?.optimistic && onMatches && brightnessMatches && (sseOn !== void 0 || sseBrightness != null);
                   if (confirmed) {
                     isUserInteractingRef.current = false;
                     if (interactionResetTimerRef.current) {
@@ -2126,7 +2122,7 @@ function DeviceControlCardContent({
     interactionResetTimerRef.current = setTimeout(() => {
       isUserInteractingRef.current = false;
       interactionResetTimerRef.current = null;
-    }, 800);
+    }, 4500);
   };
   const handleBrightnessChange = (pct) => {
     beginUserInteraction();
@@ -2179,42 +2175,64 @@ function DeviceControlCardContent({
     return device.domain === "light" || device.domain === "switch" || device.domain === "fan" ? device.domain : "light";
   })();
   const isTogglingRef = React3.useRef(false);
+  const desiredToggleStateRef = React3.useRef(null);
+  const lastSentToggleStateRef = React3.useRef(null);
   const handleToggle = async () => {
-    if (isTogglingRef.current) return;
-    isTogglingRef.current = true;
-    const nextState = !isOn;
+    const nextState = !isOnRef.current;
     beginUserInteraction();
     setIsOn(nextState);
     isOnRef.current = nextState;
+    desiredToggleStateRef.current = nextState;
     if (onToggle) {
       onToggle({ ...device, state: { ...device.state, on: nextState } });
     }
-    const service = nextState ? "turn_on" : "turn_off";
+    if (isTogglingRef.current) {
+      return;
+    }
+    isTogglingRef.current = true;
     const related = device.attributes?.relatedEntities || [device];
-    const promises = related.map((target) => {
-      const targetDomain = target.domain === "remote" || target.domain === "media_player" || target.domain === "light" || target.domain === "switch" || target.domain === "fan" ? target.domain : toggleDomain;
-      return executeService(targetDomain, service, { entity_id: target.id });
-    });
     try {
-      const results = await Promise.all(promises);
-      const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
-      if (failed) {
-        setIsOn(!nextState);
-        isOnRef.current = !nextState;
-        if (onToggle) {
-          onToggle({ ...device, state: { ...device.state, on: !nextState } });
+      while (desiredToggleStateRef.current !== null) {
+        const targetState = desiredToggleStateRef.current;
+        desiredToggleStateRef.current = null;
+        if (lastSentToggleStateRef.current === targetState) {
+          continue;
+        }
+        const service = targetState ? "turn_on" : "turn_off";
+        const promises = related.map((target) => {
+          const targetDomain = target.domain === "remote" || target.domain === "media_player" || target.domain === "light" || target.domain === "switch" || target.domain === "fan" ? target.domain : toggleDomain;
+          return executeService(targetDomain, service, { entity_id: target.id });
+        });
+        try {
+          const results = await Promise.all(promises);
+          const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
+          if (failed) {
+            if (desiredToggleStateRef.current === null) {
+              const rollbackState = lastSentToggleStateRef.current !== null ? lastSentToggleStateRef.current : !targetState;
+              setIsOn(rollbackState);
+              isOnRef.current = rollbackState;
+              if (onToggle) {
+                onToggle({ ...device, state: { ...device.state, on: rollbackState } });
+              }
+            }
+          } else {
+            lastSentToggleStateRef.current = targetState;
+            beginUserInteraction();
+          }
+        } catch {
+          if (desiredToggleStateRef.current === null) {
+            const rollbackState = lastSentToggleStateRef.current !== null ? lastSentToggleStateRef.current : !targetState;
+            setIsOn(rollbackState);
+            isOnRef.current = rollbackState;
+            if (onToggle) {
+              onToggle({ ...device, state: { ...device.state, on: rollbackState } });
+            }
+          }
         }
       }
-    } catch {
-      setIsOn(!nextState);
-      isOnRef.current = !nextState;
-      if (onToggle) {
-        onToggle({ ...device, state: { ...device.state, on: !nextState } });
-      }
     } finally {
-      setTimeout(() => {
-        isTogglingRef.current = false;
-      }, 400);
+      isTogglingRef.current = false;
+      lastSentToggleStateRef.current = null;
     }
   };
   const handleSendRemoteCommand = async (command) => {

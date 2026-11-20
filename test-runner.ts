@@ -658,6 +658,241 @@ async function runTests() {
   assert('cômodo resolvido pelo registro de áreas', areaDevice.room === 'Sala')
   await areaProvider.disconnect()
 
+  // =========================================================================
+  // SUITE 10: Per-Device Command Queue, Coalescing & Tuya Delay Guards
+  // =========================================================================
+  const http = require('http')
+  let mockHaState = 'off'
+  let postDelayMs = 120
+  let dropNextServicePost = false
+  const recordedPosts: Array<{ url: string; body: any }> = []
+
+  const haMockServer = http.createServer((req, res) => {
+    const reqUrl = req.url || ''
+    let body = ''
+    req.on('data', (chunk) => { body += chunk })
+    req.on('end', () => {
+      if (reqUrl.startsWith('/api/config') && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ version: '2026.2.3', location_name: 'Casa' }))
+        return
+      }
+      if (reqUrl === '/api/states' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify([
+          {
+            entity_id: 'light.luz_neco',
+            state: mockHaState,
+            attributes: { friendly_name: 'Luz Neco' }
+          }
+        ]))
+        return
+      }
+      if (reqUrl.startsWith('/api/states/light.luz_neco') && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          entity_id: 'light.luz_neco',
+          state: mockHaState,
+          attributes: { friendly_name: 'Luz Neco' }
+        }))
+        return
+      }
+      if (reqUrl.startsWith('/api/services/light/') && req.method === 'POST') {
+        if (dropNextServicePost) {
+          dropNextServicePost = false
+          req.socket.destroy()
+          return
+        }
+        let parsed = {}
+        try { parsed = body ? JSON.parse(body) : {} } catch {}
+        recordedPosts.push({ url: reqUrl, body: parsed })
+        setTimeout(() => {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify([]))
+        }, postDelayMs)
+        return
+      }
+      res.writeHead(404)
+      res.end()
+    })
+  })
+
+  await new Promise<void>((resolve) => haMockServer.listen(0, '127.0.0.1', () => resolve()))
+  const mockAddr = haMockServer.address()
+  const mockHaUrl = `http://127.0.0.1:${mockAddr.port}`
+
+  try {
+    // Test 10.1: Rapid 10-click spam coalescing on slow HA server
+    const queueProvider = new HomeAssistantProvider({ url: mockHaUrl, token: 'test_token' })
+    queueProvider.connected = true
+    queueProvider.cachedDevices.set('light.luz_neco', {
+      id: 'light.luz_neco',
+      name: 'Luz Neco',
+      domain: 'light',
+      provider: 'Home Assistant',
+      state: { on: false, rawState: 'off' }
+    })
+
+    recordedPosts.length = 0
+    postDelayMs = 120
+    // Start OFF, then 9 rapid clicks ending ON: ON, OFF, ON, OFF, ON, OFF, ON, OFF, ON, OFF -> final OFF!
+    // Wait: let's do 10 alternating calls starting with turnOn, ending with turnOff:
+    const spamPromises = []
+    for (let i = 0; i < 10; i++) {
+      const actionPromise = i % 2 === 0
+        ? queueProvider.turnOn('light.luz_neco')
+        : queueProvider.turnOff('light.luz_neco')
+      spamPromises.push(actionPromise)
+    }
+    const spamResults = await Promise.all(spamPromises)
+    assert(
+      'Test 10.1: 10 cliques rápidos coalescem para <= 2 POSTs ao HA (nunca 10)',
+      recordedPosts.length >= 1 &&
+        recordedPosts.length <= 2 &&
+        recordedPosts[recordedPosts.length - 1].url === '/api/services/light/turn_off' &&
+        spamResults.every((r) => r && r.success === true) &&
+        queueProvider.cachedDevices.get('light.luz_neco')?.state?.on === false
+    )
+
+    // Test 10.2: Even-click round-trip cancellation (turnOn -> turnOff -> turnOn while turnOn is in flight = 1 POST)
+    recordedPosts.length = 0
+    const p1 = queueProvider.turnOn('light.luz_neco')
+    const p2 = queueProvider.turnOff('light.luz_neco')
+    const p3 = queueProvider.turnOn('light.luz_neco')
+    const cancelResults = await Promise.all([p1, p2, p3])
+    assert(
+      'Test 10.2: retorno ao estado já aplicado evita POST redundante (apenas 1 POST enviado)',
+      recordedPosts.length === 1 &&
+        recordedPosts[0].url === '/api/services/light/turn_on' &&
+        cancelResults.every((r) => r && r.success === true) &&
+        queueProvider.cachedDevices.get('light.luz_neco')?.state?.on === true
+    )
+
+    // Test 10.3: Stale GET /api/states poll & stale WS state_changed do not revert state during Tuya delay
+    mockHaState = 'off' // HA hasn't received Tuya's MQTT update yet!
+    const listedDuringDelay = await queueProvider.listDevices()
+    const lightAfterPoll = listedDuringDelay.find((d) => d.id === 'light.luz_neco')
+    const singlePollDuringDelay = await queueProvider.getDeviceState('light.luz_neco')
+
+    let staleWsEmitted = false
+    const onStaleCheck = (evt: any) => {
+      if (evt?.entityId === 'light.luz_neco' && evt?.device?.state?.on === false) {
+        staleWsEmitted = true
+      }
+    }
+    queueProvider.on('state_changed', onStaleCheck)
+    queueProvider._handleWsMessage({
+      type: 'event',
+      event: {
+        event_type: 'state_changed',
+        data: {
+          entity_id: 'light.luz_neco',
+          new_state: {
+            entity_id: 'light.luz_neco',
+            state: 'off',
+            attributes: { friendly_name: 'Luz Neco' }
+          }
+        }
+      }
+    })
+    queueProvider.off('state_changed', onStaleCheck)
+
+    assert(
+      'Test 10.3: listDevices, getDeviceState e WS stale não revertem estado otimista durante atraso Tuya',
+      lightAfterPoll?.state?.on === true &&
+        singlePollDuringDelay?.state?.on === true &&
+        queueProvider.cachedDevices.get('light.luz_neco')?.state?.on === true &&
+        staleWsEmitted === false
+    )
+
+    // Once HA catches up via WS with state: 'on', it updates cleanly
+    let confirmedWsEmitted = false
+    const onConfirmCheck = (evt: any) => {
+      if (evt?.entityId === 'light.luz_neco' && evt?.device?.state?.on === true) {
+        confirmedWsEmitted = true
+      }
+    }
+    queueProvider.on('state_changed', onConfirmCheck)
+    queueProvider._handleWsMessage({
+      type: 'event',
+      event: {
+        event_type: 'state_changed',
+        data: {
+          entity_id: 'light.luz_neco',
+          new_state: {
+            entity_id: 'light.luz_neco',
+            state: 'on',
+            attributes: { friendly_name: 'Luz Neco' }
+          }
+        }
+      }
+    })
+    queueProvider.off('state_changed', onConfirmCheck)
+    assert(
+      'Test 10.3b: confirmação WS com estado esperado ("on") é aceita normalmente',
+      confirmedWsEmitted === true && queueProvider.cachedDevices.get('light.luz_neco')?.state?.on === true
+    )
+
+    // Test 10.4: Transient ECONNRESET automatic retry on _post
+    recordedPosts.length = 0
+    postDelayMs = 20
+    dropNextServicePost = true
+    const retryRes = await queueProvider.turnOff('light.luz_neco')
+    assert(
+      'Test 10.4: erro transitório de socket (ECONNRESET) faz retry automático e conclui turnOff',
+      retryRes && retryRes.success === true && recordedPosts.length === 1 && recordedPosts[0].url === '/api/services/light/turn_off'
+    )
+
+    await queueProvider.disconnect()
+
+    // Test 10.5: ensureConnected does not wipe cachedDevices or call init when provider is already registered
+    const stableConnector = new ConnectorCls({ bridge: createMemoryBridge() })
+    const haInst = new HomeAssistantProvider({ url: 'http://127.0.0.1:1', token: 'tok' })
+    haInst.cachedDevices.set('light.luz_neco', { id: 'light.luz_neco', state: { on: true } })
+    haInst.connect = async () => {
+      const e: any = new Error('transient')
+      e.code = 'ha_network'
+      throw e
+    }
+    stableConnector.devices.providers.set('homeassistant', haInst)
+    stableConnector.connections = [{ id: 'ha_1', provider_type: 'homeassistant' }]
+    let stableInitCalled = 0
+    stableConnector.init = async () => {
+      stableInitCalled++
+      return stableConnector.getStatus()
+    }
+    await stableConnector.ensureConnected(mockMomai)
+    assert(
+      'Test 10.5: ensureConnected preserva cachedDevices e não chama init() quando provider HA já existe',
+      stableInitCalled === 0 &&
+        stableConnector.devices.providers.get('homeassistant') === haInst &&
+        haInst.cachedDevices.has('light.luz_neco')
+    )
+
+    // Test 10.6: executeTool skips blocking preflight ensureConnected when HA provider has url+token
+    const prevEnsure = MomAIHomeConnector.ensureConnected
+    let preflightCalled = 0
+    MomAIHomeConnector.ensureConnected = async () => {
+      preflightCalled++
+      return MomAIHomeConnector.getStatus()
+    }
+    MomAIHomeConnector.devices.providers.set('homeassistant', {
+      url: mockHaUrl,
+      token: 'test_token',
+      connected: false,
+      turnOn: async () => ({ success: true })
+    })
+    const directRes = await runtime.executeTool('turnOnDevice', { deviceId: 'light.luz_neco' }, mockMomai)
+    MomAIHomeConnector.ensureConnected = prevEnsure
+    MomAIHomeConnector.devices.providers.clear()
+    assert(
+      'Test 10.6: turnOnDevice pula preflight ensureConnected quando provider HA já tem url e token',
+      directRes && directRes.ok === true && preflightCalled === 0
+    )
+  } finally {
+    await new Promise<void>((resolve) => haMockServer.close(() => resolve()))
+  }
+
   cleanupTestData()
   console.log(`\n=== Resultado: ${passed} passaram, ${failed} falharam ===`)
   process.exit(failed > 0 ? 1 : 0)

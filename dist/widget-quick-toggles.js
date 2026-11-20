@@ -1518,7 +1518,7 @@ import sdk from "momai:sdk";
 
 // src/shared/hostApi.ts
 var DEFAULT_API_BASE = "http://127.0.0.1:8050";
-var EXT_FETCH_TIMEOUT_MS = 1e4;
+var EXT_FETCH_TIMEOUT_MS = 15e3;
 function getApiBaseUrl() {
   try {
     const host = window?.momaiAPI || window?.api;
@@ -1627,13 +1627,17 @@ function isOnState(state) {
 }
 
 // src/widgets/hooks/useQuickTogglesWidget.ts
-import { useCallback as useCallback2, useEffect as useEffect3, useState as useState3 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect3, useRef, useState as useState3 } from "react";
 import sdk3 from "momai:sdk";
 function useQuickTogglesWidget(isEditing, entityIds) {
   const [loading, setLoading] = useState3(true);
   const [error, setError] = useState3("");
   const [rows, setRows] = useState3([]);
   const key = entityIds.join("|");
+  const latestIntendedRef = useRef(/* @__PURE__ */ new Map());
+  const desiredMapRef = useRef(/* @__PURE__ */ new Map());
+  const lastSentMapRef = useRef(/* @__PURE__ */ new Map());
+  const inFlightMapRef = useRef(/* @__PURE__ */ new Map());
   const refresh = useCallback2(async () => {
     setLoading(true);
     setError("");
@@ -1675,30 +1679,55 @@ function useQuickTogglesWidget(isEditing, entityIds) {
   }, [isEditing]);
   const toggle = useCallback2(
     async (device) => {
-      const currentOn = isOnState(device.state);
+      const currentOn = latestIntendedRef.current.has(device.id) ? latestIntendedRef.current.get(device.id) : isOnState(device.state);
       const targetOn = !currentOn;
+      latestIntendedRef.current.set(device.id, targetOn);
+      desiredMapRef.current.set(device.id, targetOn);
       setRows(
         (prev) => prev.map(
           (row) => row.id === device.id ? { ...row, state: targetOn ? "on" : "off", pending: true } : row
         )
       );
-      try {
-        await setWidgetDeviceState(device.id, targetOn);
-        setRows(
-          (prev) => prev.map((row) => row.id === device.id ? { ...row, pending: false } : row)
-        );
-        setTimeout(() => {
-          void refresh();
-        }, 600);
-      } catch {
-        setRows(
-          (prev) => prev.map(
-            (row) => row.id === device.id ? { ...row, state: currentOn ? "on" : "off", pending: false } : row
-          )
-        );
+      const existing = inFlightMapRef.current.get(device.id);
+      if (existing) {
+        return existing;
       }
+      const runner = (async () => {
+        try {
+          while (desiredMapRef.current.has(device.id)) {
+            const desiredOn = desiredMapRef.current.get(device.id);
+            desiredMapRef.current.delete(device.id);
+            if (lastSentMapRef.current.get(device.id) === desiredOn) {
+              continue;
+            }
+            try {
+              await setWidgetDeviceState(device.id, desiredOn);
+              lastSentMapRef.current.set(device.id, desiredOn);
+            } catch {
+              if (!desiredMapRef.current.has(device.id)) {
+                const rollbackOn = lastSentMapRef.current.has(device.id) ? lastSentMapRef.current.get(device.id) : !desiredOn;
+                latestIntendedRef.current.set(device.id, rollbackOn);
+                setRows(
+                  (prev) => prev.map(
+                    (row) => row.id === device.id ? { ...row, state: rollbackOn ? "on" : "off", pending: false } : row
+                  )
+                );
+              }
+            }
+          }
+        } finally {
+          inFlightMapRef.current.delete(device.id);
+          lastSentMapRef.current.delete(device.id);
+          latestIntendedRef.current.delete(device.id);
+          setRows(
+            (prev) => prev.map((row) => row.id === device.id ? { ...row, pending: false } : row)
+          );
+        }
+      })();
+      inFlightMapRef.current.set(device.id, runner);
+      return runner;
     },
-    [refresh]
+    []
   );
   return { loading, error, rows, refresh, toggle };
 }

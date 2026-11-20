@@ -793,6 +793,9 @@ var require_homeAssistant = __commonJS({
       "system_health"
     ]);
     var REQUEST_TIMEOUT_MS = 4e3;
+    var SERVICE_TIMEOUT_MS = 1e4;
+    var STATE_GUARD_MS = 5e3;
+    var TRANSIENT_RETRY_DELAY_MS = 150;
     var TRANSIENT_ERRORS_BEFORE_DISCONNECT = 10;
     var DISCONNECT_PROBE_DELAY_MS = 5e3;
     var COLOR_NAME_TO_RGB = {
@@ -862,6 +865,7 @@ var require_homeAssistant = __commonJS({
         this._areasAttempted = false;
         this._wsPending = /* @__PURE__ */ new Map();
         this._noSourceEntities = /* @__PURE__ */ new Set();
+        this._deviceCommandState = /* @__PURE__ */ new Map();
       }
       async _wsRequest(type, timeoutMs = 5e3) {
         return new Promise((resolve, reject) => {
@@ -1126,6 +1130,10 @@ var require_homeAssistant = __commonJS({
               return;
             }
             const normalized = this._normalizeEntity(eventData.new_state);
+            const guard = this._shouldGuardState(normalized.id, normalized.state?.on);
+            if (guard.guarded) {
+              return;
+            }
             this.cachedDevices.set(normalized.id, normalized);
             this.emit("state_changed", { device: normalized, entityId: normalized.id });
           }
@@ -1178,23 +1186,35 @@ var require_homeAssistant = __commonJS({
           this.wsConnected = false;
         }
       }
-      _get(urlPath) {
+      _isTransientSocketError(err) {
+        if (!err) return false;
+        if (err.code === "ha_timeout" || err.code === "ha_auth" || err.code === "ha_http") {
+          return false;
+        }
+        const code = String(err.code || "").toUpperCase();
+        const msg = String(err.message || "").toLowerCase();
+        return code === "ECONNRESET" || code === "EPIPE" || code === "ECONNABORTED" || msg.includes("socket hang up") || msg.includes("econnreset");
+      }
+      _requestOnce(method, urlPath, payload, timeoutMs = REQUEST_TIMEOUT_MS) {
         return new Promise((resolve, reject) => {
           let settled = false;
           const parsedUrl = new URL(urlPath, this.url.replace(/\/$/, ""));
-          const isHttps = parsedUrl.protocol === "https:";
-          const transport = isHttps ? https : http;
+          const transport = parsedUrl.protocol === "https:" ? https : http;
+          const postData = method === "POST" ? JSON.stringify(payload ?? {}) : null;
+          const headers = {
+            Authorization: `Bearer ${this.token}`,
+            "Content-Type": "application/json",
+            Connection: "close"
+          };
+          if (method === "GET") {
+            headers["Cache-Control"] = "no-cache, no-store";
+            headers.Pragma = "no-cache";
+          } else if (postData !== null) {
+            headers["Content-Length"] = Buffer.byteLength(postData);
+          }
           const req = transport.request(
             parsedUrl.toString(),
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${this.token}`,
-                "Content-Type": "application/json",
-                "Cache-Control": "no-cache, no-store",
-                Pragma: "no-cache"
-              }
-            },
+            { method, agent: false, headers },
             (res) => {
               let body = "";
               res.on("data", (chunk) => body += chunk);
@@ -1202,18 +1222,19 @@ var require_homeAssistant = __commonJS({
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
-                if (res.statusCode >= 200 && res.statusCode < 300) {
+                const status = res.statusCode ?? 0;
+                if (status >= 200 && status < 300) {
                   try {
                     resolve(JSON.parse(body));
                   } catch {
                     resolve(null);
                   }
-                } else if (res.statusCode === 401 || res.statusCode === 403) {
-                  const err = new Error(`Token do Home Assistant inv\xE1lido ou expirado (HTTP ${res.statusCode})`);
+                } else if (status === 401 || status === 403) {
+                  const err = new Error(`Token do Home Assistant inv\xE1lido ou expirado (HTTP ${status})`);
                   err.code = "ha_auth";
                   reject(err);
                 } else {
-                  const err = new Error(`HA API error ${res.statusCode}: ${body.slice(0, 200)}`);
+                  const err = new Error(`HA API error ${status}: ${body.slice(0, 200)}`);
                   err.code = "ha_http";
                   reject(err);
                 }
@@ -1223,11 +1244,12 @@ var require_homeAssistant = __commonJS({
           const timer = setTimeout(() => {
             if (settled) return;
             settled = true;
-            const err = new Error("Tempo limite ao consultar o Home Assistant (servidor lento ou offline)");
+            const msg = method === "GET" ? "Tempo limite ao consultar o Home Assistant (servidor lento ou offline)" : "Tempo limite ao chamar o Home Assistant (servidor lento ou offline)";
+            const err = new Error(msg);
             err.code = "ha_timeout";
             req.destroy(err);
             reject(err);
-          }, REQUEST_TIMEOUT_MS);
+          }, timeoutMs);
           req.on("error", (err) => {
             if (settled) return;
             settled = true;
@@ -1235,69 +1257,26 @@ var require_homeAssistant = __commonJS({
             if (!err.code) err.code = "ha_network";
             reject(err);
           });
+          if (postData !== null) req.write(postData);
           req.end();
         });
       }
+      async _requestWithRetry(method, urlPath, payload, timeoutMs = REQUEST_TIMEOUT_MS) {
+        try {
+          return await this._requestOnce(method, urlPath, payload, timeoutMs);
+        } catch (err) {
+          if (!this._isDisconnecting && this._isTransientSocketError(err)) {
+            await new Promise((r) => setTimeout(r, TRANSIENT_RETRY_DELAY_MS));
+            return this._requestOnce(method, urlPath, payload, timeoutMs);
+          }
+          throw err;
+        }
+      }
+      _get(urlPath) {
+        return this._requestWithRetry("GET", urlPath, void 0, REQUEST_TIMEOUT_MS);
+      }
       _post(urlPath, payload = {}) {
-        return new Promise((resolve, reject) => {
-          let settled = false;
-          const parsedUrl = new URL(urlPath, this.url.replace(/\/$/, ""));
-          const isHttps = parsedUrl.protocol === "https:";
-          const transport = isHttps ? https : http;
-          const postData = JSON.stringify(payload);
-          const req = transport.request(
-            parsedUrl.toString(),
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${this.token}`,
-                "Content-Type": "application/json",
-                "Content-Length": Buffer.byteLength(postData)
-              }
-            },
-            (res) => {
-              let body = "";
-              res.on("data", (chunk) => body += chunk);
-              res.on("end", () => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timer);
-                if (res.statusCode >= 200 && res.statusCode < 300) {
-                  try {
-                    resolve(JSON.parse(body));
-                  } catch {
-                    resolve(null);
-                  }
-                } else if (res.statusCode === 401 || res.statusCode === 403) {
-                  const err = new Error(`Token do Home Assistant inv\xE1lido ou expirado (HTTP ${res.statusCode})`);
-                  err.code = "ha_auth";
-                  reject(err);
-                } else {
-                  const err = new Error(`HA API error ${res.statusCode}: ${body.slice(0, 200)}`);
-                  err.code = "ha_http";
-                  reject(err);
-                }
-              });
-            }
-          );
-          const timer = setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            const err = new Error("Tempo limite ao chamar o Home Assistant (servidor lento ou offline)");
-            err.code = "ha_timeout";
-            req.destroy(err);
-            reject(err);
-          }, REQUEST_TIMEOUT_MS);
-          req.on("error", (err) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            if (!err.code) err.code = "ha_network";
-            reject(err);
-          });
-          req.write(postData);
-          req.end();
-        });
+        return this._requestWithRetry("POST", urlPath, payload, SERVICE_TIMEOUT_MS);
       }
       async connect() {
         this._isDisconnecting = false;
@@ -1357,8 +1336,97 @@ var require_homeAssistant = __commonJS({
         this._transientErrCount = 0;
         this._setConnected(false);
         this._closeWebSocket(true);
+        for (const entry of this._deviceCommandState.values()) {
+          if (entry.desired) {
+            const waiters = entry.desired.waiters;
+            entry.desired = null;
+            for (const w of waiters) {
+              try {
+                w.resolve({ success: false, error: "Home Assistant desconectado" });
+              } catch {
+              }
+            }
+          }
+        }
+        this._deviceCommandState.clear();
         this.cachedDevices.clear();
         return { success: true, message: "Desconectado do Home Assistant" };
+      }
+      _getOrCreateCommandEntry(deviceId) {
+        let entry = this._deviceCommandState.get(deviceId);
+        if (!entry) {
+          entry = {
+            inFlight: null,
+            desired: null,
+            lastAppliedAction: void 0,
+            expectedOn: void 0,
+            guardUntil: 0
+          };
+          this._deviceCommandState.set(deviceId, entry);
+        }
+        return entry;
+      }
+      _shouldGuardState(deviceId, incomingOn) {
+        const entry = this._deviceCommandState.get(deviceId);
+        if (!entry || entry.expectedOn === void 0) return { guarded: false };
+        const isActive = Boolean(entry.inFlight) || Date.now() < entry.guardUntil;
+        if (!isActive) return { guarded: false };
+        if (incomingOn === entry.expectedOn) {
+          return { guarded: false };
+        }
+        return { guarded: true, expectedOn: entry.expectedOn };
+      }
+      _applyGuardToNormalized(device) {
+        if (!device || !device.id) return device;
+        const guard = this._shouldGuardState(device.id, device.state?.on);
+        if (!guard.guarded || guard.expectedOn === void 0) return device;
+        const expectedOn = guard.expectedOn;
+        if (!device.state) device.state = {};
+        device.state.on = expectedOn;
+        device.state.rawState = expectedOn ? "on" : "off";
+        if (device.domain === "cover") device.state.isOpen = expectedOn;
+        if (device.domain === "lock") device.state.locked = !expectedOn;
+        return device;
+      }
+      _applyOptimisticDeviceState(deviceId, on, params = {}, clearGuard = false) {
+        const entry = this._getOrCreateCommandEntry(deviceId);
+        if (clearGuard) {
+          entry.expectedOn = void 0;
+          entry.guardUntil = 0;
+        } else {
+          entry.expectedOn = on;
+          entry.guardUntil = Date.now() + STATE_GUARD_MS;
+        }
+        const domain = deviceId.split(".")[0];
+        const existing = this.cachedDevices.get(deviceId);
+        const previousOn = existing?.state?.on;
+        const brightnessVal = params.brightness !== void 0 && params.brightness !== null ? params.brightness : params.brightness_pct;
+        if (existing) {
+          if (!existing.state) existing.state = {};
+          existing.state.on = on;
+          existing.state.rawState = on ? "on" : "off";
+          if (domain === "cover") existing.state.isOpen = on;
+          if (domain === "lock") existing.state.locked = !on;
+          if (domain === "light" && brightnessVal !== void 0 && brightnessVal !== null) {
+            const b = Number(brightnessVal);
+            if (Number.isFinite(b)) {
+              existing.state.brightness = Math.max(0, Math.min(100, Math.round(b)));
+            }
+          }
+          this.cachedDevices.set(deviceId, existing);
+          this.emit("state_changed", {
+            device: existing,
+            entityId: deviceId,
+            optimistic: !clearGuard
+          });
+        } else {
+          this.emit("state_changed", {
+            device: { id: deviceId, domain, state: { on, rawState: on ? "on" : "off" } },
+            entityId: deviceId,
+            optimistic: !clearGuard
+          });
+        }
+        return previousOn;
       }
       async listDevices() {
         if (!this.connected && this.url && this.token) {
@@ -1382,7 +1450,7 @@ var require_homeAssistant = __commonJS({
             if (!domain || EXCLUDED_DOMAINS.has(domain)) return false;
             if (s.entity_id.startsWith("sensor.backup_")) return false;
             return Boolean(HA_DOMAINS[domain] || s.attributes?.friendly_name);
-          }).map((s) => this._normalizeEntity(s));
+          }).map((s) => this._applyGuardToNormalized(this._normalizeEntity(s)));
           this.cachedDevices.clear();
           devices.forEach((d) => this.cachedDevices.set(d.id, d));
           this.lastError = null;
@@ -1402,7 +1470,7 @@ var require_homeAssistant = __commonJS({
         try {
           const state = await this._get(`/api/states/${encodeURIComponent(deviceId)}?refresh=${Date.now()}`);
           if (!state) return null;
-          const device = this._normalizeEntity(state);
+          const device = this._applyGuardToNormalized(this._normalizeEntity(state));
           this.cachedDevices.set(device.id, device);
           return device;
         } catch (err) {
@@ -1410,9 +1478,17 @@ var require_homeAssistant = __commonJS({
           return null;
         }
       }
-      async turnOn(deviceId, params = {}) {
-        const device = this.cachedDevices.get(deviceId);
+      _buildPowerRequest(deviceId, action, params = {}) {
         const domain = deviceId.split(".")[0];
+        if (action === "turnOff") {
+          let servicePath2 = `/api/services/${domain}/turn_off`;
+          if (domain === "lock") servicePath2 = `/api/services/lock/lock`;
+          else if (domain === "cover") servicePath2 = `/api/services/cover/close_cover`;
+          return {
+            servicePath: servicePath2,
+            payload: { entity_id: deviceId, ...params }
+          };
+        }
         const haPayload = { entity_id: deviceId };
         let servicePath = `/api/services/${domain}/turn_on`;
         if (domain === "lock") {
@@ -1440,65 +1516,142 @@ var require_homeAssistant = __commonJS({
             haPayload[key] = params[key];
           }
         }
-        try {
-          await this._post(servicePath, haPayload);
-          if (device && device.state) {
-            device.state.on = true;
-            if (domain === "cover") device.state.isOpen = true;
-            if (domain === "lock") device.state.locked = false;
+        return { servicePath, payload: haPayload };
+      }
+      async _executePowerPost(deviceId, action, params = {}) {
+        const { servicePath, payload } = this._buildPowerRequest(deviceId, action, params);
+        await this._post(servicePath, payload);
+        this._transientErrCount = 0;
+        if (!this.connected) {
+          this._setConnected(true);
+        }
+        return action === "turnOn" ? { success: true, deviceId, action: "turnOn", payload } : { success: true, deviceId, action: "turnOff" };
+      }
+      async _drainDeviceQueue(deviceId, initialPreviousOn) {
+        const entry = this._getOrCreateCommandEntry(deviceId);
+        let fallbackOn = initialPreviousOn;
+        while (entry.desired) {
+          const current = entry.desired;
+          entry.desired = null;
+          const targetOn = current.action === "turnOn";
+          const hasExtraParams = current.action === "turnOn" && Object.keys(current.params).length > 0;
+          if (current.action === entry.lastAppliedAction && !hasExtraParams) {
+            entry.expectedOn = targetOn;
+            entry.guardUntil = Date.now() + STATE_GUARD_MS;
+            const result = targetOn ? { success: true, deviceId, action: "turnOn", payload: { entity_id: deviceId } } : { success: true, deviceId, action: "turnOff" };
+            for (const w of current.waiters) w.resolve(result);
+            continue;
           }
-          if (device) {
-            this.cachedDevices.set(deviceId, device);
-            this.emit("state_changed", { device, entityId: deviceId });
+          const rollbackOn = entry.lastAppliedAction !== void 0 ? entry.lastAppliedAction === "turnOn" : fallbackOn ?? !targetOn;
+          try {
+            const result = await this._executePowerPost(deviceId, current.action, current.params);
+            entry.lastAppliedAction = current.action;
+            fallbackOn = targetOn;
+            if (!entry.desired) {
+              entry.expectedOn = targetOn;
+              entry.guardUntil = Date.now() + STATE_GUARD_MS;
+              const cached = this.cachedDevices.get(deviceId);
+              if (cached) {
+                if (!cached.state) cached.state = {};
+                cached.state.on = targetOn;
+                cached.state.rawState = targetOn ? "on" : "off";
+                this.cachedDevices.set(deviceId, cached);
+                this.emit("state_changed", { device: cached, entityId: deviceId });
+              }
+            }
+            for (const w of current.waiters) w.resolve(result);
+          } catch (err) {
+            if (!entry.desired) {
+              this._applyOptimisticDeviceState(deviceId, rollbackOn, {}, true);
+            }
+            const failRes = { success: false, error: err?.message || String(err) };
+            for (const w of current.waiters) w.resolve(failRes);
           }
-          return { success: true, deviceId, action: "turnOn", payload: haPayload };
-        } catch (err) {
-          return { success: false, error: err.message };
         }
       }
+      _enqueuePowerCommand(deviceId, action, params = {}) {
+        const entry = this._getOrCreateCommandEntry(deviceId);
+        const targetOn = action === "turnOn";
+        const previousBeforeOptimistic = this.cachedDevices.get(deviceId)?.state?.on;
+        this._applyOptimisticDeviceState(deviceId, targetOn, params);
+        return new Promise((resolve) => {
+          const waiter = { resolve };
+          if (entry.desired) {
+            const nextParams = action === "turnOn" ? entry.desired.action === "turnOn" ? { ...entry.desired.params, ...params } : { ...params } : {};
+            entry.desired = {
+              action,
+              params: nextParams,
+              waiters: [...entry.desired.waiters, waiter]
+            };
+          } else {
+            entry.desired = {
+              action,
+              params: action === "turnOn" ? { ...params } : {},
+              waiters: [waiter]
+            };
+          }
+          if (!entry.inFlight) {
+            entry.inFlight = this._drainDeviceQueue(deviceId, previousBeforeOptimistic).finally(() => {
+              entry.inFlight = null;
+            });
+          }
+        });
+      }
+      async turnOn(deviceId, params = {}) {
+        return this._enqueuePowerCommand(deviceId, "turnOn", params || {});
+      }
       async turnOff(deviceId, params = {}) {
-        const device = this.cachedDevices.get(deviceId);
-        const domain = deviceId.split(".")[0];
-        let servicePath = `/api/services/${domain}/turn_off`;
-        if (domain === "lock") {
-          servicePath = `/api/services/lock/lock`;
-        } else if (domain === "cover") {
-          servicePath = `/api/services/cover/close_cover`;
-        }
-        try {
-          await this._post(servicePath, { entity_id: deviceId, ...params });
-          if (device && device.state) {
-            device.state.on = false;
-            if (domain === "cover") device.state.isOpen = false;
-            if (domain === "lock") device.state.locked = true;
-          }
-          if (device) {
-            this.cachedDevices.set(deviceId, device);
-            this.emit("state_changed", { device, entityId: deviceId });
-          }
-          return { success: true, deviceId, action: "turnOff" };
-        } catch (err) {
-          return { success: false, error: err.message };
-        }
+        return this._enqueuePowerCommand(deviceId, "turnOff", params || {});
       }
       async toggle(deviceId) {
         const domain = deviceId.split(".")[0];
         const device = this.cachedDevices.get(deviceId);
+        const entry = this._getOrCreateCommandEntry(deviceId);
         const toggleDomains = /* @__PURE__ */ new Set(["light", "switch", "fan", "automation", "input_boolean"]);
-        if (toggleDomains.has(domain)) {
+        if (entry.inFlight || !toggleDomains.has(domain)) {
+          const currentIntendedOn = entry.desired ? entry.desired.action === "turnOn" : entry.expectedOn !== void 0 && (entry.inFlight || Date.now() < entry.guardUntil) ? entry.expectedOn : Boolean(device?.state?.on);
+          return currentIntendedOn ? this.turnOff(deviceId) : this.turnOn(deviceId);
+        }
+        const currentOn = entry.expectedOn !== void 0 && Date.now() < entry.guardUntil ? entry.expectedOn : Boolean(device?.state?.on);
+        const nextOn = !currentOn;
+        const previousBeforeOptimistic = this.cachedDevices.get(deviceId)?.state?.on;
+        this._applyOptimisticDeviceState(deviceId, nextOn);
+        let toggleResult = null;
+        const run = (async () => {
           try {
             await this._post(`/api/services/${domain}/toggle`, { entity_id: deviceId });
-            if (device && device.state) {
-              device.state.on = !device.state.on;
-              this.cachedDevices.set(deviceId, device);
-              this.emit("state_changed", { device, entityId: deviceId });
+            this._transientErrCount = 0;
+            if (!this.connected) this._setConnected(true);
+            entry.lastAppliedAction = nextOn ? "turnOn" : "turnOff";
+            if (!entry.desired) {
+              entry.expectedOn = nextOn;
+              entry.guardUntil = Date.now() + STATE_GUARD_MS;
+              const cached = this.cachedDevices.get(deviceId);
+              if (cached) {
+                if (!cached.state) cached.state = {};
+                cached.state.on = nextOn;
+                cached.state.rawState = nextOn ? "on" : "off";
+                this.cachedDevices.set(deviceId, cached);
+                this.emit("state_changed", { device: cached, entityId: deviceId });
+              }
             }
-            return { success: true, deviceId, action: "toggle" };
+            toggleResult = { success: true, deviceId, action: "toggle" };
           } catch (err) {
-            return { success: false, error: err.message };
+            if (!entry.desired) {
+              const rollbackOn = entry.lastAppliedAction !== void 0 ? entry.lastAppliedAction === "turnOn" : previousBeforeOptimistic ?? currentOn;
+              this._applyOptimisticDeviceState(deviceId, rollbackOn, {}, true);
+            }
+            toggleResult = { success: false, error: err?.message || String(err) };
           }
-        }
-        return device?.state?.on ? this.turnOff(deviceId) : this.turnOn(deviceId);
+          if (entry.desired) {
+            await this._drainDeviceQueue(deviceId, previousBeforeOptimistic);
+          }
+        })();
+        entry.inFlight = run.finally(() => {
+          entry.inFlight = null;
+        });
+        await entry.inFlight;
+        return toggleResult;
       }
       async sendRemoteCommand(deviceId, command, extra = {}) {
         const domain = deviceId.split(".")[0];
@@ -1756,7 +1909,9 @@ var require_homeAssistant = __commonJS({
         return { success: true, results };
       }
       async callService(domain, service, data = {}) {
-        if (!this.connected) throw new Error("Home Assistant offline ou desconectado");
+        if (!this.connected && (!this.url || !this.token)) {
+          throw new Error("Home Assistant offline ou desconectado");
+        }
         const SAFE_PATH_RE = /^[a-z_][a-z0-9_]*$/;
         if (typeof domain !== "string" || !SAFE_PATH_RE.test(domain)) {
           throw new Error("Dom\xEDnio inv\xE1lido. Use apenas letras min\xFAsculas e underscore (ex.: light, media_player).");
@@ -1764,7 +1919,15 @@ var require_homeAssistant = __commonJS({
         if (typeof service !== "string" || !SAFE_PATH_RE.test(service)) {
           throw new Error("Servi\xE7o inv\xE1lido. Use apenas letras min\xFAsculas e underscore (ex.: turn_on, select_source).");
         }
-        return this._post(`/api/services/${domain}/${service}`, data);
+        if ((service === "turn_on" || service === "turn_off") && typeof data?.entity_id === "string") {
+          this._applyOptimisticDeviceState(data.entity_id, service === "turn_on", data);
+        }
+        const res = await this._post(`/api/services/${domain}/${service}`, data);
+        this._transientErrCount = 0;
+        if (!this.connected) {
+          this._setConnected(true);
+        }
+        return res;
       }
       _normalizeEntity(state) {
         const domain = state.entity_id?.split(".")[0];
@@ -1912,7 +2075,18 @@ var require_deviceManager = __commonJS({
           throw err;
         }
         if (this.providers.has(type)) {
-          await this.providers.get(type).disconnect();
+          const existing = this.providers.get(type);
+          const normalizedIncomingUrl = config?.url ? String(config.url).trim().replace(/\/+$/, "") : "";
+          const normalizedExistingUrl = existing?.url ? String(existing.url).trim().replace(/\/+$/, "") : "";
+          if (type === "homeassistant" && existing && normalizedIncomingUrl && normalizedExistingUrl === normalizedIncomingUrl && existing.token === config?.token && typeof existing.connect === "function") {
+            try {
+              return await existing.connect();
+            } catch (err) {
+              this._lastConnectFail.set(type, Date.now());
+              return { success: false, error: err.message, code: err.code || "ha_error" };
+            }
+          }
+          await existing.disconnect();
         }
         const provider = new ProviderClass(config);
         if (typeof provider.on === "function") {
@@ -2188,9 +2362,12 @@ var require_src = __commonJS({
               }
             } catch {
             }
+            return this.getStatus();
           }
-          await this.init(momai2).catch(() => {
-          });
+          if (!currentHaProvider || this.connections.length === 0) {
+            await this.init(momai2).catch(() => {
+            });
+          }
           return this.getStatus();
         }).finally(() => {
           this._ensureConnectedPromise = null;
@@ -2529,10 +2706,10 @@ async function init() {
 init().catch((err) => console.warn("[runtime] Auto-init error:", err));
 var lastStateMap = /* @__PURE__ */ new Map();
 var LAST_STATE_MAX = 5e3;
-function recordLastState(entityId, deviceState) {
+function recordLastState(entityId, deviceState, isOptimistic = false) {
   const now = Date.now();
   const last = lastStateMap.get(entityId);
-  if (last && last.state === deviceState && now - last.timestamp < 3e3) {
+  if (!isOptimistic && last && last.state === deviceState && now - last.timestamp < 800) {
     return false;
   }
   lastStateMap.set(entityId, { state: deviceState, timestamp: now });
@@ -2550,7 +2727,7 @@ if (typeof connector.on === "function") {
         const deviceState = state && typeof state === "object" ? state.on != null ? state.on ? "on" : "off" : String(state.value ?? state.state ?? "") : String(state ?? "");
         const volumeKey = state && typeof state === "object" && state.volume != null ? `${deviceState}:v${Math.round(state.volume * 100)}` : deviceState;
         const entityId = data.entityId || data.device.id;
-        if (!recordLastState(entityId, volumeKey)) {
+        if (!recordLastState(entityId, volumeKey, Boolean(data.optimistic))) {
           return;
         }
         const dispatchEvent = typeof momai !== "undefined" && momai && typeof momai.sendEvent === "function" ? (type, payload) => momai.sendEvent(type, payload) : (type, payload) => {
@@ -2945,7 +3122,11 @@ async function executeTool(toolName, args, momai2) {
     momai2 = opts.momai || opts.context || opts.payload?.context || momai2;
   }
   args = args || {};
-  if (toolName !== "connectToHomeAssistant" && toolName !== "get_actions" && toolName !== "set_actions") {
+  const DIRECT_ACTION_TOOLS = /* @__PURE__ */ new Set(["turnOnDevice", "turnOffDevice", "toggleDevice", "callService", "call_ha_service"]);
+  const existingHaProvider = connector.devices?.providers?.get?.("homeassistant");
+  const hasConfiguredProvider = Boolean(existingHaProvider && existingHaProvider.url && existingHaProvider.token);
+  const skipPreflight = toolName === "connectToHomeAssistant" || toolName === "get_actions" || toolName === "set_actions" || DIRECT_ACTION_TOOLS.has(toolName) && hasConfiguredProvider;
+  if (!skipPreflight) {
     await connector.ensureConnected(momai2).catch(() => {
     });
   }

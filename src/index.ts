@@ -142,9 +142,14 @@ class MomAIHomeConnector extends EventEmitter {
             return this.getStatus();
           }
         } catch {}
+        // Already registered with credentials: do NOT fall through to init(), which would
+        // disconnect the existing provider, clear cachedDevices, and double-connect.
+        return this.getStatus();
       }
 
-      await this.init(momai).catch(() => {});
+      if (!currentHaProvider || this.connections.length === 0) {
+        await this.init(momai).catch(() => {});
+      }
 
       return this.getStatus();
     }).finally(() => {

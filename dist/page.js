@@ -1658,7 +1658,7 @@ function useSmartHomeI18n() {
 
 // src/shared/hostApi.ts
 var DEFAULT_API_BASE = "http://127.0.0.1:8050";
-var EXT_FETCH_TIMEOUT_MS = 1e4;
+var EXT_FETCH_TIMEOUT_MS = 15e3;
 function getApiBaseUrl2() {
   try {
     const host = window?.momaiAPI || window?.api;
@@ -2142,13 +2142,9 @@ function DeviceControlCardContent({
                 } else {
                   const sseBrightness = updatedDevice.state?.brightness;
                   const sseOn = updatedDevice.state?.on;
-                  let confirmed = false;
-                  if (sseBrightness != null && Math.abs(sseBrightness - brightnessRef.current) <= 1) {
-                    confirmed = true;
-                  }
-                  if (sseOn !== void 0 && sseOn === isOnRef.current) {
-                    confirmed = true;
-                  }
+                  const onMatches = sseOn === void 0 || sseOn === isOnRef.current;
+                  const brightnessMatches = sseBrightness == null || Math.abs(sseBrightness - brightnessRef.current) <= 1;
+                  const confirmed = !payload.data?.optimistic && onMatches && brightnessMatches && (sseOn !== void 0 || sseBrightness != null);
                   if (confirmed) {
                     isUserInteractingRef.current = false;
                     if (interactionResetTimerRef.current) {
@@ -2288,7 +2284,7 @@ function DeviceControlCardContent({
     interactionResetTimerRef.current = setTimeout(() => {
       isUserInteractingRef.current = false;
       interactionResetTimerRef.current = null;
-    }, 800);
+    }, 4500);
   };
   const handleBrightnessChange = (pct) => {
     beginUserInteraction();
@@ -2341,42 +2337,64 @@ function DeviceControlCardContent({
     return device.domain === "light" || device.domain === "switch" || device.domain === "fan" ? device.domain : "light";
   })();
   const isTogglingRef = React4.useRef(false);
+  const desiredToggleStateRef = React4.useRef(null);
+  const lastSentToggleStateRef = React4.useRef(null);
   const handleToggle = async () => {
-    if (isTogglingRef.current) return;
-    isTogglingRef.current = true;
-    const nextState = !isOn;
+    const nextState = !isOnRef.current;
     beginUserInteraction();
     setIsOn(nextState);
     isOnRef.current = nextState;
+    desiredToggleStateRef.current = nextState;
     if (onToggle) {
       onToggle({ ...device, state: { ...device.state, on: nextState } });
     }
-    const service = nextState ? "turn_on" : "turn_off";
+    if (isTogglingRef.current) {
+      return;
+    }
+    isTogglingRef.current = true;
     const related = device.attributes?.relatedEntities || [device];
-    const promises = related.map((target) => {
-      const targetDomain = target.domain === "remote" || target.domain === "media_player" || target.domain === "light" || target.domain === "switch" || target.domain === "fan" ? target.domain : toggleDomain;
-      return executeService(targetDomain, service, { entity_id: target.id });
-    });
     try {
-      const results = await Promise.all(promises);
-      const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
-      if (failed) {
-        setIsOn(!nextState);
-        isOnRef.current = !nextState;
-        if (onToggle) {
-          onToggle({ ...device, state: { ...device.state, on: !nextState } });
+      while (desiredToggleStateRef.current !== null) {
+        const targetState = desiredToggleStateRef.current;
+        desiredToggleStateRef.current = null;
+        if (lastSentToggleStateRef.current === targetState) {
+          continue;
+        }
+        const service = targetState ? "turn_on" : "turn_off";
+        const promises = related.map((target) => {
+          const targetDomain = target.domain === "remote" || target.domain === "media_player" || target.domain === "light" || target.domain === "switch" || target.domain === "fan" ? target.domain : toggleDomain;
+          return executeService(targetDomain, service, { entity_id: target.id });
+        });
+        try {
+          const results = await Promise.all(promises);
+          const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
+          if (failed) {
+            if (desiredToggleStateRef.current === null) {
+              const rollbackState = lastSentToggleStateRef.current !== null ? lastSentToggleStateRef.current : !targetState;
+              setIsOn(rollbackState);
+              isOnRef.current = rollbackState;
+              if (onToggle) {
+                onToggle({ ...device, state: { ...device.state, on: rollbackState } });
+              }
+            }
+          } else {
+            lastSentToggleStateRef.current = targetState;
+            beginUserInteraction();
+          }
+        } catch {
+          if (desiredToggleStateRef.current === null) {
+            const rollbackState = lastSentToggleStateRef.current !== null ? lastSentToggleStateRef.current : !targetState;
+            setIsOn(rollbackState);
+            isOnRef.current = rollbackState;
+            if (onToggle) {
+              onToggle({ ...device, state: { ...device.state, on: rollbackState } });
+            }
+          }
         }
       }
-    } catch {
-      setIsOn(!nextState);
-      isOnRef.current = !nextState;
-      if (onToggle) {
-        onToggle({ ...device, state: { ...device.state, on: !nextState } });
-      }
     } finally {
-      setTimeout(() => {
-        isTogglingRef.current = false;
-      }, 400);
+      isTogglingRef.current = false;
+      lastSentToggleStateRef.current = null;
     }
   };
   const handleSendRemoteCommand = async (command) => {
@@ -3884,7 +3902,32 @@ function SmartHomePageInner(props) {
   const [pendingDeviceIds, setPendingDeviceIds] = useState4(/* @__PURE__ */ new Set());
   const pendingDeviceIdsRef = useRef3(/* @__PURE__ */ new Set());
   const recentInteractionsRef = useRef3(/* @__PURE__ */ new Map());
+  const latestUiIntendedOnRef = useRef3(/* @__PURE__ */ new Map());
+  const desiredToggleStateRef = useRef3(/* @__PURE__ */ new Map());
+  const lastSentToggleStateRef = useRef3(/* @__PURE__ */ new Map());
+  const inFlightToggleRunnerRef = useRef3(/* @__PURE__ */ new Map());
   const contentRef = useRef3(null);
+  const applyInteractionGuards = (devs) => {
+    const now = Date.now();
+    for (const [id, guard] of recentInteractionsRef.current.entries()) {
+      if (now >= guard.until) {
+        recentInteractionsRef.current.delete(id);
+      }
+    }
+    if (recentInteractionsRef.current.size === 0) return devs;
+    return devs.map((d) => {
+      const guard = recentInteractionsRef.current.get(d.id);
+      if (!guard || now >= guard.until) return d;
+      return {
+        ...d,
+        state: {
+          ...d.state,
+          on: guard.intendedOn,
+          rawState: guard.intendedOn ? "on" : "off"
+        }
+      };
+    });
+  };
   useEffect3(() => {
     loadStatus();
   }, []);
@@ -3923,7 +3966,7 @@ function SmartHomePageInner(props) {
           setConnectError(null);
           const devs = await api.getDevices();
           if (Array.isArray(devs)) {
-            const deduplicated = deduplicateDevicesByName(devs);
+            const deduplicated = applyInteractionGuards(deduplicateDevicesByName(devs));
             setDevices(deduplicated);
           }
         }
@@ -3957,7 +4000,7 @@ function SmartHomePageInner(props) {
               } else {
                 setConnectError(null);
                 api.getDevices().then((devs) => {
-                  if (Array.isArray(devs)) setDevices(deduplicateDevicesByName(devs));
+                  if (Array.isArray(devs)) setDevices(applyInteractionGuards(deduplicateDevicesByName(devs)));
                 }).catch(() => {
                 });
               }
@@ -3969,8 +4012,6 @@ function SmartHomePageInner(props) {
                   if (Date.now() < guard.until) {
                     if (updatedDevice.state?.on !== void 0 && updatedDevice.state.on !== guard.intendedOn) {
                       return;
-                    } else {
-                      recentInteractionsRef.current.delete(updatedDevice.id);
                     }
                   } else {
                     recentInteractionsRef.current.delete(updatedDevice.id);
@@ -4037,7 +4078,7 @@ function SmartHomePageInner(props) {
       if (connected) {
         setConnectError(null);
         const devs = await api.syncDevices();
-        const deduplicated = deduplicateDevicesByName(devs);
+        const deduplicated = applyInteractionGuards(deduplicateDevicesByName(devs));
         setDevices(deduplicated);
       } else {
         setConnectError(status?.lastError || haProvider?.error || t("errors.serverUnavailable"));
@@ -4098,7 +4139,7 @@ function SmartHomePageInner(props) {
         setConnectError(null);
       }
       const devs = await api.getDevices();
-      const deduplicated = deduplicateDevicesByName(devs || []);
+      const deduplicated = applyInteractionGuards(deduplicateDevicesByName(devs || []));
       setDevices(deduplicated);
       if (typeof localStorage !== "undefined") {
         localStorage.setItem(CACHE_DEVICES_KEY, JSON.stringify(deduplicated));
@@ -4162,6 +4203,10 @@ function SmartHomePageInner(props) {
     const nextOn = Boolean(device.state.on);
     const related = device.attributes?.relatedEntities || [device];
     const ids = /* @__PURE__ */ new Set([device.id, ...related.map((r) => r.id)]);
+    const guardUntil = Date.now() + 5e3;
+    for (const id of ids) {
+      recentInteractionsRef.current.set(id, { intendedOn: nextOn, until: guardUntil });
+    }
     setDevices(
       (prev) => prev.map((d) => {
         if (!ids.has(d.id)) return d;
@@ -4176,55 +4221,91 @@ function SmartHomePageInner(props) {
     });
   };
   const toggleDevice = async (device) => {
-    if (pendingDeviceIdsRef.current.has(device.id)) {
-      return;
-    }
     const providerType = device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant";
     const related = device.attributes?.relatedEntities || [device];
     const allIds = [device.id, ...related.map((r) => r.id)];
-    const nextOn = !device.state.on;
-    const nextPending = new Set(pendingDeviceIdsRef.current);
-    for (const id of allIds) nextPending.add(id);
-    pendingDeviceIdsRef.current = nextPending;
-    setPendingDeviceIds(new Set(nextPending));
-    const guardUntil = Date.now() + 1500;
+    const currentIntendedOn = latestUiIntendedOnRef.current.has(device.id) ? latestUiIntendedOnRef.current.get(device.id) : Boolean(device.state.on);
+    const nextOn = !currentIntendedOn;
+    latestUiIntendedOnRef.current.set(device.id, nextOn);
+    desiredToggleStateRef.current.set(device.id, nextOn);
+    const guardUntil = Date.now() + 5e3;
     for (const id of allIds) {
       recentInteractionsRef.current.set(id, { intendedOn: nextOn, until: guardUntil });
     }
     applyLocalDeviceState({ ...device, state: { ...device.state, on: nextOn } });
-    try {
-      const promises = related.map(
-        (target) => nextOn ? api.turnOnDevice(target.id, providerType) : api.turnOffDevice(target.id, providerType)
-      );
-      const results = await Promise.all(promises);
-      const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
-      if (failed) {
-        console.warn("[SmartHome] Falha ao alternar dispositivo:", results);
-        applyLocalDeviceState({ ...device, state: { ...device.state, on: !nextOn } });
-        for (const id of allIds) recentInteractionsRef.current.delete(id);
-      }
-    } catch (err) {
-      console.error("[SmartHome] Erro ao alternar dispositivo:", err);
-      applyLocalDeviceState({ ...device, state: { ...device.state, on: !nextOn } });
-      for (const id of allIds) recentInteractionsRef.current.delete(id);
-    } finally {
-      setTimeout(() => {
+    const activeRunner = inFlightToggleRunnerRef.current.get(device.id);
+    if (activeRunner) {
+      return activeRunner;
+    }
+    const nextPending = new Set(pendingDeviceIdsRef.current);
+    for (const id of allIds) nextPending.add(id);
+    pendingDeviceIdsRef.current = nextPending;
+    setPendingDeviceIds(new Set(nextPending));
+    const runner = (async () => {
+      try {
+        while (desiredToggleStateRef.current.has(device.id)) {
+          const targetOn = desiredToggleStateRef.current.get(device.id);
+          desiredToggleStateRef.current.delete(device.id);
+          if (lastSentToggleStateRef.current.get(device.id) === targetOn) {
+            continue;
+          }
+          try {
+            const results = await Promise.all(
+              related.map(
+                (target) => targetOn ? api.turnOnDevice(target.id, providerType) : api.turnOffDevice(target.id, providerType)
+              )
+            );
+            const failed = results.some((r) => !r || r.ok === false || r.success === false || Boolean(r.error));
+            if (failed) {
+              console.warn("[SmartHome] Falha ao alternar dispositivo:", results);
+              if (!desiredToggleStateRef.current.has(device.id)) {
+                const rollbackOn = lastSentToggleStateRef.current.has(device.id) ? lastSentToggleStateRef.current.get(device.id) : !targetOn;
+                latestUiIntendedOnRef.current.set(device.id, rollbackOn);
+                applyLocalDeviceState({ ...device, state: { ...device.state, on: rollbackOn } });
+                for (const id of allIds) recentInteractionsRef.current.delete(id);
+              }
+            } else {
+              lastSentToggleStateRef.current.set(device.id, targetOn);
+              const refreshedUntil = Date.now() + 5e3;
+              for (const id of allIds) {
+                recentInteractionsRef.current.set(id, { intendedOn: targetOn, until: refreshedUntil });
+              }
+            }
+          } catch (err) {
+            console.error("[SmartHome] Erro ao alternar dispositivo:", err);
+            if (!desiredToggleStateRef.current.has(device.id)) {
+              const rollbackOn = lastSentToggleStateRef.current.has(device.id) ? lastSentToggleStateRef.current.get(device.id) : !targetOn;
+              latestUiIntendedOnRef.current.set(device.id, rollbackOn);
+              applyLocalDeviceState({ ...device, state: { ...device.state, on: rollbackOn } });
+              for (const id of allIds) recentInteractionsRef.current.delete(id);
+            }
+          }
+        }
+      } finally {
+        inFlightToggleRunnerRef.current.delete(device.id);
+        lastSentToggleStateRef.current.delete(device.id);
+        latestUiIntendedOnRef.current.delete(device.id);
         const updated = new Set(pendingDeviceIdsRef.current);
         for (const id of allIds) updated.delete(id);
         pendingDeviceIdsRef.current = updated;
         setPendingDeviceIds(new Set(updated));
-      }, 300);
-    }
+      }
+    })();
+    inFlightToggleRunnerRef.current.set(device.id, runner);
+    return runner;
   };
   const setBrightness = async (device, brightness) => {
+    recentInteractionsRef.current.set(device.id, { intendedOn: true, until: Date.now() + 5e3 });
     setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, on: true, brightness } } : d));
     setSelectedDevice((prev) => prev && prev.id === device.id ? { ...prev, state: { ...prev.state, on: true, brightness } } : prev);
     try {
       const result = await api.turnOnDevice(device.id, device.provider?.toLowerCase().replace(/\s+/g, "") || "homeassistant", { brightness });
       if (result?.ok === false || result?.success === false) {
+        recentInteractionsRef.current.delete(device.id);
         setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, brightness: device.state.brightness } } : d));
       }
     } catch {
+      recentInteractionsRef.current.delete(device.id);
       setDevices((prev) => prev.map((d) => d.id === device.id ? { ...d, state: { ...d.state, brightness: device.state.brightness } } : d));
     }
   };
@@ -4429,7 +4510,6 @@ function SmartHomePageInner(props) {
             role: "switch",
             "aria-checked": Boolean(device.state.on),
             "aria-busy": pendingDeviceIds.has(device.id),
-            "aria-disabled": pendingDeviceIds.has(device.id),
             "aria-label": `${device.name}: ${device.state.on ? t("device.on") : t("device.off")}`,
             className: `sh-toggle ${device.state.on ? "sh-toggle--checked" : ""} ${pendingDeviceIds.has(device.id) ? "sh-toggle--pending" : ""}`,
             onMouseDown: (e) => e.stopPropagation(),
@@ -4437,9 +4517,6 @@ function SmartHomePageInner(props) {
             onClick: (e) => {
               e.stopPropagation();
               e.preventDefault();
-              if (pendingDeviceIdsRef.current.has(device.id)) {
-                return;
-              }
               void toggleDevice(device);
             },
             style: pendingDeviceIds.has(device.id) ? { opacity: 0.7 } : void 0
